@@ -1,0 +1,19 @@
+---
+- inputs:
+    - name: name
+      default: ""
+      description: "Name of app to be created"
+      required: true
+    - name: repository
+      default: "http://github.com/cakephp/inflector.cakephp.org"
+      description: "Repository to be synced"
+      required: false
+  tasks:
+    - name: dokku apps:create {{ .name | default "" }}
+      dokku_app:
+        app: {{ .name | default "" }}
+
+    - name: dokku clone {{ .name | default "" }}
+      dokku_sync:
+        app: {{ .name | default "" }}
+        repository: {{ .repository | default "" }}
