@@ -97,3 +97,40 @@ All implemented tasks should closely follow those available via the `ansible-dok
 
 Tasks will have both a `name` and an execution context, where the context maps to a single implemented modules. Tasks can be templated out via the variables from the `inputs` section, and may also use any functions exposed by `gliderlabs/sigil`.
 
+#### Adding a new task
+
+Task executors should be added by creating an `execute_TASK_NAME.go`. The Task name should be `lower_underscore_case`. By way of example, an `example_lollipop.go` would contain the following:
+
+```go
+package main
+
+type LollipopTask struct {
+  App   string `required:"true" yaml:"app"`
+  State string `required:"true" yaml:"state" default:"present"`
+}
+
+func (t LollipopTask) DesiredState() string {
+  return t.State
+}
+
+func (t LollipopTask) NeedsExecution() bool {
+  return true
+}
+
+func (t LollipopTask) Execute() (string, error) {
+  return "", nil
+}
+```
+
+The `LollipopTask` struct contains the fields necessary for the task. The only necessary field is `State`, which holds the desired state of the task. All other fields are completely custom for the task at hand.
+
+The `DesiredState()` function must return `t.State`.
+
+The `NeedsExecution()` function should check if the task should be executed. This may always return true, or may execute something to figure out if the task still needs execution.
+
+The `Execute()` function should actually execute the task. The return values:
+
+- `string`: a string holding the current state
+- `error`: Whether an error occurred during processing
+
+> Todo: How do we expose stdout? Should the Status object actually be more structured? Should it serialize to json directly for use by ansible?

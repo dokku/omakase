@@ -12,39 +12,6 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-type Recipe []struct {
-	Inputs []Input         `yaml:"inputs,omitempty"`
-	Tasks  []TaskContainer `yaml:"tasks,omitempty"`
-}
-
-type Input struct {
-	Name        string `yaml:"name"`
-	Default     string `yaml:"default"`
-	Description string `yaml:"description"`
-	Required    bool   `yaml:"required"`
-}
-
-type TaskContainer struct {
-	Name      string
-	DokkuApp  *DokkuApp  `yaml:"dokku_app,omitempty"`
-	DokkuSync *DokkuSync `yaml:"dokku_sync,omitempty"`
-}
-
-type Task interface {
-	Execute(context struct{}) error
-}
-
-type DokkuApp struct {
-	App   string `required:"true" yaml:"app"`
-	State string `required:"true" yaml:"state" default:"present"`
-}
-
-type DokkuSync struct {
-	App        string `required:"true" yaml:"app"`
-	Repository string `required:"true" yaml:"repository"`
-	State      string `required:"true" yaml:"state" default:"present"`
-}
-
 func parseInput(data []byte) (map[string]interface{}, []string, error) { // read variables and ensure they all exist
 	context := make(map[string]interface{})
 	required := []string{}
@@ -126,18 +93,33 @@ func main() {
 
 	tasks := []Task{}
 	for _, t := range recipe[0].Tasks {
-		// TODO: handle multiple contexts
+		// TODO: handle default state
 		if t.DokkuApp != nil {
-			tasks = append(tasks, AppTask{context: *t.DokkuApp})
+			tasks = append(tasks, *t.DokkuApp)
 			continue
 		}
 		if t.DokkuSync != nil {
-			tasks = append(tasks, SyncTask{context: *t.DokkuSync})
+			tasks = append(tasks, *t.DokkuSync)
 			continue
 		}
 	}
 
 	spew.Dump(tasks)
+	for _, task := range tasks {
+		if !task.NeedsExecution() {
+			continue
+		}
+
+		state, err := task.Execute()
+		if err != nil {
+			log.Fatalf("error: %v", err.Error())
+		}
+
+		if state != task.DesiredState() {
+			log.Fatalf("error: Invalid state found, expected=%v actual=%v", task.DesiredState(), state)
+
+		}
+	}
 
 	return
 }

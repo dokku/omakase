@@ -1,9 +1,18 @@
 package main
 
 type AppTask struct {
-	context DokkuApp
+	App   string `required:"true" yaml:"app"`
+	State string `required:"true" yaml:"state" default:"present"`
 }
 
-func (t AppTask) Execute(context struct{}) error {
-	return nil
+func (t AppTask) DesiredState() string {
+	return t.State
+}
+
+func (t AppTask) NeedsExecution() bool {
+	return true
+}
+
+func (t AppTask) Execute() (string, error) {
+	return "", nil
 }
