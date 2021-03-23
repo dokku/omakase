@@ -1,6 +1,9 @@
 # omakase
 
 > Note: this is a heavy work in progress. YMMV.
+> Should we change the name? It's a "cute" name but doesn't really help end-users
+> and could be seen as fetishisation of Japanese culture. New name suggestions
+> welcome!
 
 A method to pre-package and ship applications on Dokku.
 
