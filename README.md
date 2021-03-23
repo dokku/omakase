@@ -25,7 +25,6 @@ Create a `tasks.yml` file:
 - tasks:
     - dokku_app:
         app: inflector
-
     - dokku_sync:
         app: inflector
         repository: http://github.com/cakephp/inflector.cakephp.org
@@ -34,9 +33,25 @@ Create a `tasks.yml` file:
 Run it:
 
 ```shell
-# from the same directory as the `tasks.yml
+# from the same directory as the tasks.yml
 omakase
 ```
+
+A task file can also be specified via flag, and may be a file retrieved via http:
+
+```shell
+# alternate path
+omakase --tasks path/to/task.yml
+
+# html file
+omakase --tasks http://dokku.com/omakase/example.yml
+```
+
+Some other ideas:
+
+- This could be automatically applied from within a repository if a .dokku/tasks.yml was found. In such a case, certain tasks would be added to a denylist and would be ignored during the run (such as dokku_app or dokku_sync).
+- Dokku may expose a command such as dokku app:install that would allow users to invoke omakase to install apps.
+- A web ui could expose a web ui to customize remote task files and then call `omakase` directly on the generated output.
 
 ### Inputs
 
@@ -52,7 +67,6 @@ Each app recipe can have custom inputs as specified in the `tasks.yml`. Inputs s
   tasks:
     - dokku_app:
         app: {{ .name }}
-
     - dokku_sync:
         app: {{ .name }}
         repository: http://github.com/cakephp/inflector.cakephp.org
@@ -61,7 +75,7 @@ Each app recipe can have custom inputs as specified in the `tasks.yml`. Inputs s
 With the above, the following method is used to override the `name` variable. Omitting will use the default value.
 
 ```shell
-# from the same directory as the `tasks.yml
+# from the same directory as the tasks.yml
 omakase name=lollipop
 ```
 
@@ -75,8 +89,11 @@ Inputs can have the following properties:
 - description
 - required
 
+If all inputs are specified on the CLI, then they are injected as is. Otherwise, unless the `--no-interactive` flag is specified, `omakase` will ask for values for each input, with the cli-specified values merged onto the task file default values as defaults.
+
 ### Tasks
 
 All implemented tasks should closely follow those available via the `ansible-dokku` library. Additionally, `omakase` will expose a few custom tasks that are specific to this package to ease migration from pure ansible.
 
-Tasks will have both a `name` and a context, where the context maps to a single implemented modules. Tasks can be templated out via the variables from the `inputs` section, and may also use any functions exposed by `gliderlabs/sigil`.
+Tasks will have both a `name` and an execution context, where the context maps to a single implemented modules. Tasks can be templated out via the variables from the `inputs` section, and may also use any functions exposed by `gliderlabs/sigil`.
+
