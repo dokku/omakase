@@ -32,8 +32,9 @@ type TaskContainer struct {
 
 type Task interface {
 	DesiredState() string
-	NeedsExecution() bool
 	Execute() (string, error)
+	NeedsExecution() bool
+	SetDefaultDesiredState(state string)
 }
 
 func (i *Input) SetValue(value string) error {
@@ -67,26 +68,21 @@ func getTasks(data []byte, context map[string]interface{}) ([]Task, error) {
 	}
 
 	for _, t := range recipe[0].Tasks {
-		if t.DokkuApp != nil {
-			defaultState, err := getDefaultState(AppTask{})
-			if err != nil {
-				return tasks, fmt.Errorf("task parse error: %v", err)
-			}
-			if t.DokkuApp.State == "" {
-				t.DokkuApp.State = defaultState
-			}
-			tasks = append(tasks, *t.DokkuApp)
-			continue
+		ts := map[interface{}]Task{
+			AppTask{}:  t.DokkuApp,
+			SyncTask{}: t.DokkuSync,
 		}
-		if t.DokkuSync != nil {
-			defaultState, err := getDefaultState(SyncTask{})
+		for i, task := range ts {
+			if reflect.ValueOf(task).IsNil() {
+				continue
+			}
+
+			defaultState, err := getDefaultState(i)
 			if err != nil {
 				return tasks, fmt.Errorf("task parse error: %v", err)
 			}
-			if t.DokkuSync.State == "" {
-				t.DokkuSync.State = defaultState
-			}
-			tasks = append(tasks, *t.DokkuSync)
+			task.SetDefaultDesiredState(defaultState)
+			tasks = append(tasks, task)
 			continue
 		}
 	}
