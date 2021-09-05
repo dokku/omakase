@@ -3,14 +3,30 @@ package main
 import (
 	"io/ioutil"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 	_ "github.com/gliderlabs/sigil/builtin"
 )
 
+func getTaskYamlFilename(s []string) string {
+	for i, arg := range s {
+		if arg == "--tasks" {
+			if len(os.Args) > i {
+				return os.Args[i+1]
+			}
+		}
+		if strings.HasPrefix(arg, "--tasks=") {
+			return strings.TrimPrefix(arg, "--tasks=")
+		}
+	}
+	return "tasks.yml"
+}
+
 func main() {
-	// TODO: allow for custom path to task.yml
-	data, err := ioutil.ReadFile("tasks.yml")
+	taskFile := getTaskYamlFilename(os.Args)
+	data, err := ioutil.ReadFile(taskFile)
 	if err != nil {
 		log.Fatalf("read error: %v", err.Error())
 	}

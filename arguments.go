@@ -93,7 +93,13 @@ func parseArgs(data []byte) (map[string]interface{}, error) {
 	context := make(map[string]interface{})
 	inputs, err := getInputVariables(data)
 	if err != nil {
-		return context, fmt.Errorf("parse error: %v", err.Error())
+		return context, err
+	}
+
+	inputs["tasks"] = &Input{
+		Name:        "tasks",
+		Default:     "tasks.yml",
+		Description: "a yaml file containing a task list",
 	}
 
 	arguments := make(map[string]*Argument)
@@ -133,7 +139,7 @@ func parseArgs(data []byte) (map[string]interface{}, error) {
 
 	for name, argument := range arguments {
 		if argument.Required && !argument.HasValue() {
-			return context, fmt.Errorf("missing flag: --%s", name)
+			return context, fmt.Errorf("Missing flag '--%s'", name)
 		}
 		context[name] = argument.GetValue()
 	}
