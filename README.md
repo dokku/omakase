@@ -79,20 +79,44 @@ With the above, the following method is used to override the `name` variable. Om
 
 ```shell
 # from the same directory as the tasks.yml
-omakase name=lollipop
+omakase --name lollipop
 ```
+
+Any inputs for a given task file will also show up in the `--help` output.
 
 Inputs are injected using golang's `text/template` package via the `gliderlabs/sigil` library, and as such have access to everything `gliderlabs/sigil` does.
 
-
 Inputs can have the following properties:
 
-- name
-- default
-- description
-- required
+- name:
+    - type: `string`
+    - default: ``
+- default:
+    - type: `bool|float|int|string`
+    - default: zero-value for the type
+- description:
+    - type: `string`
+    - default: `""`
+- required:
+    - type: `bool`
+    - default: `false`
+- type:
+    - type: string
+    - default `string`
+    - options:
+         - `bool`
+         - `float`
+         - `int`
+         - `string`
 
 If all inputs are specified on the CLI, then they are injected as is. Otherwise, unless the `--no-interactive` flag is specified, `omakase` will ask for values for each input, with the cli-specified values merged onto the task file default values as defaults.
+
+Finally, the following input keys are reserved for internal usage:
+
+- `help`
+- `tasks`
+- `v`
+- `version`
 
 ### Tasks
 
@@ -123,13 +147,17 @@ func (t LollipopTask) NeedsExecution() bool {
 func (t LollipopTask) Execute() (string, error) {
   return "", nil
 }
+
+func (t *LollipopTask) SetDefaultDesiredState(state string) {
+    if t.State == "" {
+        t.State = state
+    }
+}
 ```
 
 The `LollipopTask` struct contains the fields necessary for the task. The only necessary field is `State`, which holds the desired state of the task. All other fields are completely custom for the task at hand.
 
 The `DesiredState()` function must return `t.State`.
-
-The `NeedsExecution()` function should check if the task should be executed. This may always return true, or may execute something to figure out if the task still needs execution.
 
 The `Execute()` function should actually execute the task. The return values:
 
@@ -137,3 +165,7 @@ The `Execute()` function should actually execute the task. The return values:
 - `error`: Whether an error occurred during processing
 
 > Todo: How do we expose stdout? Should the Status object actually be more structured? Should it serialize to json directly for use by ansible?
+
+The `NeedsExecution()` function should check if the task should be executed. This may always return true, or may execute something to figure out if the task still needs execution.
+
+The `SetDefaultDesiredState()` function can be implemented as shown above, and is used internally to ensure that the task has a default state if the user did not specify one.
