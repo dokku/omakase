@@ -25,9 +25,9 @@ type Input struct {
 }
 
 type TaskContainer struct {
-	Name      string
-	DokkuApp  *AppTask  `yaml:"dokku_app,omitempty"`
-	DokkuSync *SyncTask `yaml:"dokku_sync,omitempty"`
+	Name     string
+	AppTask  *AppTask  `yaml:"dokku_app,omitempty"`
+	SyncTask *SyncTask `yaml:"dokku_sync,omitempty"`
 }
 
 type Task interface {
@@ -69,8 +69,8 @@ func getTasks(data []byte, context map[string]interface{}) ([]Task, error) {
 
 	for _, t := range recipe[0].Tasks {
 		ts := map[interface{}]Task{
-			AppTask{}:  t.DokkuApp,
-			SyncTask{}: t.DokkuSync,
+			AppTask{}:  t.AppTask,
+			SyncTask{}: t.SyncTask,
 		}
 		for i, task := range ts {
 			if reflect.ValueOf(task).IsNil() {
