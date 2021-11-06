@@ -3,6 +3,7 @@ package main
 import (
 	"io/ioutil"
 	"log"
+	"omakase/tasks"
 	"os"
 	"strings"
 
@@ -36,17 +37,19 @@ func main() {
 		log.Fatalf("arg error: %v", err.Error())
 	}
 
-	tasks, err := getTasks(data, context)
+	tasks, err := tasks.GetTasks(data, context)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 
 	spew.Dump(tasks)
-	for _, task := range tasks {
+	for _, name := range tasks.Keys() {
+		task := tasks.Get(name)
 		if !task.NeedsExecution() {
 			continue
 		}
 
+		log.Printf("executing %s", name)
 		state, err := task.Execute()
 		if err != nil {
 			log.Fatalf("execute error: %v", err.Error())

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
+	"omakase/tasks"
 	"strconv"
 
 	sigil "github.com/gliderlabs/sigil"
@@ -74,16 +74,16 @@ func isFalseString(s string) bool {
 	return falseStrings[s]
 }
 
-func getInputVariables(data []byte) (map[string]*Input, error) {
+func getInputVariables(data []byte) (map[string]*tasks.Input, error) {
 	vars := make(map[string]interface{})
 	render, err := sigil.Execute(data, vars, "tasks")
 	if err != nil {
-		log.Fatalf("sigil error: %v", err.Error())
+		return map[string]*tasks.Input{}, fmt.Errorf("sigil error: %v", err.Error())
 	}
 
 	out, err := ioutil.ReadAll(&render)
 	if err != nil {
-		log.Fatalf("render error: %v", err.Error())
+		return map[string]*tasks.Input{}, fmt.Errorf("render error: %v", err.Error())
 	}
 
 	return parseInputYaml(out)
@@ -96,7 +96,7 @@ func parseArgs(data []byte) (map[string]interface{}, error) {
 		return context, err
 	}
 
-	inputs["tasks"] = &Input{
+	inputs["tasks"] = &tasks.Input{
 		Name:        "tasks",
 		Default:     "tasks.yml",
 		Description: "a yaml file containing a task list",
@@ -147,9 +147,9 @@ func parseArgs(data []byte) (map[string]interface{}, error) {
 	return context, nil
 }
 
-func parseInputYaml(data []byte) (map[string]*Input, error) { // read variables and ensure they all exist
-	inputs := make(map[string]*Input)
-	t := Recipe{}
+func parseInputYaml(data []byte) (map[string]*tasks.Input, error) { // read variables and ensure they all exist
+	inputs := make(map[string]*tasks.Input)
+	t := tasks.Recipe{}
 	if err := yaml.Unmarshal(data, &t); err != nil {
 		return inputs, err
 	}

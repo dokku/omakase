@@ -12,7 +12,7 @@
       dokku_app:
         app: {{ .name | default "" }}
 
-    - name: dokku clone {{ .name | default "" }}
-      dokku_sync:
+    - name: dokku git:sync {{ .name | default "" }}
+      dokku_git_sync:
         app: {{ .name | default "" }}
         repository: {{ .repository | default "" }}

@@ -1,8 +1,9 @@
-package main
+package tasks
 
 import (
 	"bytes"
 	"fmt"
+	"omakase/subprocess"
 	"strings"
 )
 
@@ -25,7 +26,7 @@ func (t AppTask) Execute() (string, error) {
 
 	var stderr bytes.Buffer
 
-	cmd := NewShellCmdWithArgs("dokku", command...)
+	cmd := subprocess.NewShellCmdWithArgs("dokku", command...)
 	cmd.Command.Stderr = &stderr
 	_, err := cmd.Output()
 
@@ -34,7 +35,7 @@ func (t AppTask) Execute() (string, error) {
 		state = "present"
 	}
 
-	exitcode := exitCode(err)
+	exitcode := subprocess.ExitCode(err)
 	if exitcode == 127 {
 		return state, fmt.Errorf("Command not found: dokku")
 	}
@@ -47,20 +48,23 @@ func (t AppTask) Execute() (string, error) {
 }
 
 func (t AppTask) NeedsExecution() bool {
+	state := t.State
+	if state == "" {
+		state = "present"
+	}
+
 	exists := appExists(t.App)
-	if t.State == "present" {
+	if state == "present" {
 		return !exists
 	}
 	return exists
 }
 
-func (t *AppTask) SetDefaultDesiredState(state string) {
-	if t.State == "" {
-		t.State = state
-	}
+func appExists(appName string) bool {
+	cmd := subprocess.NewShellCmdWithArgs("dokku", "--quiet", "apps:exists", appName)
+	return cmd.ExecuteQuiet()
 }
 
-func appExists(appName string) bool {
-	cmd := NewShellCmdWithArgs("dokku", "--quiet", "apps:exists", appName)
-	return cmd.ExecuteQuiet()
+func init() {
+	RegisterTask(&AppTask{})
 }

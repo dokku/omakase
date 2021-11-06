@@ -1,4 +1,4 @@
-package main
+package subprocess
 
 import (
 	"fmt"
@@ -83,7 +83,7 @@ func (sc *ShellCmd) CombinedOutput() ([]byte, error) {
 	return sc.Command.CombinedOutput()
 }
 
-func exitCode(err error) int {
+func ExitCode(err error) int {
 	exitcode := 0
 	if err != nil {
 		exitcode = 1

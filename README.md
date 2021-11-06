@@ -126,7 +126,7 @@ Tasks will have both a `name` and an execution context, where the context maps t
 
 #### Adding a new task
 
-Task executors should be added by creating an `execute_TASK_NAME.go`. The Task name should be `lower_underscore_case`. By way of example, an `example_lollipop.go` would contain the following:
+Task executors should be added by creating an `tasks/${TASK_NAME}_task.go`. The Task name should be `lower_underscore_case`. By way of example, a `tasks/lollipop_task.go` would contain the following:
 
 ```go
 package main
@@ -153,6 +153,10 @@ func (t *LollipopTask) SetDefaultDesiredState(state string) {
         t.State = state
     }
 }
+
+func init() {
+    RegisterTask(&LollipopTask{})
+}
 ```
 
 The `LollipopTask` struct contains the fields necessary for the task. The only necessary field is `State`, which holds the desired state of the task. All other fields are completely custom for the task at hand.
@@ -168,4 +172,4 @@ The `Execute()` function should actually execute the task. The return values:
 
 The `NeedsExecution()` function should check if the task should be executed. This may always return true, or may execute something to figure out if the task still needs execution.
 
-The `SetDefaultDesiredState()` function can be implemented as shown above, and is used internally to ensure that the task has a default state if the user did not specify one.
+The `init()` function registers the task for usage within a recipe.
