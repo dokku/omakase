@@ -47,19 +47,6 @@ func (t AppTask) Execute() (string, error) {
 	return state, nil
 }
 
-func (t AppTask) NeedsExecution() bool {
-	state := t.State
-	if state == "" {
-		state = "present"
-	}
-
-	exists := appExists(t.App)
-	if state == "present" {
-		return !exists
-	}
-	return exists
-}
-
 func appExists(appName string) bool {
 	cmd := subprocess.NewShellCmdWithArgs("dokku", "--quiet", "apps:exists", appName)
 	return cmd.ExecuteQuiet()

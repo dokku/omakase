@@ -39,7 +39,6 @@ type Tasks struct {
 type Task interface {
 	DesiredState() string
 	Execute() (string, error)
-	NeedsExecution() bool
 }
 
 // Global registry for Tasks.

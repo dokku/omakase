@@ -15,15 +15,6 @@ func (t GitSyncTask) Execute() (string, error) {
 	return "", nil
 }
 
-func (t GitSyncTask) NeedsExecution() bool {
-	state := t.State
-	if state == "" {
-		state = "present"
-	}
-
-	return true
-}
-
 func init() {
 	RegisterTask(&GitSyncTask{})
 }

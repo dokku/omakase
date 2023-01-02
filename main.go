@@ -45,10 +45,6 @@ func main() {
 	spew.Dump(tasks)
 	for _, name := range tasks.Keys() {
 		task := tasks.Get(name)
-		if !task.NeedsExecution() {
-			continue
-		}
-
 		log.Printf("executing %s", name)
 		state, err := task.Execute()
 		if err != nil {

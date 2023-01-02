@@ -140,10 +140,6 @@ func (t LollipopTask) DesiredState() string {
   return t.State
 }
 
-func (t LollipopTask) NeedsExecution() bool {
-  return true
-}
-
 func (t LollipopTask) Execute() (string, error) {
   return "", nil
 }
@@ -169,7 +165,5 @@ The `Execute()` function should actually execute the task. The return values:
 - `error`: Whether an error occurred during processing
 
 > Todo: How do we expose stdout? Should the Status object actually be more structured? Should it serialize to json directly for use by ansible?
-
-The `NeedsExecution()` function should check if the task should be executed. This may always return true, or may execute something to figure out if the task still needs execution.
 
 The `init()` function registers the task for usage within a recipe.
