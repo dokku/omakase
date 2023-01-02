@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/davecgh/go-spew v1.1.1
-	github.com/fatih/structtag v1.2.0
 	github.com/gliderlabs/sigil v0.9.0
 	github.com/gobuffalo/flect v0.2.4
 	github.com/json-iterator/go v1.1.12
