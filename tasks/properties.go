@@ -64,7 +64,7 @@ func unsetProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 	}
 
 	if pctx.Value != "" {
-		state.Error = fmt.Errorf("setting a state of 'abset' is invalid with a value for 'value'")
+		state.Error = fmt.Errorf("setting a state of 'absent' is invalid with a value for 'value'")
 		return state
 	}
 
@@ -78,6 +78,6 @@ func unsetProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 	}
 
 	state.Changed = true
-	state.State = "present"
+	state.State = "absent"
 	return state
 }
