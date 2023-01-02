@@ -15,48 +15,8 @@ func (t AppTask) DesiredState() string {
 
 func (t AppTask) Execute() TaskOutputState {
 	funcMap := map[string]func(string) TaskOutputState{
-		"present": func(app string) TaskOutputState {
-			state := TaskOutputState{
-				Changed: false,
-				State:   "absent",
-			}
-			if appExists(t.App) {
-				state.State = "present"
-				return state
-			}
-
-			resp := runDokkuCommand([]string{"--quiet", "apps:create", t.App})
-			if resp.HasError() {
-				state.Error = resp.Error
-				state.Message = string(resp.Stderr)
-				return state
-			}
-
-			state.Changed = true
-			state.State = "present"
-			return state
-		},
-		"absent": func(app string) TaskOutputState {
-			state := TaskOutputState{
-				Changed: false,
-				State:   "present",
-			}
-			if !appExists(t.App) {
-				state.State = "absent"
-				return state
-			}
-
-			resp := runDokkuCommand([]string{"--quiet", "--force", "apps:destroy", t.App})
-			if resp.HasError() {
-				state.Error = resp.Error
-				state.Message = string(resp.Stderr)
-				return state
-			}
-
-			state.Changed = true
-			state.State = "absent"
-			return state
-		},
+		"present": createApp,
+		"absent":  destroyApp,
 	}
 
 	fn := funcMap[t.State]
@@ -66,6 +26,50 @@ func (t AppTask) Execute() TaskOutputState {
 func appExists(appName string) bool {
 	cmd := subprocess.NewShellCmdWithArgs("dokku", "--quiet", "apps:exists", appName)
 	return cmd.ExecuteQuiet()
+}
+
+func createApp(app string) TaskOutputState {
+	state := TaskOutputState{
+		Changed: false,
+		State:   "absent",
+	}
+	if appExists(app) {
+		state.State = "present"
+		return state
+	}
+
+	resp := runDokkuCommand([]string{"--quiet", "apps:create", app})
+	if resp.HasError() {
+		state.Error = resp.Error
+		state.Message = string(resp.Stderr)
+		return state
+	}
+
+	state.Changed = true
+	state.State = "present"
+	return state
+}
+
+func destroyApp(app string) TaskOutputState {
+	state := TaskOutputState{
+		Changed: false,
+		State:   "present",
+	}
+	if !appExists(app) {
+		state.State = "absent"
+		return state
+	}
+
+	resp := runDokkuCommand([]string{"--quiet", "--force", "apps:destroy", app})
+	if resp.HasError() {
+		state.Error = resp.Error
+		state.Message = string(resp.Stderr)
+		return state
+	}
+
+	state.Changed = true
+	state.State = "absent"
+	return state
 }
 
 func init() {
