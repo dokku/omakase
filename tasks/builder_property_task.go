@@ -1,6 +1,6 @@
 package tasks
 
-type BuilderTask struct {
+type BuilderPropertyTask struct {
 	App      string `required:"true" yaml:"app"`
 	Global   bool   `required:"false" yaml:"global"`
 	Property string `required:"true" yaml:"property"`
@@ -8,11 +8,11 @@ type BuilderTask struct {
 	State    string `required:"true" yaml:"state" default:"present"`
 }
 
-func (t BuilderTask) DesiredState() string {
+func (t BuilderPropertyTask) DesiredState() string {
 	return t.State
 }
 
-func (t BuilderTask) Execute() TaskOutputState {
+func (t BuilderPropertyTask) Execute() TaskOutputState {
 	ctx := PropertyContext{
 		App:      t.App,
 		Global:   t.Global,
@@ -33,5 +33,5 @@ func (t BuilderTask) Execute() TaskOutputState {
 }
 
 func init() {
-	RegisterTask(&BuilderTask{})
+	RegisterTask(&BuilderPropertyTask{})
 }

@@ -1,16 +1,16 @@
 package tasks
 
-type ChecksTask struct {
+type ChecksToggleTask struct {
 	App    string `required:"true" yaml:"app"`
 	Global bool   `required:"false" yaml:"global"`
 	State  string `required:"true" yaml:"state" default:"present"`
 }
 
-func (t ChecksTask) DesiredState() string {
+func (t ChecksToggleTask) DesiredState() string {
 	return t.State
 }
 
-func (t ChecksTask) Execute() TaskOutputState {
+func (t ChecksToggleTask) Execute() TaskOutputState {
 	ctx := ToggleContext{
 		AllowGlobal: false,
 		App:         t.App,
@@ -30,5 +30,5 @@ func (t ChecksTask) Execute() TaskOutputState {
 }
 
 func init() {
-	RegisterTask(&ChecksTask{})
+	RegisterTask(&ChecksToggleTask{})
 }
