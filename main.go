@@ -53,7 +53,6 @@ func main() {
 
 		if state.State != task.DesiredState() {
 			log.Fatalf("error: Invalid state found, expected=%v actual=%v", task.DesiredState(), state)
-
 		}
 	}
 }
