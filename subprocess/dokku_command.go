@@ -1,8 +1,7 @@
-package tasks
+package subprocess
 
 import (
 	"bytes"
-	"omakase/subprocess"
 )
 
 type CommandResponse struct {
@@ -15,12 +14,12 @@ func (c CommandResponse) HasError() bool {
 	return c.Error != nil
 }
 
-func runDokkuCommand(command []string) CommandResponse {
+func RunDokkuCommand(command []string) CommandResponse {
 	var stderr bytes.Buffer
-	cmd := subprocess.NewShellCmdWithArgs("dokku", command...)
+	cmd := NewShellCmdWithArgs("dokku", command...)
 	cmd.Command.Stderr = &stderr
 	_, err := cmd.Output()
-	exitcode := subprocess.ExitCode(err)
+	exitcode := ExitCode(err)
 
 	return CommandResponse{
 		ExitCode: exitcode,

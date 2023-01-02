@@ -38,7 +38,7 @@ func createApp(app string) TaskOutputState {
 		return state
 	}
 
-	resp := runDokkuCommand([]string{"--quiet", "apps:create", app})
+	resp := subprocess.RunDokkuCommand([]string{"--quiet", "apps:create", app})
 	if resp.HasError() {
 		state.Error = resp.Error
 		state.Message = string(resp.Stderr)
@@ -60,7 +60,7 @@ func destroyApp(app string) TaskOutputState {
 		return state
 	}
 
-	resp := runDokkuCommand([]string{"--quiet", "--force", "apps:destroy", app})
+	resp := subprocess.RunDokkuCommand([]string{"--quiet", "--force", "apps:destroy", app})
 	if resp.HasError() {
 		state.Error = resp.Error
 		state.Message = string(resp.Stderr)

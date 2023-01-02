@@ -1,6 +1,9 @@
 package tasks
 
-import "fmt"
+import (
+	"fmt"
+	"omakase/subprocess"
+)
 
 type PropertyContext struct {
 	App      string `required:"true" yaml:"app"`
@@ -32,7 +35,7 @@ func setProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 
 	// todo: validate that the value isn't already set
 
-	resp := runDokkuCommand([]string{"--quiet", subcommand, appName, pctx.Property, pctx.Value})
+	resp := subprocess.RunDokkuCommand([]string{"--quiet", subcommand, appName, pctx.Property, pctx.Value})
 	if resp.HasError() {
 		state.Error = resp.Error
 		state.Message = string(resp.Stderr)
@@ -67,7 +70,7 @@ func unsetProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 
 	// todo: validate that the value isn't already unset
 
-	resp := runDokkuCommand([]string{"--quiet", subcommand, appName, pctx.Property})
+	resp := subprocess.RunDokkuCommand([]string{"--quiet", subcommand, appName, pctx.Property})
 	if resp.HasError() {
 		state.Error = resp.Error
 		state.Message = string(resp.Stderr)
