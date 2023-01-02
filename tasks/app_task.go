@@ -1,10 +1,7 @@
 package tasks
 
 import (
-	"bytes"
-	"fmt"
 	"omakase/subprocess"
-	"strings"
 )
 
 type AppTask struct {
@@ -16,35 +13,54 @@ func (t AppTask) DesiredState() string {
 	return t.State
 }
 
-func (t AppTask) Execute() (string, error) {
-	command := []string{}
-	if t.State == "present" {
-		command = []string{"--quiet", "apps:create", t.App}
-	} else {
-		command = []string{"--quiet", "--force", "apps:destroy", t.App}
+func (t AppTask) Execute() TaskOutputState {
+	funcMap := map[string]func(string) TaskOutputState{
+		"present": func(app string) TaskOutputState {
+			state := TaskOutputState{
+				Changed: false,
+				State:   "absent",
+			}
+			if appExists(t.App) {
+				state.State = "present"
+				return state
+			}
+
+			resp := runDokkuCommand([]string{"--quiet", "apps:create", t.App})
+			if resp.HasError() {
+				state.Error = resp.Error
+				state.Message = string(resp.Stderr)
+				return state
+			}
+
+			state.Changed = true
+			state.State = "present"
+			return state
+		},
+		"absent": func(app string) TaskOutputState {
+			state := TaskOutputState{
+				Changed: false,
+				State:   "present",
+			}
+			if !appExists(t.App) {
+				state.State = "absent"
+				return state
+			}
+
+			resp := runDokkuCommand([]string{"--quiet", "--force", "apps:destroy", t.App})
+			if resp.HasError() {
+				state.Error = resp.Error
+				state.Message = string(resp.Stderr)
+				return state
+			}
+
+			state.Changed = true
+			state.State = "absent"
+			return state
+		},
 	}
 
-	var stderr bytes.Buffer
-
-	cmd := subprocess.NewShellCmdWithArgs("dokku", command...)
-	cmd.Command.Stderr = &stderr
-	_, err := cmd.Output()
-
-	state := "absent"
-	if appExists(t.App) {
-		state = "present"
-	}
-
-	exitcode := subprocess.ExitCode(err)
-	if exitcode == 127 {
-		return state, fmt.Errorf("Command not found: dokku")
-	}
-
-	if err != nil {
-		return state, fmt.Errorf(strings.TrimSpace(stderr.String()))
-	}
-
-	return state, nil
+	fn := funcMap[t.State]
+	return fn(t.App)
 }
 
 func appExists(appName string) bool {

@@ -46,16 +46,14 @@ func main() {
 	for _, name := range tasks.Keys() {
 		task := tasks.Get(name)
 		log.Printf("executing %s", name)
-		state, err := task.Execute()
-		if err != nil {
-			log.Fatalf("execute error: %v", err.Error())
+		state := task.Execute()
+		if state.Error != nil {
+			log.Fatalf("execute error: %v", state.Error.Error())
 		}
 
-		if state != task.DesiredState() {
+		if state.State != task.DesiredState() {
 			log.Fatalf("error: Invalid state found, expected=%v actual=%v", task.DesiredState(), state)
 
 		}
 	}
-
-	return
 }

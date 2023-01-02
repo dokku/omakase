@@ -11,8 +11,8 @@ func (t GitSyncTask) DesiredState() string {
 	return t.State
 }
 
-func (t GitSyncTask) Execute() (string, error) {
-	return "", nil
+func (t GitSyncTask) Execute() TaskOutputState {
+	return TaskOutputState{}
 }
 
 func init() {

@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/fatih/structtag"
 	sigil "github.com/gliderlabs/sigil"
 	"github.com/gobuffalo/flect"
 	jsoniter "github.com/json-iterator/go"
@@ -36,9 +35,17 @@ type Tasks struct {
 	GitSyncTask *GitSyncTask `yaml:"dokku_sync,omitempty"`
 }
 
+type TaskOutputState struct {
+	Changed bool
+	Error   error
+	Message string
+	Meta    struct{}
+	State   string
+}
+
 type Task interface {
 	DesiredState() string
-	Execute() (string, error)
+	Execute() TaskOutputState
 }
 
 // Global registry for Tasks.
@@ -152,19 +159,4 @@ func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap
 	}
 
 	return tasks, nil
-}
-
-func getDefaultState(i interface{}) (string, error) {
-	state, _ := reflect.TypeOf(i).FieldByName("State")
-	tags, err := structtag.Parse(string(state.Tag))
-	if err != nil {
-		return "", err
-	}
-
-	defaultState, err := tags.Get("default")
-	if err != nil {
-		return "", err
-	}
-
-	return defaultState.Name, nil
 }
