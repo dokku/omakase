@@ -89,25 +89,25 @@ Inputs are injected using golang's `text/template` package via the `gliderlabs/s
 Inputs can have the following properties:
 
 - name:
-    - type: `string`
-    - default: ``
+  - type: `string`
+  - default: ``
 - default:
-    - type: `bool|float|int|string`
-    - default: zero-value for the type
+  - type: `bool|float|int|string`
+  - default: zero-value for the type
 - description:
-    - type: `string`
-    - default: `""`
+  - type: `string`
+  - default: `""`
 - required:
-    - type: `bool`
-    - default: `false`
+  - type: `bool`
+  - default: `false`
 - type:
-    - type: string
-    - default `string`
-    - options:
-         - `bool`
-         - `float`
-         - `int`
-         - `string`
+  - type: string
+  - default `string`
+  - options:
+    - `bool`
+    - `float`
+    - `int`
+    - `string`
 
 If all inputs are specified on the CLI, then they are injected as is. Otherwise, unless the `--no-interactive` flag is specified, `omakase` will ask for values for each input, with the cli-specified values merged onto the task file default values as defaults.
 
