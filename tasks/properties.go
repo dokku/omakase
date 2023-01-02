@@ -65,7 +65,7 @@ func unsetProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 		return state
 	}
 
-	// todo: validate that the value isn't already set
+	// todo: validate that the value isn't already unset
 
 	resp := runDokkuCommand([]string{"--quiet", subcommand, appName, pctx.Property})
 	if resp.HasError() {
