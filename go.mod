@@ -7,7 +7,7 @@ require (
 	github.com/gliderlabs/sigil v0.11.0
 	github.com/gobuffalo/flect v1.0.3
 	github.com/json-iterator/go v1.1.12
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.6
 	gopkg.in/yaml.v2 v2.4.0
 )
 
