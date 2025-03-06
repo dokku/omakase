@@ -6,7 +6,7 @@ toolchain go1.23.6
 
 require (
 	github.com/davecgh/go-spew v1.1.1
-	github.com/gliderlabs/sigil v0.11.1
+	github.com/gliderlabs/sigil v0.11.2
 	github.com/gobuffalo/flect v1.0.3
 	github.com/json-iterator/go v1.1.12
 	github.com/spf13/pflag v1.0.6
