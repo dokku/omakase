@@ -7,8 +7,8 @@ github.com/dustin/gojson v0.0.0-20160307161227-2e71ec9dd5ad h1:Qk76DOWdOp+GlyDKB
 github.com/dustin/gojson v0.0.0-20160307161227-2e71ec9dd5ad/go.mod h1:mPKfmRa823oBIgl2r20LeMSpTAteW5j7FLkc0vjmzyQ=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 h1:BHsljHzVlRcyQhjrss6TZTdY2VfCqZPbv5k3iBFa2ZQ=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
-github.com/gliderlabs/sigil v0.11.2 h1:T2fguk6PdzKicUb4Dn1BMixRKH/RHObtRrJwADl1XIU=
-github.com/gliderlabs/sigil v0.11.2/go.mod h1:pAYM+4EIUxnEMs8qmgP6eIBbRnOLpsnQL3at/BggEy0=
+github.com/gliderlabs/sigil v0.11.4 h1:a7b95xgwhhu5FgjzbjQ2kY+DQxHSSdcqWpMfjAc3fTI=
+github.com/gliderlabs/sigil v0.11.4/go.mod h1:pAYM+4EIUxnEMs8qmgP6eIBbRnOLpsnQL3at/BggEy0=
 github.com/gobuffalo/flect v1.0.3 h1:xeWBM2nui+qnVvNM4S3foBhCAL2XgPU+a7FdpelbTq4=
 github.com/gobuffalo/flect v1.0.3/go.mod h1:A5msMlrHtLqh9umBSnvabjsMrCcCpAyzglnDvkbYKHs=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
