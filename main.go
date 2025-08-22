@@ -28,17 +28,17 @@ func main() {
 	taskFile := getTaskYamlFilename(os.Args)
 	data, err := os.ReadFile(taskFile)
 	if err != nil {
-		log.Fatalf("read error: %v", err.Error())
+		log.Fatalf("read error: %v", err)
 	}
 
 	context, err := parseArgs(data)
 	if err != nil {
-		log.Fatalf("arg error: %v", err.Error())
+		log.Fatalf("arg error: %v", err)
 	}
 
 	tasks, err := tasks.GetTasks(data, context)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("task error: %v", err)
 	}
 
 	spew.Dump(tasks)
@@ -47,7 +47,7 @@ func main() {
 		log.Printf("executing %s", name)
 		state := task.Execute()
 		if state.Error != nil {
-			log.Fatalf("execute error: %v", state.Error.Error())
+			log.Fatalf("execute error: %v", state.Error)
 		}
 
 		if state.State != task.DesiredState() {
