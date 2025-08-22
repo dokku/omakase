@@ -80,6 +80,7 @@ func (i Input) GetValue() string {
 	return i.value
 }
 
+// todo: use a slice instead of a map
 func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap, error) {
 	tasks := OrderedStringTaskMap{}
 	render, err := sigil.Execute(data, context, "tasks")
