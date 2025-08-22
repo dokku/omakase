@@ -3,7 +3,7 @@ package tasks
 import (
 	"crypto/rand"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"strings"
 
@@ -87,7 +87,7 @@ func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap
 		return tasks, fmt.Errorf("re-render error: %v", err.Error())
 	}
 
-	out, err := ioutil.ReadAll(&render)
+	out, err := io.ReadAll(&render)
 	if err != nil {
 		return tasks, fmt.Errorf("read error: %v", err.Error())
 	}
