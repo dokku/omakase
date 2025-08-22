@@ -17,8 +17,8 @@ func getTaskYamlFilename(s []string) string {
 				return os.Args[i+1]
 			}
 		}
-		if strings.HasPrefix(arg, "--tasks=") {
-			return strings.TrimPrefix(arg, "--tasks=")
+		if taskFile, found := strings.CutPrefix(arg, "--tasks="); found {
+			return taskFile
 		}
 	}
 	return "tasks.yml"
