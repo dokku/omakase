@@ -9,6 +9,7 @@ import (
 
 	sigil "github.com/gliderlabs/sigil"
 	"github.com/gobuffalo/flect"
+	defaults "github.com/mcuadros/go-defaults"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -146,6 +147,7 @@ func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap
 			}
 
 			task := v.Elem().Interface().(Task)
+			defaults.SetDefaults(task)
 			tasks.Set(name.(string), task)
 			detected = true
 			break
