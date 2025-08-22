@@ -62,9 +62,9 @@ func setConfig(app, key, value string) TaskOutputState {
 		Command: "dokku",
 		Args: []string{
 			"--quiet",
-			"--no-restart",
 			"config:set",
 			"--encoded",
+			"--no-restart",
 			app,
 			fmt.Sprintf("%s=%s", key, base64Value),
 		},
@@ -97,8 +97,8 @@ func unsetConfig(app, key, value string) TaskOutputState {
 		Command: "dokku",
 		Args: []string{
 			"--quiet",
-			"--no-restart",
 			"config:unset",
+			"--no-restart",
 			app,
 			key,
 		},
