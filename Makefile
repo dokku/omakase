@@ -27,7 +27,7 @@ endef
 
 export PACKAGE_DESCRIPTION
 
-LIST = build release release-packagecloud validate
+LIST = build release release-packagecloud validate build/linux/$(NAME)-amd64 build/linux/$(NAME)-arm64
 targets = $(addsuffix -in-docker, $(LIST))
 
 .env.docker:
