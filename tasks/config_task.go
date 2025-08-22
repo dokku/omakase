@@ -57,6 +57,7 @@ func setConfig(app, key, value string) TaskOutputState {
 		State:   "absent",
 	}
 
+	// todo: rename no-restart to skip-deploy
 	base64Value := base64.StdEncoding.EncodeToString([]byte(value))
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
