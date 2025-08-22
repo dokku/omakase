@@ -3,7 +3,7 @@ package tasks
 type GitSyncTask struct {
 	App        string `required:"true" yaml:"app"`
 	Repository string `required:"true" yaml:"repository"`
-	GitRef     string `required:"false" yaml:"repository"`
+	GitRef     string `required:"false" yaml:"git_ref"`
 	State      string `required:"true" yaml:"state" default:"present"`
 }
 
