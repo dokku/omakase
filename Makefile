@@ -58,6 +58,8 @@ $(targets): %-in-docker: .env.docker
 		--volume /var/lib/docker:/var/lib/docker \
 		--volume /var/run/docker.sock:/var/run/docker.sock:ro \
 		--volume ${PWD}:/src/github.com/$(MAINTAINER)/$(REPOSITORY) \
+		--volume ${PWD}/build/go-mod-cache:/go/pkg/mod \
+		--volume ${PWD}/build/go-cache:/go/cache \
 		--workdir /src/github.com/$(MAINTAINER)/$(REPOSITORY) \
 		$(IMAGE_NAME):build make -e $(@:-in-docker=)
 
