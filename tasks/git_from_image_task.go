@@ -10,7 +10,7 @@ type GitFromImageTask struct {
 	BuildDir    string `required:"false" yaml:"build_dir"`
 	GitUsername string `required:"false" yaml:"git_username"`
 	GitEmail    string `required:"false" yaml:"git_email"`
-	State       string `required:"true" yaml:"state" default:"deploy"`
+	State       string `required:"true" yaml:"state" default:"deployed"`
 }
 
 func (t GitFromImageTask) DesiredState() string {
@@ -31,6 +31,8 @@ func deployGitFromImage(t GitFromImageTask) TaskOutputState {
 		Changed: false,
 		State:   "undeployed",
 	}
+
+	// todo: get current deployed image and short-circuit if it matches the desired image
 
 	args := []string{
 		"git:from-image",
