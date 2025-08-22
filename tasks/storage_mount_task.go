@@ -43,8 +43,8 @@ func mountExists(app, hostDir, containerDir string) bool {
 	}
 
 	var mounts []struct {
-		HostDir      string `json:"host_dir"`
-		ContainerDir string `json:"container_dir"`
+		HostPath      string `json:"host_path"`
+		ContainerPath string `json:"container_path"`
 	}
 
 	err = json.Unmarshal(result.StdoutBytes(), &mounts)
@@ -53,7 +53,7 @@ func mountExists(app, hostDir, containerDir string) bool {
 	}
 
 	for _, mount := range mounts {
-		if mount.HostDir == hostDir && mount.ContainerDir == containerDir {
+		if mount.HostPath == hostDir && mount.ContainerPath == containerDir {
 			return true
 		}
 	}
