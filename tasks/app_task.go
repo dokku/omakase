@@ -24,8 +24,19 @@ func (t AppTask) Execute() TaskOutputState {
 }
 
 func appExists(appName string) bool {
-	cmd := subprocess.NewShellCmdWithArgs("dokku", "--quiet", "apps:exists", appName)
-	return cmd.ExecuteQuiet()
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args: []string{
+			"--quiet",
+			"apps:exists",
+			appName,
+		},
+	})
+	if err != nil {
+		return false
+	}
+
+	return result.ExitCode == 0
 }
 
 func createApp(app string) TaskOutputState {
@@ -38,10 +49,17 @@ func createApp(app string) TaskOutputState {
 		return state
 	}
 
-	resp := subprocess.RunDokkuCommand([]string{"--quiet", "apps:create", app})
-	if resp.HasError() {
-		state.Error = resp.Error
-		state.Message = string(resp.Stderr)
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args: []string{
+			"--quiet",
+			"apps:create",
+			app,
+		},
+	})
+	if err != nil {
+		state.Error = err
+		state.Message = result.StderrContents()
 		return state
 	}
 
@@ -60,10 +78,18 @@ func destroyApp(app string) TaskOutputState {
 		return state
 	}
 
-	resp := subprocess.RunDokkuCommand([]string{"--quiet", "--force", "apps:destroy", app})
-	if resp.HasError() {
-		state.Error = resp.Error
-		state.Message = string(resp.Stderr)
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args: []string{
+			"--quiet",
+			"--force",
+			"apps:destroy",
+			app,
+		},
+	})
+	if err != nil {
+		state.Error = err
+		state.Message = result.StderrContents()
 		return state
 	}
 

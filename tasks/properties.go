@@ -35,10 +35,19 @@ func setProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 
 	// todo: validate that the value isn't already set
 
-	resp := subprocess.RunDokkuCommand([]string{"--quiet", subcommand, appName, pctx.Property, pctx.Value})
-	if resp.HasError() {
-		state.Error = resp.Error
-		state.Message = string(resp.Stderr)
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args: []string{
+			"--quiet",
+			subcommand,
+			appName,
+			pctx.Property,
+			pctx.Value,
+		},
+	})
+	if err != nil {
+		state.Error = err
+		state.Message = result.StderrContents()
 		return state
 	}
 
@@ -70,10 +79,18 @@ func unsetProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 
 	// todo: validate that the value isn't already unset
 
-	resp := subprocess.RunDokkuCommand([]string{"--quiet", subcommand, appName, pctx.Property})
-	if resp.HasError() {
-		state.Error = resp.Error
-		state.Message = string(resp.Stderr)
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args: []string{
+			"--quiet",
+			subcommand,
+			appName,
+			pctx.Property,
+		},
+	})
+	if err != nil {
+		state.Error = err
+		state.Message = result.StderrContents()
 		return state
 	}
 

@@ -29,10 +29,17 @@ func enablePlugin(subcommand string, pctx ToggleContext) TaskOutputState {
 	}
 
 	// todo: validate that the plugin isn't already enabled
-	resp := subprocess.RunDokkuCommand([]string{"--quiet", subcommand, appName})
-	if resp.HasError() {
-		state.Error = resp.Error
-		state.Message = string(resp.Stderr)
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args: []string{
+			"--quiet",
+			subcommand,
+			appName,
+		},
+	})
+	if err != nil {
+		state.Error = err
+		state.Message = result.StderrContents()
 		return state
 	}
 
@@ -59,10 +66,17 @@ func disablePlugin(subcommand string, pctx ToggleContext) TaskOutputState {
 	}
 
 	// todo: validate that the plugin isn't already disabled
-	resp := subprocess.RunDokkuCommand([]string{"--quiet", subcommand, appName})
-	if resp.HasError() {
-		state.Error = resp.Error
-		state.Message = string(resp.Stderr)
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args: []string{
+			"--quiet",
+			subcommand,
+			appName,
+		},
+	})
+	if err != nil {
+		state.Error = err
+		state.Message = result.StderrContents()
 		return state
 	}
 
