@@ -1,6 +1,9 @@
 package tasks
 
-import "omakase/subprocess"
+import (
+	"encoding/json"
+	"omakase/subprocess"
+)
 
 // git:from-image [--build-dir DIRECTORY] <app> <docker-image> [<git-username> <git-email>]
 
@@ -26,13 +29,40 @@ func (t GitFromImageTask) Execute() TaskOutputState {
 	return fn(t)
 }
 
+func checkAppSourceImage(app, expectedImage string) bool {
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    []string{"apps:report", app, "--format", "json"},
+	})
+	if err != nil {
+		return false
+	}
+
+	type appSource struct {
+		Source         string `json:"app-deploy-source"`
+		SourceMetadata string `json:"app-deploy-source-metadata"`
+	}
+
+	var source appSource
+	err = json.Unmarshal(result.StdoutBytes(), &source)
+	if err != nil {
+		return false
+	}
+
+	return source.Source == "docker-image" && source.SourceMetadata == expectedImage
+}
+
 func deployGitFromImage(t GitFromImageTask) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
 		State:   "undeployed",
 	}
 
-	// todo: get current deployed image and short-circuit if it matches the desired image
+	if checkAppSourceImage(t.App, t.Image) {
+		state.Changed = false
+		state.State = "deployed"
+		return state
+	}
 
 	args := []string{
 		"git:from-image",
