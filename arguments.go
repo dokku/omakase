@@ -24,8 +24,8 @@ func (c Argument) GetValue() interface{} {
 		return c.boolValue
 	} else if c.intValue != nil {
 		return c.intValue
-	} else if c.intValue != nil {
-		return c.intValue
+	} else if c.floatValue != nil {
+		return c.floatValue
 	} else if c.stringValue != nil && *c.stringValue != "" {
 		return c.stringValue
 	}
