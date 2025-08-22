@@ -105,23 +105,22 @@ func parseArgs(data []byte) (map[string]interface{}, error) {
 	arguments := make(map[string]*Argument)
 	for _, input := range inputs {
 		arg := Argument{Required: input.Required}
-		if input.Type == "string" || input.Type == "" {
+		switch input.Type {
+		case "string", "":
 			arg.SetStringValue(flag.String(input.Name, input.Default, input.Description))
-		} else if input.Type == "int" {
+		case "int":
 			i, err := strconv.Atoi(input.Default)
 			if err != nil {
 				return context, fmt.Errorf("Error parsing input '%s': %v", input.Name, err.Error())
 			}
-
 			arg.SetIntValue(flag.Int(input.Name, i, input.Description))
-		} else if input.Type == "float" {
+		case "float":
 			f, err := strconv.ParseFloat(input.Default, 64)
 			if err != nil {
 				return context, fmt.Errorf("Error parsing input '%s': %v", input.Name, err.Error())
 			}
-
 			arg.SetFloatValue(flag.Float64(input.Name, f, input.Description))
-		} else if input.Type == "bool" {
+		case "bool":
 			if isTrueString(input.Default) {
 				arg.SetBoolValue(flag.Bool(input.Name, true, input.Description))
 			} else if isFalseString(input.Default) {
@@ -129,7 +128,7 @@ func parseArgs(data []byte) (map[string]interface{}, error) {
 			} else {
 				return context, fmt.Errorf("Error parsing input '%s': invalid default value", input.Name)
 			}
-		} else {
+		default:
 			return context, fmt.Errorf("Error parsing input '%s': invalid type", input.Name)
 		}
 		arguments[input.Name] = &arg
