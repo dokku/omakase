@@ -154,7 +154,7 @@ func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap
 		}
 
 		if !detected {
-			return tasks, fmt.Errorf("task parse error: task #%d was a valid task - valid_tasks=%v", i+1, validTasks)
+			return tasks, fmt.Errorf("task parse error: task #%d was not a valid task - valid_tasks=%v", i+1, validTasks)
 		}
 	}
 
