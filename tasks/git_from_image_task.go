@@ -19,7 +19,7 @@ func (t GitFromImageTask) DesiredState() string {
 
 func (t GitFromImageTask) Execute() TaskOutputState {
 	funcMap := map[string]func(GitFromImageTask) TaskOutputState{
-		"deploy": deployGitFromImage,
+		"deployed": deployGitFromImage,
 	}
 
 	fn := funcMap[t.State]
