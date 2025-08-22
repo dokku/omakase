@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"omakase/tasks"
 	"strconv"
 
@@ -81,7 +81,7 @@ func getInputVariables(data []byte) (map[string]*tasks.Input, error) {
 		return map[string]*tasks.Input{}, fmt.Errorf("sigil error: %v", err.Error())
 	}
 
-	out, err := ioutil.ReadAll(&render)
+	out, err := io.ReadAll(&render)
 	if err != nil {
 		return map[string]*tasks.Input{}, fmt.Errorf("render error: %v", err.Error())
 	}

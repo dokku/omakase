@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"omakase/tasks"
 	"os"
@@ -27,7 +26,7 @@ func getTaskYamlFilename(s []string) string {
 
 func main() {
 	taskFile := getTaskYamlFilename(os.Args)
-	data, err := ioutil.ReadFile(taskFile)
+	data, err := os.ReadFile(taskFile)
 	if err != nil {
 		log.Fatalf("read error: %v", err.Error())
 	}
