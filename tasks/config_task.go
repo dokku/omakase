@@ -27,13 +27,14 @@ func (t ConfigTask) Execute() TaskOutputState {
 	return fn(t.App, t.Key, t.Value)
 }
 
-func getConfig(app string) (string, bool) {
+func getConfig(app string, key string) (string, bool) {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
 		Args: []string{
 			"--quiet",
 			"config:get",
 			app,
+			key,
 		},
 		WorkingDirectory: "/tmp",
 	})
@@ -44,7 +45,7 @@ func getConfig(app string) (string, bool) {
 }
 
 func setConfig(app, key, value string) TaskOutputState {
-	currentValue, ok := getConfig(app)
+	currentValue, ok := getConfig(app, key)
 	if ok && currentValue == value {
 		return TaskOutputState{
 			Changed: false,
@@ -82,7 +83,7 @@ func setConfig(app, key, value string) TaskOutputState {
 }
 
 func unsetConfig(app, key, value string) TaskOutputState {
-	if _, ok := getConfig(app); !ok {
+	if _, ok := getConfig(app, key); !ok {
 		return TaskOutputState{
 			Changed: false,
 			State:   "absent",
