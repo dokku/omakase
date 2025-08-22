@@ -8,9 +8,8 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/gliderlabs/sigil v0.11.4
 	github.com/gobuffalo/flect v1.0.3
-	github.com/json-iterator/go v1.1.12
 	github.com/spf13/pflag v1.0.7
-	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -21,9 +20,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mgood/go-posix v0.0.0-20150821180505-948c005421f5 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	golang.org/x/sys v0.25.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

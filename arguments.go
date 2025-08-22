@@ -8,7 +8,7 @@ import (
 
 	sigil "github.com/gliderlabs/sigil"
 	flag "github.com/spf13/pflag"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 type Argument struct {

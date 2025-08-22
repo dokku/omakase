@@ -9,11 +9,8 @@ import (
 
 	sigil "github.com/gliderlabs/sigil"
 	"github.com/gobuffalo/flect"
-	jsoniter "github.com/json-iterator/go"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
-
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type Recipe []struct {
 	Inputs []Input                  `yaml:"inputs,omitempty"`
@@ -138,13 +135,13 @@ func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap
 				continue
 			}
 
-			marshaled, err := json.Marshal(config)
+			marshaled, err := yaml.Marshal(config)
 			if err != nil {
-				return tasks, fmt.Errorf("task parse error: task #%d failed to marshal config to json - %s", i+1, err)
+				return tasks, fmt.Errorf("task parse error: task #%d failed to marshal config to yaml - %s", i+1, err)
 			}
 
 			v := reflect.New(reflect.TypeOf(registeredTask))
-			if err := json.Unmarshal([]byte(marshaled), v.Interface()); err != nil {
+			if err := yaml.Unmarshal([]byte(marshaled), v.Interface()); err != nil {
 				return tasks, fmt.Errorf("task parse error: task #%d failed to decode to %s - %s", i+1, taskName, err)
 			}
 
