@@ -62,6 +62,7 @@ func setConfig(app, key, value string) TaskOutputState {
 		Command: "dokku",
 		Args: []string{
 			"--quiet",
+			"--no-restart",
 			"config:set",
 			"--encoded",
 			app,
@@ -96,6 +97,7 @@ func unsetConfig(app, key, value string) TaskOutputState {
 		Command: "dokku",
 		Args: []string{
 			"--quiet",
+			"--no-restart",
 			"config:unset",
 			app,
 			key,
