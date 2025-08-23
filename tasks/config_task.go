@@ -2,15 +2,16 @@ package tasks
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"omakase/subprocess"
 )
 
 type ConfigTask struct {
-	App   string `required:"true" yaml:"app"`
-	Key   string `required:"true" yaml:"key"`
-	Value string `required:"true" yaml:"value"`
-	State string `required:"true" yaml:"state" default:"present"`
+	App     string            `required:"true" yaml:"app"`
+	Restart bool              `yaml:"restart" default:"true"`
+	Config  map[string]string `yaml:"config"`
+	State   string            `required:"true" yaml:"state" default:"present"`
 }
 
 func (t ConfigTask) DesiredState() string {
@@ -18,58 +19,88 @@ func (t ConfigTask) DesiredState() string {
 }
 
 func (t ConfigTask) Execute() TaskOutputState {
-	funcMap := map[string]func(string, string, string) TaskOutputState{
+	funcMap := map[string]func(ConfigTask) TaskOutputState{
 		"present": setConfig,
 		"absent":  unsetConfig,
 	}
 
 	fn := funcMap[t.State]
-	return fn(t.App, t.Key, t.Value)
+	return fn(t)
 }
 
-func getConfig(app string, key string) (string, bool) {
+func getConfig(t ConfigTask) (map[string]string, error) {
+	var config map[string]string
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
 		Args: []string{
 			"--quiet",
-			"config:get",
-			app,
-			key,
+			"config:export",
+			"--format",
+			"json",
+			t.App,
 		},
 		WorkingDirectory: "/tmp",
 	})
 	if err != nil {
-		return "", false
+		return config, err
 	}
-	return result.StdoutContents(), true
+
+	err = json.Unmarshal(result.StdoutBytes(), &config)
+	if err != nil {
+		return config, err
+	}
+	return config, nil
 }
 
-func setConfig(app, key, value string) TaskOutputState {
-	currentValue, ok := getConfig(app, key)
-	if ok && currentValue == value {
-		return TaskOutputState{
-			Changed: false,
-			State:   "present",
-		}
-	}
-
+func setConfig(t ConfigTask) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
 		State:   "absent",
 	}
 
-	// todo: rename no-restart to skip-deploy
-	base64Value := base64.StdEncoding.EncodeToString([]byte(value))
+	currentConfig, err := getConfig(t)
+	if err != nil {
+		state.Error = err
+		state.Message = err.Error()
+		return state
+	}
+
+	desiredConfig := make(map[string]string)
+	for key, value := range t.Config {
+		if _, ok := currentConfig[key]; !ok {
+			desiredConfig[key] = value
+			continue
+		}
+		if currentConfig[key] != value {
+			desiredConfig[key] = value
+		}
+	}
+
+	if len(desiredConfig) == 0 {
+		state.State = "present"
+		return state
+	}
+
+	args := []string{
+		"--quiet",
+		"config:set",
+		"--encoded",
+	}
+
+	if !t.Restart {
+		// todo: rename no-restart to skip-deploy in dokku
+		args = append(args, "--no-restart")
+	}
+
+	args = append(args, t.App)
+
+	for key, value := range desiredConfig {
+		args = append(args, fmt.Sprintf("%s=%s", key, base64.StdEncoding.EncodeToString([]byte(value))))
+	}
+
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			"config:set",
-			"--encoded",
-			"--no-restart",
-			app,
-			fmt.Sprintf("%s=%s", key, base64Value),
-		},
+		Args:    args,
 	})
 	if err != nil {
 		state.Error = err
@@ -82,28 +113,50 @@ func setConfig(app, key, value string) TaskOutputState {
 	return state
 }
 
-func unsetConfig(app, key, value string) TaskOutputState {
-	if _, ok := getConfig(app, key); !ok {
-		return TaskOutputState{
-			Changed: false,
-			State:   "absent",
-		}
-	}
-
+func unsetConfig(t ConfigTask) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
 		State:   "present",
 	}
+	currentConfig, err := getConfig(t)
+	if err != nil {
+		state.Error = err
+		state.Message = err.Error()
+		return state
+	}
+
+	desiredConfig := make(map[string]bool)
+	for key := range t.Config {
+		if _, ok := currentConfig[key]; ok {
+			desiredConfig[key] = true
+		}
+	}
+
+	if len(desiredConfig) == 0 {
+		state.State = "absent"
+		return state
+	}
+
+	args := []string{
+		"--quiet",
+		"config:unset",
+		t.App,
+	}
+
+	if !t.Restart {
+		// todo: rename no-restart to skip-deploy in dokku
+		args = append(args, "--no-restart")
+	}
+
+	args = append(args, t.App)
+
+	for key := range desiredConfig {
+		args = append(args, key)
+	}
 
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			"config:unset",
-			"--no-restart",
-			app,
-			key,
-		},
+		Args:    args,
 	})
 	if err != nil {
 		state.Error = err
