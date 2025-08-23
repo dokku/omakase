@@ -52,7 +52,7 @@ omakase --tasks http://dokku.com/omakase/example.yml
 
 Some other ideas:
 
-- This could be automatically applied from within a repository if a .dokku/tasks.yml was found. In such a case, certain tasks would be added to a denylist and would be ignored during the run (such as dokku_app or dokku_sync).
+- This could be automatically applied from within a repository if a `.dokku/task.yml` was found. In such a case, certain tasks would be added to a denylist and would be ignored during the run (such as dokku_app or dokku_sync).
 - Dokku may expose a command such as dokku app:install that would allow users to invoke omakase to install apps.
 - A web ui could expose a web ui to customize remote task files and then call `omakase` directly on the generated output.
 
