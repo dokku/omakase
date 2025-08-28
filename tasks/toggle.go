@@ -5,12 +5,19 @@ import (
 	"omakase/subprocess"
 )
 
+// ToggleContext represents the context for a toggle operation
 type ToggleContext struct {
-	App         string `required:"true" yaml:"app"`
-	Global      bool   `required:"false" yaml:"global"`
-	AllowGlobal bool   `required:"false" yaml:"allow_global"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// Global is a flag indicating if the toggle should be applied globally
+	Global bool `required:"false" yaml:"global"`
+
+	// AllowGlobal is a flag indicating if the toggle should be applied globally
+	AllowGlobal bool `required:"false" yaml:"allow_global"`
 }
 
+// enablePlugin executes the enable state for a plugin
 func enablePlugin(subcommand string, pctx ToggleContext) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -48,6 +55,7 @@ func enablePlugin(subcommand string, pctx ToggleContext) TaskOutputState {
 	return state
 }
 
+// disablePlugin executes the disable state for a plugin
 func disablePlugin(subcommand string, pctx ToggleContext) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,

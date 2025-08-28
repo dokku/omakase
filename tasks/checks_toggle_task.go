@@ -1,15 +1,23 @@
 package tasks
 
+// ChecksToggleTask enables or disables the checks plugin for a given dokku application
 type ChecksToggleTask struct {
-	App    string `required:"true" yaml:"app"`
-	Global bool   `required:"false" yaml:"global"`
-	State  State  `required:"true" yaml:"state" default:"present"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// Global is a flag indicating if the checks plugin should be applied globally
+	Global bool `required:"false" yaml:"global"`
+
+	// State is the desired state of the checks plugin
+	State State `required:"true" yaml:"state" default:"present"`
 }
 
+// DesiredState returns the desired state of the checks plugin
 func (t ChecksToggleTask) DesiredState() State {
 	return t.State
 }
 
+// Execute enables or disables the checks plugin
 func (t ChecksToggleTask) Execute() TaskOutputState {
 	ctx := ToggleContext{
 		AllowGlobal: false,
@@ -29,6 +37,7 @@ func (t ChecksToggleTask) Execute() TaskOutputState {
 	return fn()
 }
 
+// init registers the ChecksToggleTask with the task registry
 func init() {
 	RegisterTask(&ChecksToggleTask{})
 }

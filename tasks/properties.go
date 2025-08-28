@@ -5,13 +5,22 @@ import (
 	"omakase/subprocess"
 )
 
+// PropertyContext represents the context for a property
 type PropertyContext struct {
-	App      string `required:"true" yaml:"app"`
-	Global   bool   `required:"false" yaml:"global"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// Global is a flag indicating if the property should be applied globally
+	Global bool `required:"false" yaml:"global"`
+
+	// Property is the name of the property to set
 	Property string `required:"true" yaml:"property"`
-	Value    string `required:"false" yaml:"value"`
+
+	// Value is the value of the property to set
+	Value string `required:"false" yaml:"value"`
 }
 
+// setProperty sets a property for a given app
 func setProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -56,6 +65,7 @@ func setProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 	return state
 }
 
+// unsetProperty unsets a property for a given app
 func unsetProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,

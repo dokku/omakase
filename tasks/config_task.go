@@ -7,17 +7,27 @@ import (
 	"omakase/subprocess"
 )
 
+// ConfigTask manages the configuration for a given dokku application
 type ConfigTask struct {
-	App     string            `required:"true" yaml:"app"`
-	Restart bool              `yaml:"restart" default:"true"`
-	Config  map[string]string `yaml:"config"`
-	State   State             `required:"true" yaml:"state" default:"present"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// Restart is a flag indicating if the app should be restarted
+	Restart bool `yaml:"restart" default:"true"`
+
+	// Config is a map of configuration key-value pairs
+	Config map[string]string `yaml:"config"`
+
+	// State is the desired state of the configuration
+	State State `required:"true" yaml:"state" default:"present"`
 }
 
+// DesiredState returns the desired state of the configuration
 func (t ConfigTask) DesiredState() State {
 	return t.State
 }
 
+// Execute sets or unsets the configuration for a given dokku application
 func (t ConfigTask) Execute() TaskOutputState {
 	funcMap := map[State]func(ConfigTask) TaskOutputState{
 		"present": setConfig,
@@ -28,6 +38,7 @@ func (t ConfigTask) Execute() TaskOutputState {
 	return fn(t)
 }
 
+// getConfig retrieves the current configuration for a given dokku application
 func getConfig(t ConfigTask) (map[string]string, error) {
 	var config map[string]string
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
@@ -52,6 +63,7 @@ func getConfig(t ConfigTask) (map[string]string, error) {
 	return config, nil
 }
 
+// setConfig sets the configuration for a given dokku application
 func setConfig(t ConfigTask) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -113,6 +125,7 @@ func setConfig(t ConfigTask) TaskOutputState {
 	return state
 }
 
+// unsetConfig unsets the configuration for a given dokku application
 func unsetConfig(t ConfigTask) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -169,6 +182,7 @@ func unsetConfig(t ConfigTask) TaskOutputState {
 	return state
 }
 
+// init registers the ConfigTask with the task registry
 func init() {
 	RegisterTask(&ConfigTask{})
 }

@@ -7,19 +7,33 @@ import (
 
 // git:from-image [--build-dir DIRECTORY] <app> <docker-image> [<git-username> <git-email>]
 
+// GitFromImageTask deploys a git repository from a docker image
 type GitFromImageTask struct {
-	App         string `required:"true" yaml:"app"`
-	Image       string `required:"true" yaml:"image"`
-	BuildDir    string `required:"false" yaml:"build_dir"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// Image is the docker image to deploy
+	Image string `required:"true" yaml:"image"`
+
+	// BuildDir is the directory to build the git repository
+	BuildDir string `required:"false" yaml:"build_dir"`
+
+	// GitUsername is the username to use for the git repository
 	GitUsername string `required:"false" yaml:"git_username"`
-	GitEmail    string `required:"false" yaml:"git_email"`
-	State       State  `required:"true" yaml:"state" default:"deployed"`
+
+	// GitEmail is the email to use for the git repository
+	GitEmail string `required:"false" yaml:"git_email"`
+
+	// State is the desired state of the git repository
+	State State `required:"true" yaml:"state" default:"deployed"`
 }
 
+// DesiredState returns the desired state of the git repository
 func (t GitFromImageTask) DesiredState() State {
 	return t.State
 }
 
+// Execute deploys a git repository from a docker image
 func (t GitFromImageTask) Execute() TaskOutputState {
 	funcMap := map[State]func(GitFromImageTask) TaskOutputState{
 		"deployed": deployGitFromImage,
@@ -29,6 +43,7 @@ func (t GitFromImageTask) Execute() TaskOutputState {
 	return fn(t)
 }
 
+// checkAppSourceImage checks if the app is already deployed from a docker image
 func checkAppSourceImage(app, expectedImage string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
@@ -52,6 +67,7 @@ func checkAppSourceImage(app, expectedImage string) bool {
 	return source.Source == "docker-image" && source.SourceMetadata == expectedImage
 }
 
+// deployGitFromImage deploys a git repository from a docker image
 func deployGitFromImage(t GitFromImageTask) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -95,6 +111,7 @@ func deployGitFromImage(t GitFromImageTask) TaskOutputState {
 	return state
 }
 
+// init registers the GitFromImageTask with the task registry
 func init() {
 	RegisterTask(&GitFromImageTask{})
 }

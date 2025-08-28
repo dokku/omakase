@@ -8,26 +8,41 @@ import (
 	"strings"
 )
 
+// PortsTask manages the ports for a given dokku application
 type PortsTask struct {
-	App          string        `required:"true" yaml:"app"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// PortMappings are the port mappings to set
 	PortMappings []PortMapping `required:"true" yaml:"port_mappings"`
-	State        State         `required:"true" yaml:"state" default:"present"`
+
+	// State is the desired state of the ports
+	State State `required:"true" yaml:"state" default:"present"`
 }
 
+// PortMapping represents a port mapping
 type PortMapping struct {
-	Scheme    string `required:"true" yaml:"scheme"`
-	Host      int    `required:"true" yaml:"host"`
-	Container int    `required:"true" yaml:"container"`
+	// Scheme is the scheme of the port mapping
+	Scheme string `required:"true" yaml:"scheme"`
+
+	// Host is the host of the port mapping
+	Host int `required:"true" yaml:"host"`
+
+	// Container is the container of the port mapping
+	Container int `required:"true" yaml:"container"`
 }
 
+// String returns the string representation of the port mapping
 func (p PortMapping) String() string {
 	return fmt.Sprintf("%s:%d:%d", p.Scheme, p.Host, p.Container)
 }
 
+// DesiredState returns the desired state of the ports
 func (t PortsTask) DesiredState() State {
 	return t.State
 }
 
+// Execute sets or unsets the ports
 func (t PortsTask) Execute() TaskOutputState {
 	funcMap := map[State]func(string, []PortMapping) TaskOutputState{
 		"present": setPorts,
@@ -49,6 +64,7 @@ func (t PortsTask) Execute() TaskOutputState {
 	return fn(t.App, t.PortMappings)
 }
 
+// getPorts gets the ports for a given app
 func getPorts(appName string) map[string]PortMapping {
 	// todo: update dokku to add proper json output for this
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
@@ -97,6 +113,7 @@ func getPorts(appName string) map[string]PortMapping {
 	return portMappings
 }
 
+// setPorts sets the ports for a given app
 func setPorts(appName string, portMappings []PortMapping) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -141,6 +158,7 @@ func setPorts(appName string, portMappings []PortMapping) TaskOutputState {
 	return state
 }
 
+// unsetPorts unsets the ports for a given app
 func unsetPorts(appName string, portMappings []PortMapping) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -185,6 +203,7 @@ func unsetPorts(appName string, portMappings []PortMapping) TaskOutputState {
 	return state
 }
 
+// init registers the PortsTask with the task registry
 func init() {
 	RegisterTask(&PortsTask{})
 }

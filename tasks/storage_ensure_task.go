@@ -5,16 +5,24 @@ import (
 	"omakase/subprocess"
 )
 
+// StorageEnsureTask manages the storage for a given dokku application
 type StorageEnsureTask struct {
-	App   string `required:"true" yaml:"app"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// Chown is the chown value to set
 	Chown string `required:"false" yaml:"chown"`
-	State State  `required:"true" yaml:"state" default:"present"`
+
+	// State is the desired state of the storage
+	State State `required:"true" yaml:"state" default:"present"`
 }
 
+// DesiredState returns the desired state of the storage
 func (t StorageEnsureTask) DesiredState() State {
 	return t.State
 }
 
+// Execute ensures the storage for a given app
 func (t StorageEnsureTask) Execute() TaskOutputState {
 	funcMap := map[State]func(string, string) TaskOutputState{
 		"present": ensureStorage,
@@ -25,6 +33,7 @@ func (t StorageEnsureTask) Execute() TaskOutputState {
 	return fn(t.App, t.Chown)
 }
 
+// ensureStorage ensures the storage for a given app
 func ensureStorage(app, chown string) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -66,6 +75,7 @@ func ensureStorage(app, chown string) TaskOutputState {
 	return state
 }
 
+// removeStorage removes the storage for a given app
 func removeStorage(app, chown string) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -76,6 +86,7 @@ func removeStorage(app, chown string) TaskOutputState {
 	return state
 }
 
+// init registers the StorageEnsureTask with the task registry
 func init() {
 	RegisterTask(&StorageEnsureTask{})
 }

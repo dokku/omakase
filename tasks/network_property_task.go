@@ -1,17 +1,29 @@
 package tasks
 
+// NetworkPropertyTask manages the network property for a given dokku application
 type NetworkPropertyTask struct {
-	App      string `required:"true" yaml:"app"`
-	Global   bool   `required:"false" yaml:"global"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// Global is a flag indicating if the network property should be applied globally
+	Global bool `required:"false" yaml:"global"`
+
+	// Property is the name of the network property to set
 	Property string `required:"true" yaml:"property"`
-	Value    string `required:"false" yaml:"value"`
-	State    State  `required:"true" yaml:"state" default:"present"`
+
+	// Value is the value of the network property to set
+	Value string `required:"false" yaml:"value"`
+
+	// State is the desired state of the network property
+	State State `required:"true" yaml:"state" default:"present"`
 }
 
+// DesiredState returns the desired state of the network property
 func (t NetworkPropertyTask) DesiredState() State {
 	return t.State
 }
 
+// Execute sets or unsets the network property
 func (t NetworkPropertyTask) Execute() TaskOutputState {
 	ctx := PropertyContext{
 		App:      t.App,
@@ -32,6 +44,7 @@ func (t NetworkPropertyTask) Execute() TaskOutputState {
 	return fn()
 }
 
+// init registers the NetworkPropertyTask with the task registry
 func init() {
 	RegisterTask(&NetworkPropertyTask{})
 }

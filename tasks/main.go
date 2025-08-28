@@ -13,50 +13,80 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+// State represents the desired state of a task
 type State string
 
+// State constants
 const (
-	StatePresent  State = "present"
-	StateAbsent   State = "absent"
+	// StatePresent represents the present state
+	StatePresent State = "present"
+	// StateAbsent represents the absent state
+	StateAbsent State = "absent"
+	// StateDeployed represents the deployed state
 	StateDeployed State = "deployed"
 )
 
+// Recipe represents a recipe for a task
 type Recipe []struct {
-	Inputs []Input                  `yaml:"inputs,omitempty"`
-	Tasks  []map[string]interface{} `yaml:"tasks,omitempty"`
+	// Inputs are the inputs for the task
+	Inputs []Input `yaml:"inputs,omitempty"`
+
+	// Tasks are the tasks for the recipe
+	Tasks []map[string]interface{} `yaml:"tasks,omitempty"`
 }
 
+// Input represents an input for a task
 type Input struct {
-	Name        string `yaml:"name"`
-	Default     string `yaml:"default"`
+	// Name is the name of the input
+	Name string `yaml:"name"`
+
+	// Default is the default value of the input
+	Default string `yaml:"default"`
+
+	// Description is the description of the input
 	Description string `yaml:"description"`
-	Required    bool   `yaml:"required"`
-	Type        string `yaml:"type"`
-	value       string
+
+	// Required is a flag indicating if the input is required
+	Required bool `yaml:"required"`
+
+	// Type is the type of the input
+	Type string `yaml:"type"`
+
+	// value is the value of the input
+	value string
 }
 
-type Tasks struct {
-	Name        string
-	AppTask     *AppTask     `yaml:"dokku_app,omitempty"`
-	GitSyncTask *GitSyncTask `yaml:"dokku_sync,omitempty"`
-}
-
+// TaskOutputState represents the output of a task
 type TaskOutputState struct {
+	// Changed is a flag indicating if the task was changed
 	Changed bool
-	Error   error
+
+	// Error is the error of the task
+	Error error
+
+	// Message is the message of the task
 	Message string
-	Meta    struct{}
-	State   State
+
+	// Meta is the meta of the task
+	Meta struct{}
+
+	// State is the state of the task
+	State State
 }
 
+// Task represents a task
 type Task interface {
+	// DesiredState returns the desired state of the task
 	DesiredState() State
+
+	// Execute executes the task
 	Execute() TaskOutputState
 }
 
 // Global registry for Tasks.
 var registeredTasks map[string]Task
 
+// RegisterTask registers a task
 func RegisterTask(t Task) {
 	if len(registeredTasks) == 0 {
 		registeredTasks = make(map[string]Task)
@@ -73,19 +103,23 @@ func RegisterTask(t Task) {
 	registeredTasks[fmt.Sprintf("dokku_%s", strings.TrimSuffix(name, "_task"))] = t
 }
 
+// SetValue sets the value of the input
 func (i *Input) SetValue(value string) error {
 	i.value = value
 	return nil
 }
 
+// HasValue returns true if the input has a value
 func (i Input) HasValue() bool {
 	return i.value != ""
 }
 
+// GetValue returns the value of the input
 func (i Input) GetValue() string {
 	return i.value
 }
 
+// GetTasks gets the tasks from the data
 // todo: use a slice instead of a map
 func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap, error) {
 	tasks := OrderedStringTaskMap{}
