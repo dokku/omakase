@@ -5,10 +5,10 @@ type BuilderPropertyTask struct {
 	Global   bool   `required:"false" yaml:"global"`
 	Property string `required:"true" yaml:"property"`
 	Value    string `required:"false" yaml:"value"`
-	State    string `required:"true" yaml:"state" default:"present"`
+	State    State  `required:"true" yaml:"state" default:"present"`
 }
 
-func (t BuilderPropertyTask) DesiredState() string {
+func (t BuilderPropertyTask) DesiredState() State {
 	return t.State
 }
 
@@ -19,7 +19,7 @@ func (t BuilderPropertyTask) Execute() TaskOutputState {
 		Property: t.Property,
 		Value:    t.Value,
 	}
-	funcMap := map[string]func() TaskOutputState{
+	funcMap := map[State]func() TaskOutputState{
 		"present": func() TaskOutputState {
 			return setProperty("builder:set", ctx)
 		},

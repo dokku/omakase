@@ -3,10 +3,10 @@ package tasks
 type DomainsToggleTask struct {
 	App    string `required:"true" yaml:"app"`
 	Global bool   `required:"false" yaml:"global"`
-	State  string `required:"true" yaml:"state" default:"present"`
+	State  State  `required:"true" yaml:"state" default:"present"`
 }
 
-func (t DomainsToggleTask) DesiredState() string {
+func (t DomainsToggleTask) DesiredState() State {
 	return t.State
 }
 
@@ -16,7 +16,7 @@ func (t DomainsToggleTask) Execute() TaskOutputState {
 		App:         t.App,
 		Global:      t.Global,
 	}
-	funcMap := map[string]func() TaskOutputState{
+	funcMap := map[State]func() TaskOutputState{
 		"present": func() TaskOutputState {
 			return enablePlugin("domains:enable", ctx)
 		},

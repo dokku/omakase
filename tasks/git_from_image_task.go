@@ -13,15 +13,15 @@ type GitFromImageTask struct {
 	BuildDir    string `required:"false" yaml:"build_dir"`
 	GitUsername string `required:"false" yaml:"git_username"`
 	GitEmail    string `required:"false" yaml:"git_email"`
-	State       string `required:"true" yaml:"state" default:"deployed"`
+	State       State  `required:"true" yaml:"state" default:"deployed"`
 }
 
-func (t GitFromImageTask) DesiredState() string {
+func (t GitFromImageTask) DesiredState() State {
 	return t.State
 }
 
 func (t GitFromImageTask) Execute() TaskOutputState {
-	funcMap := map[string]func(GitFromImageTask) TaskOutputState{
+	funcMap := map[State]func(GitFromImageTask) TaskOutputState{
 		"deployed": deployGitFromImage,
 	}
 

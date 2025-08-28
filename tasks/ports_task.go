@@ -11,7 +11,7 @@ import (
 type PortsTask struct {
 	App          string        `required:"true" yaml:"app"`
 	PortMappings []PortMapping `required:"true" yaml:"port_mappings"`
-	State        string        `required:"true" yaml:"state" default:"present"`
+	State        State         `required:"true" yaml:"state" default:"present"`
 }
 
 type PortMapping struct {
@@ -24,12 +24,12 @@ func (p PortMapping) String() string {
 	return fmt.Sprintf("%s:%d:%d", p.Scheme, p.Host, p.Container)
 }
 
-func (t PortsTask) DesiredState() string {
+func (t PortsTask) DesiredState() State {
 	return t.State
 }
 
 func (t PortsTask) Execute() TaskOutputState {
-	funcMap := map[string]func(string, []PortMapping) TaskOutputState{
+	funcMap := map[State]func(string, []PortMapping) TaskOutputState{
 		"present": setPorts,
 		"absent":  unsetPorts,
 	}

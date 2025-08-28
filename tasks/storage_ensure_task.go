@@ -8,15 +8,15 @@ import (
 type StorageEnsureTask struct {
 	App   string `required:"true" yaml:"app"`
 	Chown string `required:"false" yaml:"chown"`
-	State string `required:"true" yaml:"state" default:"present"`
+	State State  `required:"true" yaml:"state" default:"present"`
 }
 
-func (t StorageEnsureTask) DesiredState() string {
+func (t StorageEnsureTask) DesiredState() State {
 	return t.State
 }
 
 func (t StorageEnsureTask) Execute() TaskOutputState {
-	funcMap := map[string]func(string, string) TaskOutputState{
+	funcMap := map[State]func(string, string) TaskOutputState{
 		"present": ensureStorage,
 		"absent":  removeStorage,
 	}

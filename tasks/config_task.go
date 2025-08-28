@@ -11,15 +11,15 @@ type ConfigTask struct {
 	App     string            `required:"true" yaml:"app"`
 	Restart bool              `yaml:"restart" default:"true"`
 	Config  map[string]string `yaml:"config"`
-	State   string            `required:"true" yaml:"state" default:"present"`
+	State   State             `required:"true" yaml:"state" default:"present"`
 }
 
-func (t ConfigTask) DesiredState() string {
+func (t ConfigTask) DesiredState() State {
 	return t.State
 }
 
 func (t ConfigTask) Execute() TaskOutputState {
-	funcMap := map[string]func(ConfigTask) TaskOutputState{
+	funcMap := map[State]func(ConfigTask) TaskOutputState{
 		"present": setConfig,
 		"absent":  unsetConfig,
 	}

@@ -10,15 +10,15 @@ type StorageMountTask struct {
 	App          string `required:"true" yaml:"app"`
 	HostDir      string `required:"true" yaml:"host_dir"`
 	ContainerDir string `required:"true" yaml:"container_dir"`
-	State        string `required:"true" yaml:"state" default:"present"`
+	State        State  `required:"true" yaml:"state" default:"present"`
 }
 
-func (t StorageMountTask) DesiredState() string {
+func (t StorageMountTask) DesiredState() State {
 	return t.State
 }
 
 func (t StorageMountTask) Execute() TaskOutputState {
-	funcMap := map[string]func(string, string, string) TaskOutputState{
+	funcMap := map[State]func(string, string, string) TaskOutputState{
 		"present": mountStorage,
 		"absent":  unmountStorage,
 	}

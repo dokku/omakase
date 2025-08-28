@@ -6,15 +6,15 @@ import (
 
 type AppTask struct {
 	App   string `required:"true" yaml:"app"`
-	State string `required:"true" yaml:"state" default:"present"`
+	State State  `required:"true" yaml:"state" default:"present"`
 }
 
-func (t AppTask) DesiredState() string {
+func (t AppTask) DesiredState() State {
 	return t.State
 }
 
 func (t AppTask) Execute() TaskOutputState {
-	funcMap := map[string]func(string) TaskOutputState{
+	funcMap := map[State]func(string) TaskOutputState{
 		"present": createApp,
 		"absent":  destroyApp,
 	}

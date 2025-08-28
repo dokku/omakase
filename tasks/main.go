@@ -13,6 +13,14 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+type State string
+
+const (
+	StatePresent  State = "present"
+	StateAbsent   State = "absent"
+	StateDeployed State = "deployed"
+)
+
 type Recipe []struct {
 	Inputs []Input                  `yaml:"inputs,omitempty"`
 	Tasks  []map[string]interface{} `yaml:"tasks,omitempty"`
@@ -38,11 +46,11 @@ type TaskOutputState struct {
 	Error   error
 	Message string
 	Meta    struct{}
-	State   string
+	State   State
 }
 
 type Task interface {
-	DesiredState() string
+	DesiredState() State
 	Execute() TaskOutputState
 }
 
