@@ -15,7 +15,7 @@ type BuilderTask struct {
 	Value string `required:"false" yaml:"value"`
 
 	// State is the desired state of the builder configuration
-	State State `required:"true" yaml:"state" default:"present"`
+	State State `required:"true" yaml:"state" default:"present" options:"present,absent"`
 }
 
 // DesiredState returns the desired state of the builder configuration

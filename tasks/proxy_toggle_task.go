@@ -9,7 +9,7 @@ type ProxyToggleTask struct {
 	Global bool `required:"false" yaml:"global"`
 
 	// State is the desired state of the proxy
-	State State `required:"true" yaml:"state" default:"present"`
+	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
 }
 
 // DesiredState returns the desired state of the proxy

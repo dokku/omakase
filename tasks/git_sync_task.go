@@ -12,7 +12,7 @@ type GitSyncTask struct {
 	GitRef string `required:"false" yaml:"git_ref"`
 
 	// State is the desired state of the git sync
-	State State `required:"true" yaml:"state" default:"present"`
+	State State `required:"false" yaml:"state" default:"synced" options:"synced"`
 }
 
 // DesiredState returns the desired state of the git sync

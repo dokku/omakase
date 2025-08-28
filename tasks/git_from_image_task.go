@@ -25,7 +25,7 @@ type GitFromImageTask struct {
 	GitEmail string `required:"false" yaml:"git_email"`
 
 	// State is the desired state of the git repository
-	State State `required:"true" yaml:"state" default:"deployed"`
+	State State `required:"false" yaml:"state" default:"deployed" options:"deployed"`
 }
 
 // DesiredState returns the desired state of the git repository

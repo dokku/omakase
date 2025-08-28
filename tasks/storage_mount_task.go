@@ -18,7 +18,7 @@ type StorageMountTask struct {
 	ContainerDir string `required:"true" yaml:"container_dir"`
 
 	// State is the desired state of the storage
-	State State `required:"true" yaml:"state" default:"present"`
+	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
 }
 
 // DesiredState returns the desired state of the storage

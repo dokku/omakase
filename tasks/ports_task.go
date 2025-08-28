@@ -17,7 +17,7 @@ type PortsTask struct {
 	PortMappings []PortMapping `required:"true" yaml:"port_mappings"`
 
 	// State is the desired state of the ports
-	State State `required:"true" yaml:"state" default:"present"`
+	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
 }
 
 // PortMapping represents a port mapping

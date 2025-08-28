@@ -10,7 +10,7 @@ type AppTask struct {
 	App   string `required:"true" yaml:"app"`
 
 	// State is the state of the app
-	State State `required:"true" yaml:"state" default:"present" options:"present,absent"`
+	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
 }
 
 }
