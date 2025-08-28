@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"omakase/subprocess"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
 // StorageMountTask manages the storage for a given dokku application
@@ -21,9 +23,43 @@ type StorageMountTask struct {
 	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
 }
 
+// StorageMountTaskExample contains an example of a StorageMountTask
+type StorageMountTaskExample struct {
+	// Name is the task name holding the StorageMountTask description
+	Name string `yaml:"-"`
+
+	// StorageMountTask is the StorageMountTask configuration
+	StorageMountTask StorageMountTask `yaml:"storage_mount"`
+}
+
 // DesiredState returns the desired state of the storage
 func (t StorageMountTask) DesiredState() State {
 	return t.State
+}
+
+// Doc returns the docblock for the storage mount task
+func (t StorageMountTask) Doc() string {
+	return "Mounts or unmounts the storage for a given dokku application"
+}
+
+// Examples returns the examples for the builder property task
+func (t StorageMountTask) Examples() ([]Doc, error) {
+	examples := []StorageMountTaskExample{}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
 }
 
 // Execute mounts or unmounts the storage for a given app

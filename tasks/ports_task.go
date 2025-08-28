@@ -6,6 +6,8 @@ import (
 	"omakase/subprocess"
 	"strconv"
 	"strings"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
 // PortsTask manages the ports for a given dokku application
@@ -18,6 +20,15 @@ type PortsTask struct {
 
 	// State is the desired state of the ports
 	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
+}
+
+// PortsTaskExample contains an example of a PortsTask
+type PortsTaskExample struct {
+	// Name is the task name holding the PortsTask description
+	Name string `yaml:"-"`
+
+	// PortsTask is the PortsTask configuration
+	PortsTask PortsTask `yaml:"ports"`
 }
 
 // PortMapping represents a port mapping
@@ -40,6 +51,31 @@ func (p PortMapping) String() string {
 // DesiredState returns the desired state of the ports
 func (t PortsTask) DesiredState() State {
 	return t.State
+}
+
+// Doc returns the docblock for the ports task
+func (t PortsTask) Doc() string {
+	return "Manages the ports for a given dokku application"
+}
+
+// Examples returns the examples for the builder property task
+func (t PortsTask) Examples() ([]Doc, error) {
+	examples := []PortsTaskExample{}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
 }
 
 // Execute sets or unsets the ports

@@ -1,5 +1,7 @@
 package tasks
 
+import yaml "gopkg.in/yaml.v3"
+
 // ProxyToggleTask manages the proxy for a given dokku application
 type ProxyToggleTask struct {
 	// App is the name of the app
@@ -12,9 +14,43 @@ type ProxyToggleTask struct {
 	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
 }
 
+// ProxyToggleTaskExample contains an example of a ProxyToggleTask
+type ProxyToggleTaskExample struct {
+	// Name is the task name holding the ProxyToggleTask description
+	Name string `yaml:"-"`
+
+	// ProxyToggleTask is the ProxyToggleTask configuration
+	ProxyToggleTask ProxyToggleTask `yaml:"proxy_toggle"`
+}
+
 // DesiredState returns the desired state of the proxy
 func (t ProxyToggleTask) DesiredState() State {
 	return t.State
+}
+
+// Doc returns the docblock for the proxy toggle task
+func (t ProxyToggleTask) Doc() string {
+	return "Enables or disables the proxy plugin for a given dokku application"
+}
+
+// Examples returns the examples for the builder property task
+func (t ProxyToggleTask) Examples() ([]Doc, error) {
+	examples := []ProxyToggleTaskExample{}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
 }
 
 // Execute enables or disables the proxy

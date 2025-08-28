@@ -2,22 +2,70 @@ package tasks
 
 import (
 	"omakase/subprocess"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
 // AppTask creates or destroys an app
 type AppTask struct {
 	// App is the name of the app
-	App   string `required:"true" yaml:"app"`
+	App string `required:"true" yaml:"app"`
 
 	// State is the state of the app
-	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
+	State State `required:"false" yaml:"state,omitempty" default:"present" options:"present,absent"`
 }
 
+// AppTaskExample contains an example of an AppTask
+type AppTaskExample struct {
+	// Name is the task name holding the AppTask description
+	Name string `yaml:"-"`
+
+	// DokkuApp is the AppTask configuration
+	DokkuApp AppTask `yaml:"dokku_app"`
 }
 
 // DesiredState returns the desired state of the app
 func (t AppTask) DesiredState() State {
 	return t.State
+}
+
+// Doc returns the docblock for the app task
+func (t AppTask) Doc() string {
+	return "Creates or destroys an app"
+}
+
+// Examples returns a list of AppTaskExamples as yaml
+func (t AppTask) Examples() ([]Doc, error) {
+	examples := []AppTaskExample{
+		{
+			Name: "Create an app named hello-world",
+			DokkuApp: AppTask{
+				App: "hello-world",
+			},
+		},
+		{
+			Name: "Destroy the app named hello-world",
+			DokkuApp: AppTask{
+				App:   "hello-world",
+				State: "absent",
+			},
+		},
+	}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
 }
 
 // Execute creates or destroys an app

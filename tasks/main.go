@@ -79,17 +79,23 @@ type Task interface {
 	// DesiredState returns the desired state of the task
 	DesiredState() State
 
+	// Doc returns the docblock for the task
+	Doc() string
+
+	// Examples returns the examples for the task
+	Examples() ([]Doc, error)
+
 	// Execute executes the task
 	Execute() TaskOutputState
 }
 
 // Global registry for Tasks.
-var registeredTasks map[string]Task
+var RegisteredTasks map[string]Task
 
 // RegisterTask registers a task
 func RegisterTask(t Task) {
-	if len(registeredTasks) == 0 {
-		registeredTasks = make(map[string]Task)
+	if len(RegisteredTasks) == 0 {
+		RegisteredTasks = make(map[string]Task)
 	}
 
 	var name string
@@ -100,7 +106,7 @@ func RegisterTask(t Task) {
 	}
 
 	name = flect.Underscore(name)
-	registeredTasks[fmt.Sprintf("dokku_%s", strings.TrimSuffix(name, "_task"))] = t
+	RegisteredTasks[fmt.Sprintf("dokku_%s", strings.TrimSuffix(name, "_task"))] = t
 }
 
 // SetValue sets the value of the input
@@ -139,8 +145,8 @@ func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap
 	}
 
 	i := 0
-	validTasks := make([]string, len(registeredTasks))
-	for k := range registeredTasks {
+	validTasks := make([]string, len(RegisteredTasks))
+	for k := range RegisteredTasks {
 		validTasks[i] = k
 		i++
 	}
@@ -172,7 +178,7 @@ func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap
 		}
 
 		detected := false
-		for taskName, registeredTask := range registeredTasks {
+		for taskName, registeredTask := range RegisteredTasks {
 			config, ok := t[taskName]
 			if !ok {
 				continue

@@ -3,6 +3,8 @@ package tasks
 import (
 	"errors"
 	"omakase/subprocess"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
 // StorageEnsureTask manages the storage for a given dokku application
@@ -17,9 +19,43 @@ type StorageEnsureTask struct {
 	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
 }
 
+// StorageEnsureTaskExample contains an example of a StorageEnsureTask
+type StorageEnsureTaskExample struct {
+	// Name is the task name holding the StorageEnsureTask description
+	Name string `yaml:"-"`
+
+	// StorageEnsureTask is the StorageEnsureTask configuration
+	StorageEnsureTask StorageEnsureTask `yaml:"storage_ensure"`
+}
+
 // DesiredState returns the desired state of the storage
 func (t StorageEnsureTask) DesiredState() State {
 	return t.State
+}
+
+// Doc returns the docblock for the storage ensure task
+func (t StorageEnsureTask) Doc() string {
+	return "Ensures the storage for a given dokku application"
+}
+
+// Examples returns the examples for the builder property task
+func (t StorageEnsureTask) Examples() ([]Doc, error) {
+	examples := []StorageEnsureTaskExample{}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
 }
 
 // Execute ensures the storage for a given app

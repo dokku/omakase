@@ -1,5 +1,7 @@
 package tasks
 
+import yaml "gopkg.in/yaml.v3"
+
 // DomainsToggleTask enables or disables the domains plugin for a given dokku application
 type DomainsToggleTask struct {
 	// App is the name of the app
@@ -12,9 +14,43 @@ type DomainsToggleTask struct {
 	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
 }
 
+// DomainsToggleTaskExample contains an example of a DomainsToggleTask
+type DomainsToggleTaskExample struct {
+	// Name is the task name holding the DomainsToggleTask description
+	Name string `yaml:"-"`
+
+	// DomainsToggleTask is the DomainsToggleTask configuration
+	DomainsToggleTask DomainsToggleTask `yaml:"domains_toggle"`
+}
+
 // DesiredState returns the desired state of the domains plugin
 func (t DomainsToggleTask) DesiredState() State {
 	return t.State
+}
+
+// Doc returns the docblock for the domains toggle task
+func (t DomainsToggleTask) Doc() string {
+	return "Enables or disables the domains plugin for a given dokku application"
+}
+
+// Examples returns the examples for the builder property task
+func (t DomainsToggleTask) Examples() ([]Doc, error) {
+	examples := []DomainsToggleTaskExample{}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
 }
 
 // Execute enables or disables the domains plugin

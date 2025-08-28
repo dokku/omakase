@@ -3,6 +3,8 @@ package tasks
 import (
 	"encoding/json"
 	"omakase/subprocess"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
 // git:from-image [--build-dir DIRECTORY] <app> <docker-image> [<git-username> <git-email>]
@@ -28,9 +30,43 @@ type GitFromImageTask struct {
 	State State `required:"false" yaml:"state" default:"deployed" options:"deployed"`
 }
 
+// GitFromImageTaskExample contains an example of a GitFromImageTask
+type GitFromImageTaskExample struct {
+	// Name is the task name holding the GitFromImageTask description
+	Name string `yaml:"-"`
+
+	// GitFromImageTask is the GitFromImageTask configuration
+	GitFromImageTask GitFromImageTask `yaml:"git_from_image"`
+}
+
 // DesiredState returns the desired state of the git repository
 func (t GitFromImageTask) DesiredState() State {
 	return t.State
+}
+
+// Doc returns the docblock for the git from image task
+func (t GitFromImageTask) Doc() string {
+	return "Deploys a git repository from a docker image"
+}
+
+// Examples returns the examples for the builder property task
+func (t GitFromImageTask) Examples() ([]Doc, error) {
+	examples := []GitFromImageTaskExample{}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
 }
 
 // Execute deploys a git repository from a docker image
