@@ -2,8 +2,8 @@ package tasks
 
 // NetworkPropertyTask manages the network property for a given dokku application
 type NetworkPropertyTask struct {
-	// App is the name of the app
-	App string `required:"true" yaml:"app"`
+	// App is the name of the app. Required if Global is false.
+	App string `required:"false" yaml:"app"`
 
 	// Global is a flag indicating if the network property should be applied globally
 	Global bool `required:"false" yaml:"global"`
