@@ -9,7 +9,7 @@ require (
 	github.com/gliderlabs/sigil v0.11.4
 	github.com/gobuffalo/flect v1.0.3
 	github.com/mcuadros/go-defaults v1.2.0
-	github.com/spf13/pflag v1.0.9
+	github.com/spf13/pflag v1.0.10
 	gopkg.in/yaml.v3 v3.0.1
 )
 
