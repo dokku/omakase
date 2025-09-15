@@ -6,7 +6,7 @@ require (
 	github.com/alexellis/go-execute/v2 v2.2.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.18.0
-	github.com/gliderlabs/sigil v0.11.4
+	github.com/gliderlabs/sigil v0.11.5
 	github.com/gobuffalo/flect v1.0.3
 	github.com/mcuadros/go-defaults v1.2.0
 	github.com/spf13/pflag v1.0.10
