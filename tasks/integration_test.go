@@ -355,3 +355,332 @@ func TestIntegrationGetTasksFullWorkflow(t *testing.T) {
 		}
 	}
 }
+
+func TestIntegrationChecksToggle(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-checks"
+
+	destroyApp(appName)
+	createApp(appName)
+	defer destroyApp(appName)
+
+	// enable checks
+	enableTask := ChecksToggleTask{App: appName, State: StatePresent}
+	result := enableTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to enable checks: %v", result.Error)
+	}
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
+	}
+
+	// disable checks
+	disableTask := ChecksToggleTask{App: appName, State: StateAbsent}
+	result = disableTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to disable checks: %v", result.Error)
+	}
+	if result.State != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", result.State)
+	}
+}
+
+func TestIntegrationDomainsToggle(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-domains"
+
+	destroyApp(appName)
+	createApp(appName)
+	defer destroyApp(appName)
+
+	// enable domains
+	enableTask := DomainsToggleTask{App: appName, State: StatePresent}
+	result := enableTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to enable domains: %v", result.Error)
+	}
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
+	}
+
+	// disable domains
+	disableTask := DomainsToggleTask{App: appName, State: StateAbsent}
+	result = disableTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to disable domains: %v", result.Error)
+	}
+	if result.State != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", result.State)
+	}
+}
+
+func TestIntegrationProxyToggle(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-proxy"
+
+	destroyApp(appName)
+	createApp(appName)
+	defer destroyApp(appName)
+
+	// enable proxy
+	enableTask := ProxyToggleTask{App: appName, State: StatePresent}
+	result := enableTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to enable proxy: %v", result.Error)
+	}
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
+	}
+
+	// disable proxy
+	disableTask := ProxyToggleTask{App: appName, State: StateAbsent}
+	result = disableTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to disable proxy: %v", result.Error)
+	}
+	if result.State != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", result.State)
+	}
+}
+
+func TestIntegrationPortsAddAndRemove(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-ports"
+
+	destroyApp(appName)
+	createApp(appName)
+	defer destroyApp(appName)
+
+	portMappings := []PortMapping{
+		{Scheme: "http", Host: 8080, Container: 5000},
+	}
+
+	// add port
+	addTask := PortsTask{App: appName, PortMappings: portMappings, State: StatePresent}
+	result := addTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to add port: %v", result.Error)
+	}
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for new port")
+	}
+
+	// add same port again (idempotent)
+	result = addTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent add failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for existing port")
+	}
+
+	// remove port
+	removeTask := PortsTask{App: appName, PortMappings: portMappings, State: StateAbsent}
+	result = removeTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to remove port: %v", result.Error)
+	}
+	if result.State != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for port removal")
+	}
+
+	// remove again (idempotent)
+	result = removeTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent remove failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for nonexistent port")
+	}
+}
+
+func TestIntegrationConfigMultipleKeys(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-multiconfig"
+
+	destroyApp(appName)
+	createApp(appName)
+	defer destroyApp(appName)
+
+	// set 3 keys
+	setTask := ConfigTask{
+		App:     appName,
+		Restart: false,
+		Config:  map[string]string{"KEY_A": "val_a", "KEY_B": "val_b", "KEY_C": "val_c"},
+		State:   StatePresent,
+	}
+	result := setTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to set config: %v", result.Error)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for new config keys")
+	}
+
+	// update one key, keep others the same
+	updateTask := ConfigTask{
+		App:     appName,
+		Restart: false,
+		Config:  map[string]string{"KEY_A": "val_a", "KEY_B": "val_b_updated", "KEY_C": "val_c"},
+		State:   StatePresent,
+	}
+	result = updateTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to update config: %v", result.Error)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for partial config update")
+	}
+
+	// set same values again (idempotent)
+	result = updateTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent update failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for unchanged config")
+	}
+
+	// unset all keys
+	unsetTask := ConfigTask{
+		App:     appName,
+		Restart: false,
+		Config:  map[string]string{"KEY_A": "", "KEY_B": "", "KEY_C": ""},
+		State:   StateAbsent,
+	}
+	result = unsetTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to unset config: %v", result.Error)
+	}
+	if result.State != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for config removal")
+	}
+}
+
+func TestIntegrationGitSync(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-gitsync"
+
+	destroyApp(appName)
+	createApp(appName)
+	defer destroyApp(appName)
+
+	task := GitSyncTask{
+		App:        appName,
+		Repository: "https://github.com/heroku/node-js-getting-started",
+		State:      "synced",
+	}
+	result := task.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to sync git: %v", result.Error)
+	}
+	if result.State != "synced" {
+		t.Errorf("expected state 'synced', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for git sync")
+	}
+}
+
+func TestIntegrationGitFromImage(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-fromimage"
+
+	destroyApp(appName)
+	createApp(appName)
+	defer destroyApp(appName)
+
+	task := GitFromImageTask{
+		App:   appName,
+		Image: "nginx:latest",
+		State: StateDeployed,
+	}
+	result := task.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to deploy from image: %v", result.Error)
+	}
+	if result.State != StateDeployed {
+		t.Errorf("expected state 'deployed', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for initial deploy")
+	}
+
+	// deploy same image again (idempotent)
+	result = task.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent deploy failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for same image")
+	}
+	if result.State != StateDeployed {
+		t.Errorf("expected state 'deployed', got '%s'", result.State)
+	}
+}
+
+func TestIntegrationMultiTaskWorkflow(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-multi"
+
+	destroyApp(appName)
+	defer destroyApp(appName)
+
+	data := []byte(`---
+- tasks:
+    - name: create app
+      dokku_app:
+        app: ` + appName + `
+    - name: set config
+      dokku_config:
+        app: ` + appName + `
+        restart: false
+        config:
+          TEST_KEY: test_value
+    - name: ensure storage
+      dokku_storage_ensure:
+        app: ` + appName + `
+        chown: herokuish
+`)
+	context := map[string]interface{}{}
+
+	tasks, err := GetTasks(data, context)
+	if err != nil {
+		t.Fatalf("GetTasks failed: %v", err)
+	}
+
+	if len(tasks.Keys()) != 3 {
+		t.Fatalf("expected 3 tasks, got %d", len(tasks.Keys()))
+	}
+
+	for _, name := range tasks.Keys() {
+		task := tasks.Get(name)
+		state := task.Execute()
+		if state.Error != nil {
+			t.Fatalf("task %q failed: %v", name, state.Error)
+		}
+		if state.State != task.DesiredState() {
+			t.Errorf("task %q: expected state %q, got %q", name, task.DesiredState(), state.State)
+		}
+		if !state.Changed {
+			t.Errorf("task %q: expected changed=true on first run", name)
+		}
+	}
+}
