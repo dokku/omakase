@@ -181,12 +181,12 @@ func TestStorageEnsureAbsentStateReturnsError(t *testing.T) {
 
 func TestGitSyncTaskDesiredState(t *testing.T) {
 	task := GitSyncTask{
-		App:        "test-app",
-		Repository: "https://github.com/example/repo",
-		State:      "synced",
+		App:    "test-app",
+		Remote: "https://github.com/example/repo",
+		State:  StatePresent,
 	}
-	if task.DesiredState() != "synced" {
-		t.Errorf("expected state 'synced', got '%s'", task.DesiredState())
+	if task.DesiredState() != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
 	}
 }
 
@@ -207,7 +207,7 @@ func TestAllTasksDesiredState(t *testing.T) {
 		{"DomainsToggleTask present", &DomainsToggleTask{App: "test", State: StatePresent}, StatePresent},
 		{"DomainsToggleTask absent", &DomainsToggleTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"GitFromImageTask deployed", &GitFromImageTask{App: "test", Image: "nginx", State: StateDeployed}, StateDeployed},
-		{"GitSyncTask synced", &GitSyncTask{App: "test", Repository: "https://example.com/repo", State: "synced"}, "synced"},
+		{"GitSyncTask present", &GitSyncTask{App: "test", Remote: "https://example.com/repo", State: StatePresent}, StatePresent},
 		{"NetworkPropertyTask present", &NetworkPropertyTask{App: "test", Property: "bind-all-interfaces", State: StatePresent}, StatePresent},
 		{"NetworkPropertyTask absent", &NetworkPropertyTask{App: "test", Property: "bind-all-interfaces", State: StateAbsent}, StateAbsent},
 		{"PortsTask present", &PortsTask{App: "test", State: StatePresent}, StatePresent},
@@ -350,20 +350,15 @@ func TestGitFromImageTaskNonDeployedStates(t *testing.T) {
 	}
 }
 
-func TestGitSyncTaskNoStateValidation(t *testing.T) {
+func TestGitSyncTaskInvalidState(t *testing.T) {
 	task := GitSyncTask{
-		App:        "test-app",
-		Repository: "https://example.com/repo",
-		State:      "invalid",
+		App:    "test-app",
+		Remote: "https://example.com/repo",
+		State:  "invalid",
 	}
 	result := task.Execute()
-	// GitSyncTask has no funcMap-based state validation; it always tries to run
-	// the dokku command. The error should be from subprocess, not state validation.
 	if result.Error == nil {
-		t.Fatal("expected error from subprocess (dokku not available)")
-	}
-	if strings.Contains(result.Error.Error(), "invalid state") {
-		t.Error("GitSyncTask should not have state validation, but got 'invalid state' error")
+		t.Fatal("Execute with invalid state should return an error")
 	}
 }
 

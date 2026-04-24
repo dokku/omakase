@@ -581,16 +581,16 @@ func TestIntegrationGitSync(t *testing.T) {
 	defer destroyApp(appName)
 
 	task := GitSyncTask{
-		App:        appName,
-		Repository: "https://github.com/dokku/smoke-test-app",
-		State:      "synced",
+		App:    appName,
+		Remote: "https://github.com/dokku/smoke-test-app",
+		State:  StatePresent,
 	}
 	result := task.Execute()
 	if result.Error != nil {
 		t.Fatalf("failed to sync git: %v", result.Error)
 	}
-	if result.State != "synced" {
-		t.Errorf("expected state 'synced', got '%s'", result.State)
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
 	}
 	if !result.Changed {
 		t.Error("expected changed=true for git sync")
