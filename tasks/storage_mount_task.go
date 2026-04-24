@@ -29,7 +29,7 @@ type StorageMountTaskExample struct {
 	Name string `yaml:"-"`
 
 	// StorageMountTask is the StorageMountTask configuration
-	StorageMountTask StorageMountTask `yaml:"storage_mount"`
+	StorageMountTask StorageMountTask `yaml:"dokku_storage_mount"`
 }
 
 // DesiredState returns the desired state of the storage

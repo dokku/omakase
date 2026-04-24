@@ -33,7 +33,7 @@ type ResourceLimitTaskExample struct {
 	Name string `yaml:"-"`
 
 	// ResourceLimitTask is the ResourceLimitTask configuration
-	ResourceLimitTask ResourceLimitTask `yaml:"resource_limit"`
+	ResourceLimitTask ResourceLimitTask `yaml:"dokku_resource_limit"`
 }
 
 // DesiredState returns the desired state of the resource limits

@@ -24,7 +24,7 @@ type ChecksToggleTaskExample struct {
 	Name string `yaml:"-"`
 
 	// ChecksToggleTask is the ChecksToggleTask configuration
-	ChecksToggleTask ChecksToggleTask `yaml:"checks_toggle"`
+	ChecksToggleTask ChecksToggleTask `yaml:"dokku_checks_toggle"`
 }
 
 // DesiredState returns the desired state of the checks plugin

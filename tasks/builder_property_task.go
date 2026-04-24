@@ -31,7 +31,7 @@ type BuilderPropertyTaskExample struct {
 	Name string `yaml:"-"`
 
 	// BuilderPropertyTask is the BuilderPropertyTask configuration
-	BuilderPropertyTask BuilderPropertyTask `yaml:"builder_property"`
+	BuilderPropertyTask BuilderPropertyTask `yaml:"dokku_builder_property"`
 }
 
 // DesiredState returns the desired state of the builder configuration

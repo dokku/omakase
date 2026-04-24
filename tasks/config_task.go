@@ -30,7 +30,7 @@ type ConfigTaskExample struct {
 	Name string `yaml:"-"`
 
 	// ConfigTask is the ConfigTask configuration
-	ConfigTask ConfigTask `yaml:"config"`
+	ConfigTask ConfigTask `yaml:"dokku_config"`
 }
 
 // DesiredState returns the desired state of the configuration

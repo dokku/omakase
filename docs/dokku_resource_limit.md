@@ -5,7 +5,7 @@ Manages the resource limits for a given dokku application
 ## Set CPU and memory limits
 
 ```yaml
-resource_limit:
+dokku_resource_limit:
     app: hello-world
     resources:
         cpu: "100"
@@ -16,7 +16,7 @@ resource_limit:
 ## Set memory limit for web process type
 
 ```yaml
-resource_limit:
+dokku_resource_limit:
     app: hello-world
     process_type: web
     resources:
@@ -27,7 +27,7 @@ resource_limit:
 ## Clear all resource limits
 
 ```yaml
-resource_limit:
+dokku_resource_limit:
     app: hello-world
     resources: {}
     clear_before: false

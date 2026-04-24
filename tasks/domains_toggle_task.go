@@ -24,7 +24,7 @@ type DomainsToggleTaskExample struct {
 	Name string `yaml:"-"`
 
 	// DomainsToggleTask is the DomainsToggleTask configuration
-	DomainsToggleTask DomainsToggleTask `yaml:"domains_toggle"`
+	DomainsToggleTask DomainsToggleTask `yaml:"dokku_domains_toggle"`
 }
 
 // DesiredState returns the desired state of the domains plugin

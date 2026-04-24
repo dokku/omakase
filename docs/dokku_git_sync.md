@@ -5,7 +5,7 @@ Syncs a git repository to a dokku application
 ## Sync a git repository to an app
 
 ```yaml
-git_sync:
+dokku_git_sync:
     app: hello-world
     remote: https://github.com/dokku/smoke-test-app.git
     git_ref: ""
@@ -18,7 +18,7 @@ git_sync:
 ## Sync a git repository with a specific ref and build
 
 ```yaml
-git_sync:
+dokku_git_sync:
     app: hello-world
     remote: https://github.com/dokku/smoke-test-app.git
     git_ref: main

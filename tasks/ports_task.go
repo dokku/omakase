@@ -28,7 +28,7 @@ type PortsTaskExample struct {
 	Name string `yaml:"-"`
 
 	// PortsTask is the PortsTask configuration
-	PortsTask PortsTask `yaml:"ports"`
+	PortsTask PortsTask `yaml:"dokku_ports"`
 }
 
 // PortMapping represents a port mapping
