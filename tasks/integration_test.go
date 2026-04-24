@@ -582,7 +582,7 @@ func TestIntegrationGitSync(t *testing.T) {
 
 	task := GitSyncTask{
 		App:        appName,
-		Repository: "https://github.com/heroku/node-js-getting-started",
+		Repository: "https://github.com/dokku/smoke-test-app",
 		State:      "synced",
 	}
 	result := task.Execute()
