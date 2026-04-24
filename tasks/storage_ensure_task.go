@@ -2,29 +2,80 @@ package tasks
 
 import (
 	"errors"
+	"fmt"
 	"omakase/subprocess"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
+// StorageEnsureTask manages the storage for a given dokku application
 type StorageEnsureTask struct {
-	App   string `required:"true" yaml:"app"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// Chown is the chown value to set
 	Chown string `required:"false" yaml:"chown"`
-	State string `required:"true" yaml:"state" default:"present"`
+
+	// State is the desired state of the storage
+	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
 }
 
-func (t StorageEnsureTask) DesiredState() string {
+// StorageEnsureTaskExample contains an example of a StorageEnsureTask
+type StorageEnsureTaskExample struct {
+	// Name is the task name holding the StorageEnsureTask description
+	Name string `yaml:"-"`
+
+	// StorageEnsureTask is the StorageEnsureTask configuration
+	StorageEnsureTask StorageEnsureTask `yaml:"storage_ensure"`
+}
+
+// DesiredState returns the desired state of the storage
+func (t StorageEnsureTask) DesiredState() State {
 	return t.State
 }
 
+// Doc returns the docblock for the storage ensure task
+func (t StorageEnsureTask) Doc() string {
+	return "Ensures the storage for a given dokku application"
+}
+
+// Examples returns the examples for the builder property task
+func (t StorageEnsureTask) Examples() ([]Doc, error) {
+	examples := []StorageEnsureTaskExample{}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
+}
+
+// Execute ensures the storage for a given app
 func (t StorageEnsureTask) Execute() TaskOutputState {
-	funcMap := map[string]func(string, string) TaskOutputState{
+	funcMap := map[State]func(string, string) TaskOutputState{
 		"present": ensureStorage,
 		"absent":  removeStorage,
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t.App, t.Chown)
 }
 
+// ensureStorage ensures the storage for a given app
 func ensureStorage(app, chown string) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -35,7 +86,7 @@ func ensureStorage(app, chown string) TaskOutputState {
 	chownValues := map[string]bool{
 		"heroku":    true,
 		"herokuish": true,
-		"packeto":   true,
+		"paketo":    true,
 		"root":      true,
 		"false":     true,
 	}
@@ -66,6 +117,7 @@ func ensureStorage(app, chown string) TaskOutputState {
 	return state
 }
 
+// removeStorage removes the storage for a given app
 func removeStorage(app, chown string) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -76,6 +128,7 @@ func removeStorage(app, chown string) TaskOutputState {
 	return state
 }
 
+// init registers the StorageEnsureTask with the task registry
 func init() {
 	RegisterTask(&StorageEnsureTask{})
 }

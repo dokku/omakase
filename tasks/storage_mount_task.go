@@ -4,29 +4,81 @@ import (
 	"encoding/json"
 	"fmt"
 	"omakase/subprocess"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
+// StorageMountTask manages the storage for a given dokku application
 type StorageMountTask struct {
-	App          string `required:"true" yaml:"app"`
-	HostDir      string `required:"true" yaml:"host_dir"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// HostDir is the host directory to mount
+	HostDir string `required:"true" yaml:"host_dir"`
+
+	// ContainerDir is the container directory to mount
 	ContainerDir string `required:"true" yaml:"container_dir"`
-	State        string `required:"true" yaml:"state" default:"present"`
+
+	// State is the desired state of the storage
+	State State `required:"false" yaml:"state" default:"present" options:"present,absent"`
 }
 
-func (t StorageMountTask) DesiredState() string {
+// StorageMountTaskExample contains an example of a StorageMountTask
+type StorageMountTaskExample struct {
+	// Name is the task name holding the StorageMountTask description
+	Name string `yaml:"-"`
+
+	// StorageMountTask is the StorageMountTask configuration
+	StorageMountTask StorageMountTask `yaml:"storage_mount"`
+}
+
+// DesiredState returns the desired state of the storage
+func (t StorageMountTask) DesiredState() State {
 	return t.State
 }
 
+// Doc returns the docblock for the storage mount task
+func (t StorageMountTask) Doc() string {
+	return "Mounts or unmounts the storage for a given dokku application"
+}
+
+// Examples returns the examples for the builder property task
+func (t StorageMountTask) Examples() ([]Doc, error) {
+	examples := []StorageMountTaskExample{}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
+}
+
+// Execute mounts or unmounts the storage for a given app
 func (t StorageMountTask) Execute() TaskOutputState {
-	funcMap := map[string]func(string, string, string) TaskOutputState{
+	funcMap := map[State]func(string, string, string) TaskOutputState{
 		"present": mountStorage,
 		"absent":  unmountStorage,
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t.App, t.HostDir, t.ContainerDir)
 }
 
+// mountExists checks if the storage mount exists
 func mountExists(app, hostDir, containerDir string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
@@ -60,6 +112,7 @@ func mountExists(app, hostDir, containerDir string) bool {
 	return false
 }
 
+// mountStorage mounts the storage for a given app
 func mountStorage(app, hostDir, containerDir string) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -93,6 +146,7 @@ func mountStorage(app, hostDir, containerDir string) TaskOutputState {
 	return state
 }
 
+// unmountStorage unmounts the storage for a given app
 func unmountStorage(app, hostDir, containerDir string) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -124,6 +178,7 @@ func unmountStorage(app, hostDir, containerDir string) TaskOutputState {
 	return state
 }
 
+// init registers the StorageMountTask with the task registry
 func init() {
 	RegisterTask(&StorageMountTask{})
 }

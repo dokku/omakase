@@ -5,29 +5,102 @@ import (
 	"encoding/json"
 	"fmt"
 	"omakase/subprocess"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
+// ConfigTask manages the configuration for a given dokku application
 type ConfigTask struct {
-	App     string            `required:"true" yaml:"app"`
-	Restart bool              `yaml:"restart" default:"true"`
-	Config  map[string]string `yaml:"config"`
-	State   string            `required:"true" yaml:"state" default:"present"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// Restart is a flag indicating if the app should be restarted
+	Restart bool `yaml:"restart" default:"true"`
+
+	// Config is a map of configuration key-value pairs
+	Config map[string]string `yaml:"config"`
+
+	// State is the desired state of the configuration
+	State State `required:"false" yaml:"state,omitempty" default:"present" options:"present,absent"`
 }
 
-func (t ConfigTask) DesiredState() string {
+// ConfigTaskExample contains an example of a ConfigTask
+type ConfigTaskExample struct {
+	// Name is the task name holding the ConfigTask description
+	Name string `yaml:"-"`
+
+	// ConfigTask is the ConfigTask configuration
+	ConfigTask ConfigTask `yaml:"config"`
+}
+
+// DesiredState returns the desired state of the configuration
+func (t ConfigTask) DesiredState() State {
 	return t.State
 }
 
+// Doc returns the docblock for the config task
+func (t ConfigTask) Doc() string {
+	return "Manages the configuration for a given dokku application"
+}
+
+// Examples returns the examples for the builder property task
+func (t ConfigTask) Examples() ([]Doc, error) {
+	examples := []ConfigTaskExample{
+		{
+			Name: "set KEY=VALUE",
+			ConfigTask: ConfigTask{
+				App:     "hello-world",
+				Restart: true,
+				Config: map[string]string{
+					"KEY": "VALUE_1",
+				},
+			},
+		},
+		{
+			Name: "set KEY=VALUE without restart",
+			ConfigTask: ConfigTask{
+				App:     "hello-world",
+				Restart: false,
+				Config: map[string]string{
+					"KEY": "VALUE_1",
+				},
+			},
+		},
+	}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
+}
+
+// Execute sets or unsets the configuration for a given dokku application
 func (t ConfigTask) Execute() TaskOutputState {
-	funcMap := map[string]func(ConfigTask) TaskOutputState{
+	funcMap := map[State]func(ConfigTask) TaskOutputState{
 		"present": setConfig,
 		"absent":  unsetConfig,
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t)
 }
 
+// getConfig retrieves the current configuration for a given dokku application
 func getConfig(t ConfigTask) (map[string]string, error) {
 	var config map[string]string
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
@@ -52,6 +125,7 @@ func getConfig(t ConfigTask) (map[string]string, error) {
 	return config, nil
 }
 
+// setConfig sets the configuration for a given dokku application
 func setConfig(t ConfigTask) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -113,6 +187,7 @@ func setConfig(t ConfigTask) TaskOutputState {
 	return state
 }
 
+// unsetConfig unsets the configuration for a given dokku application
 func unsetConfig(t ConfigTask) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -140,7 +215,6 @@ func unsetConfig(t ConfigTask) TaskOutputState {
 	args := []string{
 		"--quiet",
 		"config:unset",
-		t.App,
 	}
 
 	if !t.Restart {
@@ -169,6 +243,7 @@ func unsetConfig(t ConfigTask) TaskOutputState {
 	return state
 }
 
+// init registers the ConfigTask with the task registry
 func init() {
 	RegisterTask(&ConfigTask{})
 }

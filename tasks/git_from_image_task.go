@@ -2,33 +2,90 @@ package tasks
 
 import (
 	"encoding/json"
+	"fmt"
 	"omakase/subprocess"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
 // git:from-image [--build-dir DIRECTORY] <app> <docker-image> [<git-username> <git-email>]
 
+// GitFromImageTask deploys a git repository from a docker image
 type GitFromImageTask struct {
-	App         string `required:"true" yaml:"app"`
-	Image       string `required:"true" yaml:"image"`
-	BuildDir    string `required:"false" yaml:"build_dir"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// Image is the docker image to deploy
+	Image string `required:"true" yaml:"image"`
+
+	// BuildDir is the directory to build the git repository
+	BuildDir string `required:"false" yaml:"build_dir"`
+
+	// GitUsername is the username to use for the git repository
 	GitUsername string `required:"false" yaml:"git_username"`
-	GitEmail    string `required:"false" yaml:"git_email"`
-	State       string `required:"true" yaml:"state" default:"deployed"`
+
+	// GitEmail is the email to use for the git repository
+	GitEmail string `required:"false" yaml:"git_email"`
+
+	// State is the desired state of the git repository
+	State State `required:"false" yaml:"state" default:"deployed" options:"deployed"`
 }
 
-func (t GitFromImageTask) DesiredState() string {
+// GitFromImageTaskExample contains an example of a GitFromImageTask
+type GitFromImageTaskExample struct {
+	// Name is the task name holding the GitFromImageTask description
+	Name string `yaml:"-"`
+
+	// GitFromImageTask is the GitFromImageTask configuration
+	GitFromImageTask GitFromImageTask `yaml:"git_from_image"`
+}
+
+// DesiredState returns the desired state of the git repository
+func (t GitFromImageTask) DesiredState() State {
 	return t.State
 }
 
+// Doc returns the docblock for the git from image task
+func (t GitFromImageTask) Doc() string {
+	return "Deploys a git repository from a docker image"
+}
+
+// Examples returns the examples for the builder property task
+func (t GitFromImageTask) Examples() ([]Doc, error) {
+	examples := []GitFromImageTaskExample{}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
+}
+
+// Execute deploys a git repository from a docker image
 func (t GitFromImageTask) Execute() TaskOutputState {
-	funcMap := map[string]func(GitFromImageTask) TaskOutputState{
+	funcMap := map[State]func(GitFromImageTask) TaskOutputState{
 		"deployed": deployGitFromImage,
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t)
 }
 
+// checkAppSourceImage checks if the app is already deployed from a docker image
 func checkAppSourceImage(app, expectedImage string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
@@ -52,6 +109,7 @@ func checkAppSourceImage(app, expectedImage string) bool {
 	return source.Source == "docker-image" && source.SourceMetadata == expectedImage
 }
 
+// deployGitFromImage deploys a git repository from a docker image
 func deployGitFromImage(t GitFromImageTask) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -95,6 +153,7 @@ func deployGitFromImage(t GitFromImageTask) TaskOutputState {
 	return state
 }
 
+// init registers the GitFromImageTask with the task registry
 func init() {
 	RegisterTask(&GitFromImageTask{})
 }

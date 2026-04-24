@@ -1,28 +1,91 @@
 package tasks
 
 import (
+	"fmt"
 	"omakase/subprocess"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
+// AppTask creates or destroys an app
 type AppTask struct {
-	App   string `required:"true" yaml:"app"`
-	State string `required:"true" yaml:"state" default:"present"`
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// State is the state of the app
+	State State `required:"false" yaml:"state,omitempty" default:"present" options:"present,absent"`
 }
 
-func (t AppTask) DesiredState() string {
+// AppTaskExample contains an example of an AppTask
+type AppTaskExample struct {
+	// Name is the task name holding the AppTask description
+	Name string `yaml:"-"`
+
+	// DokkuApp is the AppTask configuration
+	DokkuApp AppTask `yaml:"dokku_app"`
+}
+
+// DesiredState returns the desired state of the app
+func (t AppTask) DesiredState() State {
 	return t.State
 }
 
+// Doc returns the docblock for the app task
+func (t AppTask) Doc() string {
+	return "Creates or destroys an app"
+}
+
+// Examples returns a list of AppTaskExamples as yaml
+func (t AppTask) Examples() ([]Doc, error) {
+	examples := []AppTaskExample{
+		{
+			Name: "Create an app named hello-world",
+			DokkuApp: AppTask{
+				App: "hello-world",
+			},
+		},
+		{
+			Name: "Destroy the app named hello-world",
+			DokkuApp: AppTask{
+				App:   "hello-world",
+				State: "absent",
+			},
+		},
+	}
+
+	var output []Doc
+	for _, example := range examples {
+		b, err := yaml.Marshal(example)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, Doc{
+			Name:      example.Name,
+			Codeblock: string(b),
+		})
+	}
+
+	return output, nil
+}
+
+// Execute creates or destroys an app
 func (t AppTask) Execute() TaskOutputState {
-	funcMap := map[string]func(string) TaskOutputState{
+	funcMap := map[State]func(string) TaskOutputState{
 		"present": createApp,
 		"absent":  destroyApp,
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t.App)
 }
 
+// appExists checks if an app exists
 func appExists(appName string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
@@ -39,6 +102,7 @@ func appExists(appName string) bool {
 	return result.ExitCode == 0
 }
 
+// createApp creates an app
 func createApp(app string) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -68,6 +132,7 @@ func createApp(app string) TaskOutputState {
 	return state
 }
 
+// destroyApp destroys an app
 func destroyApp(app string) TaskOutputState {
 	state := TaskOutputState{
 		Changed: false,
@@ -98,6 +163,7 @@ func destroyApp(app string) TaskOutputState {
 	return state
 }
 
+// init registers the AppTask with the task registry
 func init() {
 	RegisterTask(&AppTask{})
 }

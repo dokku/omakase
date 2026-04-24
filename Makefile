@@ -198,3 +198,7 @@ validate:
 prebuild:
 	git config --global --add safe.directory $(shell pwd)
 	git status
+
+.PHONY: docs
+docs:
+	go generate generate/docs.go

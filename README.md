@@ -133,21 +133,15 @@ package main
 
 type LollipopTask struct {
   App   string `required:"true" yaml:"app"`
-  State string `required:"true" yaml:"state" default:"present"`
+  State State `required:"true" yaml:"state" default:"present"`
 }
 
-func (t LollipopTask) DesiredState() string {
+func (t LollipopTask) DesiredState() State {
   return t.State
 }
 
 func (t LollipopTask) Execute() (string, error) {
   return "", nil
-}
-
-func (t *LollipopTask) SetDefaultDesiredState(state string) {
-    if t.State == "" {
-        t.State = state
-    }
 }
 
 func init() {
