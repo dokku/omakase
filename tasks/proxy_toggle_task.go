@@ -1,6 +1,10 @@
 package tasks
 
-import yaml "gopkg.in/yaml.v3"
+import (
+	"fmt"
+
+	yaml "gopkg.in/yaml.v3"
+)
 
 // ProxyToggleTask manages the proxy for a given dokku application
 type ProxyToggleTask struct {
@@ -69,7 +73,12 @@ func (t ProxyToggleTask) Execute() TaskOutputState {
 		},
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn()
 }
 

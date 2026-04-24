@@ -65,11 +65,11 @@ func isTrueString(s string) bool {
 
 func isFalseString(s string) bool {
 	falseStrings := map[string]bool{
-		"true": true,
-		"yes":  true,
-		"on":   true,
-		"y":    true,
-		"Y":    true,
+		"false": true,
+		"no":    true,
+		"off":   true,
+		"n":     true,
+		"N":     true,
 	}
 	return falseStrings[s]
 }

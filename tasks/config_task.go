@@ -91,7 +91,12 @@ func (t ConfigTask) Execute() TaskOutputState {
 		"absent":  unsetConfig,
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t)
 }
 
@@ -210,7 +215,6 @@ func unsetConfig(t ConfigTask) TaskOutputState {
 	args := []string{
 		"--quiet",
 		"config:unset",
-		t.App,
 	}
 
 	if !t.Restart {

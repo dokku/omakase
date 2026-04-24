@@ -96,7 +96,12 @@ func (t PortsTask) Execute() TaskOutputState {
 		return state
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t.App, t.PortMappings)
 }
 
@@ -117,13 +122,8 @@ func getPorts(appName string) map[string]PortMapping {
 	}
 
 	portMappings := map[string]PortMapping{}
-	for _, line := range strings.Split(result.StdoutContents(), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		parts := strings.Split(line, ":")
+	for _, mapping := range strings.Fields(result.StdoutContents()) {
+		parts := strings.Split(mapping, ":")
 		if len(parts) != 3 {
 			continue
 		}
@@ -139,7 +139,7 @@ func getPorts(appName string) map[string]PortMapping {
 			continue
 		}
 
-		portMappings[line] = PortMapping{
+		portMappings[mapping] = PortMapping{
 			Scheme:    scheme,
 			Host:      host,
 			Container: container,

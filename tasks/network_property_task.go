@@ -1,6 +1,11 @@
 package tasks
 
-import yaml "gopkg.in/yaml.v3"
+import (
+	"errors"
+	"fmt"
+
+	yaml "gopkg.in/yaml.v3"
+)
 
 // NetworkPropertyTask manages the network property for a given dokku application
 type NetworkPropertyTask struct {
@@ -93,6 +98,12 @@ func (t NetworkPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the network property
 func (t NetworkPropertyTask) Execute() TaskOutputState {
+	if !t.Global && t.App == "" {
+		return TaskOutputState{
+			Error: errors.New("app is required when global is false"),
+		}
+	}
+
 	ctx := PropertyContext{
 		App:      t.App,
 		Global:   t.Global,
@@ -108,7 +119,12 @@ func (t NetworkPropertyTask) Execute() TaskOutputState {
 		},
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn()
 }
 

@@ -151,6 +151,10 @@ func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap
 		i++
 	}
 
+	if len(recipe) == 0 {
+		return tasks, fmt.Errorf("parse error: no recipe found in tasks file")
+	}
+
 	for i, t := range recipe[0].Tasks {
 		if len(t) > 2 {
 			return tasks, fmt.Errorf("task parse error: task #%d has too many properties - expected=2 actual=%d", i+1, len(t))

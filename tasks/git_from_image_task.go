@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"encoding/json"
+	"fmt"
 	"omakase/subprocess"
 
 	yaml "gopkg.in/yaml.v3"
@@ -75,7 +76,12 @@ func (t GitFromImageTask) Execute() TaskOutputState {
 		"deployed": deployGitFromImage,
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t)
 }
 

@@ -13,8 +13,8 @@ import (
 func getTaskYamlFilename(s []string) string {
 	for i, arg := range s {
 		if arg == "--tasks" {
-			if len(os.Args) > i {
-				return os.Args[i+1]
+			if len(s) > i+1 {
+				return s[i+1]
 			}
 		}
 		if taskFile, found := strings.CutPrefix(arg, "--tasks="); found {
@@ -51,7 +51,7 @@ func main() {
 		}
 
 		if state.State != task.DesiredState() {
-			log.Fatalf("error: Invalid state found, expected=%v actual=%v", task.DesiredState(), state)
+			log.Fatalf("error: Invalid state found, expected=%v actual=%v", task.DesiredState(), state.State)
 		}
 	}
 }

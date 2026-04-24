@@ -69,7 +69,12 @@ func (t StorageMountTask) Execute() TaskOutputState {
 		"absent":  unmountStorage,
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t.App, t.HostDir, t.ContainerDir)
 }
 

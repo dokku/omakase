@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"errors"
+	"fmt"
 
 	yaml "gopkg.in/yaml.v3"
 )
@@ -118,7 +119,12 @@ func (t BuilderPropertyTask) Execute() TaskOutputState {
 		},
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn()
 }
 

@@ -1,6 +1,10 @@
 package tasks
 
-import yaml "gopkg.in/yaml.v3"
+import (
+	"fmt"
+
+	yaml "gopkg.in/yaml.v3"
+)
 
 // ChecksToggleTask enables or disables the checks plugin for a given dokku application
 type ChecksToggleTask struct {
@@ -84,7 +88,12 @@ func (t ChecksToggleTask) Execute() TaskOutputState {
 		},
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn()
 }
 

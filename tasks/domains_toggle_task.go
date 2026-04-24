@@ -1,6 +1,10 @@
 package tasks
 
-import yaml "gopkg.in/yaml.v3"
+import (
+	"fmt"
+
+	yaml "gopkg.in/yaml.v3"
+)
 
 // DomainsToggleTask enables or disables the domains plugin for a given dokku application
 type DomainsToggleTask struct {
@@ -69,7 +73,12 @@ func (t DomainsToggleTask) Execute() TaskOutputState {
 		},
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn()
 }
 

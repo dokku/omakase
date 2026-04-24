@@ -1,6 +1,10 @@
 package tasks
 
-import yaml "gopkg.in/yaml.v3"
+import (
+	"omakase/subprocess"
+
+	yaml "gopkg.in/yaml.v3"
+)
 
 // GitSyncTask syncs a git repository to a dokku application
 type GitSyncTask struct {
@@ -58,7 +62,35 @@ func (t GitSyncTask) Examples() ([]Doc, error) {
 
 // Execute syncs a git repository to a dokku application
 func (t GitSyncTask) Execute() TaskOutputState {
-	return TaskOutputState{}
+	state := TaskOutputState{
+		Changed: false,
+		State:   "unsynced",
+	}
+
+	args := []string{
+		"git:sync",
+		"--no-build",
+	}
+
+	args = append(args, t.App, t.Repository)
+
+	if t.GitRef != "" {
+		args = append(args, t.GitRef)
+	}
+
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    args,
+	})
+	if err != nil {
+		state.Error = err
+		state.Message = result.StderrContents()
+		return state
+	}
+
+	state.Changed = true
+	state.State = "synced"
+	return state
 }
 
 // init registers the GitSyncTask with the task registry

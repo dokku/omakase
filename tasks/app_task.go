@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"fmt"
 	"omakase/subprocess"
 
 	yaml "gopkg.in/yaml.v3"
@@ -75,7 +76,12 @@ func (t AppTask) Execute() TaskOutputState {
 		"absent":  destroyApp,
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t.App)
 }
 

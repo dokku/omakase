@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"errors"
+	"fmt"
 	"omakase/subprocess"
 
 	yaml "gopkg.in/yaml.v3"
@@ -65,7 +66,12 @@ func (t StorageEnsureTask) Execute() TaskOutputState {
 		"absent":  removeStorage,
 	}
 
-	fn := funcMap[t.State]
+	fn, ok := funcMap[t.State]
+	if !ok {
+		return TaskOutputState{
+			Error: fmt.Errorf("invalid state: %s", t.State),
+		}
+	}
 	return fn(t.App, t.Chown)
 }
 
@@ -80,7 +86,7 @@ func ensureStorage(app, chown string) TaskOutputState {
 	chownValues := map[string]bool{
 		"heroku":    true,
 		"herokuish": true,
-		"packeto":   true,
+		"paketo":    true,
 		"root":      true,
 		"false":     true,
 	}
