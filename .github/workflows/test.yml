@@ -1,0 +1,42 @@
+---
+name: test
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    branches:
+      - '*'
+  push:
+    branches:
+      - 'master'
+
+jobs:
+  unit-test:
+    name: unit-test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: run unit tests
+        run: go test -v -count=1 . ./tasks/ ./subprocess/
+
+  integration-test:
+    name: integration-test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: install dokku
+        run: |
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://packagecloud.io/dokku/dokku/gpgkey | sudo gpg --dearmor -o /etc/apt/keyrings/dokku-archive-keyring.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/dokku-archive-keyring.gpg] https://packagecloud.io/dokku/dokku/ubuntu/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/dokku.list
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -qq -y dokku
+          sudo dokku plugin:install-dependencies --core
+      - name: run integration tests
+        run: sudo go test -v -count=1 -run TestIntegration ./tasks/

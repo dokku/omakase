@@ -202,3 +202,11 @@ prebuild:
 .PHONY: docs
 docs:
 	go generate generate/docs.go
+
+.PHONY: test
+test:
+	go test -v -count=1 . ./tasks/ ./subprocess/
+
+.PHONY: test-integration
+test-integration:
+	go test -v -count=1 -run TestIntegration ./tasks/
