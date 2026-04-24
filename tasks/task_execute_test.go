@@ -219,6 +219,46 @@ func TestResourceLimitTaskNilResources(t *testing.T) {
 	}
 }
 
+func TestResourceReserveTaskInvalidState(t *testing.T) {
+	task := ResourceReserveTask{
+		App:       "test-app",
+		Resources: map[string]string{"cpu": "100"},
+		State:     "invalid",
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with invalid state should return an error")
+	}
+}
+
+func TestResourceReserveTaskDesiredState(t *testing.T) {
+	task := ResourceReserveTask{App: "test-app", State: StatePresent}
+	if task.DesiredState() != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
+	}
+
+	task = ResourceReserveTask{App: "test-app", State: StateAbsent}
+	if task.DesiredState() != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
+	}
+}
+
+func TestResourceReserveTaskEmptyResources(t *testing.T) {
+	task := ResourceReserveTask{App: "test-app", Resources: map[string]string{}, State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with empty resources and state=present should return an error")
+	}
+}
+
+func TestResourceReserveTaskNilResources(t *testing.T) {
+	task := ResourceReserveTask{App: "test-app", State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with nil resources and state=present should return an error")
+	}
+}
+
 func TestGitSyncTaskDesiredState(t *testing.T) {
 	task := GitSyncTask{
 		App:    "test-app",
@@ -254,6 +294,8 @@ func TestAllTasksDesiredState(t *testing.T) {
 		{"PortsTask absent", &PortsTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"ResourceLimitTask present", &ResourceLimitTask{App: "test", Resources: map[string]string{"cpu": "100"}, State: StatePresent}, StatePresent},
 		{"ResourceLimitTask absent", &ResourceLimitTask{App: "test", State: StateAbsent}, StateAbsent},
+		{"ResourceReserveTask present", &ResourceReserveTask{App: "test", Resources: map[string]string{"cpu": "100"}, State: StatePresent}, StatePresent},
+		{"ResourceReserveTask absent", &ResourceReserveTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"ProxyToggleTask present", &ProxyToggleTask{App: "test", State: StatePresent}, StatePresent},
 		{"ProxyToggleTask absent", &ProxyToggleTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"StorageEnsureTask present", &StorageEnsureTask{App: "test", Chown: "heroku", State: StatePresent}, StatePresent},
@@ -445,7 +487,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 13
+	expected := 14
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -466,6 +508,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&NetworkPropertyTask{}, "Manages the network property for a given dokku application"},
 		{&PortsTask{}, "Manages the ports for a given dokku application"},
 		{&ResourceLimitTask{}, "Manages the resource limits for a given dokku application"},
+		{&ResourceReserveTask{}, "Manages the resource reservations for a given dokku application"},
 		{&ProxyToggleTask{}, "Enables or disables the proxy plugin for a given dokku application"},
 		{&StorageEnsureTask{}, "Ensures the storage for a given dokku application"},
 		{&StorageMountTask{}, "Mounts or unmounts the storage for a given dokku application"},

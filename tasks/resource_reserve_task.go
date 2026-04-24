@@ -7,49 +7,49 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// ResourceLimitTask manages the resource limits for a given dokku application
-type ResourceLimitTask struct {
+// ResourceReserveTask manages the resource reservations for a given dokku application
+type ResourceReserveTask struct {
 	// App is the name of the app
 	App string `required:"true" yaml:"app"`
 
-	// ProcessType is the process type to set resource limits for
+	// ProcessType is the process type to set resource reservations for
 	ProcessType string `required:"false" yaml:"process_type,omitempty"`
 
 	// Resources is a map of resource type to quantity
 	Resources map[string]string `yaml:"resources"`
 
-	// ClearBefore clears all resource limits before applying new ones
+	// ClearBefore clears all resource reservations before applying new ones
 	ClearBefore bool `yaml:"clear_before" default:"false"`
 
-	// State is the desired state of the resource limits
+	// State is the desired state of the resource reservations
 	State State `required:"false" yaml:"state,omitempty" default:"present" options:"present,absent"`
 }
 
-// ResourceLimitTaskExample contains an example of a ResourceLimitTask
-type ResourceLimitTaskExample struct {
-	// Name is the task name holding the ResourceLimitTask description
+// ResourceReserveTaskExample contains an example of a ResourceReserveTask
+type ResourceReserveTaskExample struct {
+	// Name is the task name holding the ResourceReserveTask description
 	Name string `yaml:"-"`
 
-	// ResourceLimitTask is the ResourceLimitTask configuration
-	ResourceLimitTask ResourceLimitTask `yaml:"dokku_resource_limit"`
+	// ResourceReserveTask is the ResourceReserveTask configuration
+	ResourceReserveTask ResourceReserveTask `yaml:"dokku_resource_reserve"`
 }
 
-// DesiredState returns the desired state of the resource limits
-func (t ResourceLimitTask) DesiredState() State {
+// DesiredState returns the desired state of the resource reservations
+func (t ResourceReserveTask) DesiredState() State {
 	return t.State
 }
 
-// Doc returns the docblock for the resource limit task
-func (t ResourceLimitTask) Doc() string {
-	return "Manages the resource limits for a given dokku application"
+// Doc returns the docblock for the resource reserve task
+func (t ResourceReserveTask) Doc() string {
+	return "Manages the resource reservations for a given dokku application"
 }
 
-// Examples returns the examples for the resource limit task
-func (t ResourceLimitTask) Examples() ([]Doc, error) {
-	examples := []ResourceLimitTaskExample{
+// Examples returns the examples for the resource reserve task
+func (t ResourceReserveTask) Examples() ([]Doc, error) {
+	examples := []ResourceReserveTaskExample{
 		{
-			Name: "Set CPU and memory limits",
-			ResourceLimitTask: ResourceLimitTask{
+			Name: "Set CPU and memory reservations",
+			ResourceReserveTask: ResourceReserveTask{
 				App: "hello-world",
 				Resources: map[string]string{
 					"cpu":    "100",
@@ -58,8 +58,8 @@ func (t ResourceLimitTask) Examples() ([]Doc, error) {
 			},
 		},
 		{
-			Name: "Set memory limit for web process type",
-			ResourceLimitTask: ResourceLimitTask{
+			Name: "Set memory reservation for web process type",
+			ResourceReserveTask: ResourceReserveTask{
 				App:         "hello-world",
 				ProcessType: "web",
 				Resources: map[string]string{
@@ -68,8 +68,8 @@ func (t ResourceLimitTask) Examples() ([]Doc, error) {
 			},
 		},
 		{
-			Name: "Clear all resource limits",
-			ResourceLimitTask: ResourceLimitTask{
+			Name: "Clear all resource reservations",
+			ResourceReserveTask: ResourceReserveTask{
 				App:   "hello-world",
 				State: StateAbsent,
 			},
@@ -92,8 +92,8 @@ func (t ResourceLimitTask) Examples() ([]Doc, error) {
 	return output, nil
 }
 
-// Execute sets or clears the resource limits for a given dokku application
-func (t ResourceLimitTask) Execute() TaskOutputState {
+// Execute sets or clears the resource reservations for a given dokku application
+func (t ResourceReserveTask) Execute() TaskOutputState {
 	funcMap := map[State]func(string, ResourceContext) TaskOutputState{
 		"present": setResource,
 		"absent":  clearResource,
@@ -120,10 +120,10 @@ func (t ResourceLimitTask) Execute() TaskOutputState {
 		ClearBefore: t.ClearBefore,
 	}
 
-	return fn("resource:limit", rctx)
+	return fn("resource:reserve", rctx)
 }
 
-// init registers the ResourceLimitTask with the task registry
+// init registers the ResourceReserveTask with the task registry
 func init() {
-	RegisterTask(&ResourceLimitTask{})
+	RegisterTask(&ResourceReserveTask{})
 }
