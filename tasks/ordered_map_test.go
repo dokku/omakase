@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -72,5 +73,51 @@ func TestOrderedStringTaskMapEmptyKeys(t *testing.T) {
 	keys := m.Keys()
 	if keys != nil && len(keys) != 0 {
 		t.Errorf("expected nil or empty keys, got %v", keys)
+	}
+}
+
+func TestOrderedStringTaskMapOverwriteValue(t *testing.T) {
+	m := OrderedStringTaskMap{}
+
+	task1 := mockTask{name: "first", state: StatePresent}
+	task2 := mockTask{name: "second", state: StateAbsent}
+
+	m.Set("key", task1)
+	m.Set("key", task2)
+
+	// Get should return the latest value
+	got := m.Get("key")
+	if got == nil {
+		t.Fatal("Get returned nil for overwritten key")
+	}
+	if got.DesiredState() != StateAbsent {
+		t.Errorf("expected overwritten state 'absent', got '%s'", got.DesiredState())
+	}
+
+	// Keys will contain the key twice (current implementation appends without dedup)
+	keys := m.Keys()
+	if len(keys) != 2 {
+		t.Fatalf("expected 2 keys (duplicate), got %d", len(keys))
+	}
+}
+
+func TestOrderedStringTaskMapLargeSet(t *testing.T) {
+	m := OrderedStringTaskMap{}
+
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("task-%d", i)
+		m.Set(name, mockTask{name: name, state: StatePresent})
+	}
+
+	keys := m.Keys()
+	if len(keys) != 10 {
+		t.Fatalf("expected 10 keys, got %d", len(keys))
+	}
+
+	for i, key := range keys {
+		expected := fmt.Sprintf("task-%d", i)
+		if key != expected {
+			t.Errorf("key[%d] = %q, want %q", i, key, expected)
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -186,6 +187,230 @@ func TestGitSyncTaskDesiredState(t *testing.T) {
 	}
 	if task.DesiredState() != "synced" {
 		t.Errorf("expected state 'synced', got '%s'", task.DesiredState())
+	}
+}
+
+func TestAllTasksDesiredState(t *testing.T) {
+	tests := []struct {
+		name  string
+		task  Task
+		state State
+	}{
+		{"AppTask present", &AppTask{App: "test", State: StatePresent}, StatePresent},
+		{"AppTask absent", &AppTask{App: "test", State: StateAbsent}, StateAbsent},
+		{"BuilderPropertyTask present", &BuilderPropertyTask{App: "test", Property: "selected", State: StatePresent}, StatePresent},
+		{"BuilderPropertyTask absent", &BuilderPropertyTask{App: "test", Property: "selected", State: StateAbsent}, StateAbsent},
+		{"ChecksToggleTask present", &ChecksToggleTask{App: "test", State: StatePresent}, StatePresent},
+		{"ChecksToggleTask absent", &ChecksToggleTask{App: "test", State: StateAbsent}, StateAbsent},
+		{"ConfigTask present", &ConfigTask{App: "test", State: StatePresent}, StatePresent},
+		{"ConfigTask absent", &ConfigTask{App: "test", State: StateAbsent}, StateAbsent},
+		{"DomainsToggleTask present", &DomainsToggleTask{App: "test", State: StatePresent}, StatePresent},
+		{"DomainsToggleTask absent", &DomainsToggleTask{App: "test", State: StateAbsent}, StateAbsent},
+		{"GitFromImageTask deployed", &GitFromImageTask{App: "test", Image: "nginx", State: StateDeployed}, StateDeployed},
+		{"GitSyncTask synced", &GitSyncTask{App: "test", Repository: "https://example.com/repo", State: "synced"}, "synced"},
+		{"NetworkPropertyTask present", &NetworkPropertyTask{App: "test", Property: "bind-all-interfaces", State: StatePresent}, StatePresent},
+		{"NetworkPropertyTask absent", &NetworkPropertyTask{App: "test", Property: "bind-all-interfaces", State: StateAbsent}, StateAbsent},
+		{"PortsTask present", &PortsTask{App: "test", State: StatePresent}, StatePresent},
+		{"PortsTask absent", &PortsTask{App: "test", State: StateAbsent}, StateAbsent},
+		{"ProxyToggleTask present", &ProxyToggleTask{App: "test", State: StatePresent}, StatePresent},
+		{"ProxyToggleTask absent", &ProxyToggleTask{App: "test", State: StateAbsent}, StateAbsent},
+		{"StorageEnsureTask present", &StorageEnsureTask{App: "test", Chown: "heroku", State: StatePresent}, StatePresent},
+		{"StorageEnsureTask absent", &StorageEnsureTask{App: "test", Chown: "heroku", State: StateAbsent}, StateAbsent},
+		{"StorageMountTask present", &StorageMountTask{App: "test", HostDir: "/host", ContainerDir: "/container", State: StatePresent}, StatePresent},
+		{"StorageMountTask absent", &StorageMountTask{App: "test", HostDir: "/host", ContainerDir: "/container", State: StateAbsent}, StateAbsent},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.task.DesiredState(); got != tt.state {
+				t.Errorf("DesiredState() = %q, want %q", got, tt.state)
+			}
+		})
+	}
+}
+
+func TestBuilderPropertyTaskGlobalWithAppSet(t *testing.T) {
+	task := BuilderPropertyTask{
+		App:      "test-app",
+		Global:   true,
+		Property: "selected",
+		Value:    "dockerfile",
+		State:    StatePresent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when both global and app are set")
+	}
+	if !strings.Contains(result.Error.Error(), "must not be set when 'global' is set to true") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestBuilderPropertyTaskPresentWithoutValue(t *testing.T) {
+	task := BuilderPropertyTask{
+		App:      "test-app",
+		Property: "selected",
+		Value:    "",
+		State:    StatePresent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when present state has no value")
+	}
+	if !strings.Contains(result.Error.Error(), "invalid without a value") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestBuilderPropertyTaskAbsentWithValue(t *testing.T) {
+	task := BuilderPropertyTask{
+		App:      "test-app",
+		Property: "selected",
+		Value:    "dockerfile",
+		State:    StateAbsent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when absent state has a value")
+	}
+	if !strings.Contains(result.Error.Error(), "invalid with a value") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestNetworkPropertyTaskGlobalWithAppSet(t *testing.T) {
+	task := NetworkPropertyTask{
+		App:      "test-app",
+		Global:   true,
+		Property: "bind-all-interfaces",
+		Value:    "true",
+		State:    StatePresent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when both global and app are set")
+	}
+	if !strings.Contains(result.Error.Error(), "must not be set when 'global' is set to true") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestNetworkPropertyTaskPresentWithoutValue(t *testing.T) {
+	task := NetworkPropertyTask{
+		App:      "test-app",
+		Property: "bind-all-interfaces",
+		Value:    "",
+		State:    StatePresent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when present state has no value")
+	}
+	if !strings.Contains(result.Error.Error(), "invalid without a value") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestNetworkPropertyTaskAbsentWithValue(t *testing.T) {
+	task := NetworkPropertyTask{
+		App:      "test-app",
+		Property: "bind-all-interfaces",
+		Value:    "true",
+		State:    StateAbsent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when absent state has a value")
+	}
+	if !strings.Contains(result.Error.Error(), "invalid with a value") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestGitFromImageTaskNonDeployedStates(t *testing.T) {
+	tests := []struct {
+		name  string
+		state State
+	}{
+		{"present state", StatePresent},
+		{"absent state", StateAbsent},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task := GitFromImageTask{App: "test-app", Image: "nginx", State: tt.state}
+			result := task.Execute()
+			if result.Error == nil {
+				t.Fatal("expected error for non-deployed state")
+			}
+			if !strings.Contains(result.Error.Error(), "invalid state") {
+				t.Errorf("expected 'invalid state' error, got: %v", result.Error)
+			}
+		})
+	}
+}
+
+func TestGitSyncTaskNoStateValidation(t *testing.T) {
+	task := GitSyncTask{
+		App:        "test-app",
+		Repository: "https://example.com/repo",
+		State:      "invalid",
+	}
+	result := task.Execute()
+	// GitSyncTask has no funcMap-based state validation; it always tries to run
+	// the dokku command. The error should be from subprocess, not state validation.
+	if result.Error == nil {
+		t.Fatal("expected error from subprocess (dokku not available)")
+	}
+	if strings.Contains(result.Error.Error(), "invalid state") {
+		t.Error("GitSyncTask should not have state validation, but got 'invalid state' error")
+	}
+}
+
+func TestPortMappingStringVariousValues(t *testing.T) {
+	tests := []struct {
+		name string
+		pm   PortMapping
+		want string
+	}{
+		{"http standard", PortMapping{Scheme: "http", Host: 80, Container: 5000}, "http:80:5000"},
+		{"https", PortMapping{Scheme: "https", Host: 443, Container: 5000}, "https:443:5000"},
+		{"high ports", PortMapping{Scheme: "http", Host: 8080, Container: 80}, "http:8080:80"},
+		{"zero ports", PortMapping{Scheme: "http", Host: 0, Container: 0}, "http:0:0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.pm.String(); got != tt.want {
+				t.Errorf("String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestStorageEnsureEmptyChown(t *testing.T) {
+	task := StorageEnsureTask{App: "test-app", Chown: "", State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil || result.Error.Error() != "invalid chown value specified" {
+		t.Errorf("expected 'invalid chown value specified' error, got: %v", result.Error)
+	}
+}
+
+func TestAllTasksExamplesReturnNoError(t *testing.T) {
+	for name, task := range RegisteredTasks {
+		t.Run(name, func(t *testing.T) {
+			_, err := task.Examples()
+			if err != nil {
+				t.Errorf("Examples() returned error: %v", err)
+			}
+		})
+	}
+}
+
+func TestRegisteredTaskCount(t *testing.T) {
+	expected := 12
+	if got := len(RegisteredTasks); got != expected {
+		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
 }
 

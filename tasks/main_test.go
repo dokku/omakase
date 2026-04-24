@@ -3,6 +3,8 @@ package tasks
 import (
 	"strings"
 	"testing"
+
+	_ "github.com/gliderlabs/sigil/builtin"
 )
 
 func TestGetTasksEmptyRecipe(t *testing.T) {
@@ -169,5 +171,347 @@ func TestRegisteredTasksExist(t *testing.T) {
 		if _, ok := RegisteredTasks[name]; !ok {
 			t.Errorf("expected task %q to be registered", name)
 		}
+	}
+}
+
+func TestGetTasksMultipleTasks(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: create app
+      dokku_app:
+        app: test-app
+    - name: set config
+      dokku_config:
+        app: test-app
+        config:
+          KEY: VALUE
+    - name: mount storage
+      dokku_storage_mount:
+        app: test-app
+        host_dir: /host
+        container_dir: /container
+`)
+	context := map[string]interface{}{}
+
+	tasks, err := GetTasks(data, context)
+	if err != nil {
+		t.Fatalf("GetTasks failed: %v", err)
+	}
+
+	keys := tasks.Keys()
+	if len(keys) != 3 {
+		t.Fatalf("expected 3 tasks, got %d", len(keys))
+	}
+
+	expectedNames := []string{"create app", "set config", "mount storage"}
+	for i, name := range expectedNames {
+		if keys[i] != name {
+			t.Errorf("task[%d] = %q, want %q", i, keys[i], name)
+		}
+		if tasks.Get(name) == nil {
+			t.Errorf("task %q not found", name)
+		}
+	}
+}
+
+func TestGetTasksTaskWithDefaultState(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: create app
+      dokku_app:
+        app: test-app
+`)
+	context := map[string]interface{}{}
+
+	tasks, err := GetTasks(data, context)
+	if err != nil {
+		t.Fatalf("GetTasks failed: %v", err)
+	}
+
+	task := tasks.Get("create app")
+	if task == nil {
+		t.Fatal("task not found")
+	}
+
+	if task.DesiredState() != StatePresent {
+		t.Errorf("expected default state 'present', got %q", task.DesiredState())
+	}
+}
+
+func TestGetTasksInvalidYaml(t *testing.T) {
+	data := []byte("not valid yaml: [[[")
+	context := map[string]interface{}{}
+
+	_, err := GetTasks(data, context)
+	if err == nil {
+		t.Fatal("expected error for invalid YAML")
+	}
+}
+
+func TestGetTasksSigilTemplateError(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - dokku_app:
+        app: {{ .broken
+`)
+	context := map[string]interface{}{}
+
+	_, err := GetTasks(data, context)
+	if err == nil {
+		t.Fatal("expected error for bad template syntax")
+	}
+	if !strings.Contains(err.Error(), "re-render error") {
+		t.Errorf("expected 're-render error', got: %v", err)
+	}
+}
+
+func TestGetTasksTwoPropertiesNoName(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - dokku_app:
+        app: test-app
+      dokku_config:
+        app: test-app
+`)
+	context := map[string]interface{}{}
+
+	_, err := GetTasks(data, context)
+	if err == nil {
+		t.Fatal("expected error for two properties without name")
+	}
+	if !strings.Contains(err.Error(), "unexpected property") {
+		t.Errorf("expected 'unexpected property' error, got: %v", err)
+	}
+}
+
+func TestGetTasksConfigTaskParsedCorrectly(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: set config
+      dokku_config:
+        app: test-app
+        restart: false
+        config:
+          KEY1: val1
+          KEY2: val2
+`)
+	context := map[string]interface{}{}
+
+	tasks, err := GetTasks(data, context)
+	if err != nil {
+		t.Fatalf("GetTasks failed: %v", err)
+	}
+
+	task := tasks.Get("set config")
+	if task == nil {
+		t.Fatal("task 'set config' not found")
+	}
+
+	configTask, ok := task.(*ConfigTask)
+	if !ok {
+		// tasks may be stored as value types depending on reflection
+		ct, ok2 := task.(ConfigTask)
+		if !ok2 {
+			t.Fatalf("task is not a ConfigTask (type is %T)", task)
+		}
+		configTask = &ct
+	}
+
+	if configTask.App != "test-app" {
+		t.Errorf("App = %q, want %q", configTask.App, "test-app")
+	}
+	// Note: defaults.SetDefaults overrides restart=false with the default tag value "true"
+	// because false is the zero value for bool. This documents the actual behavior.
+	if !configTask.Restart {
+		t.Error("Restart = false, want true (defaults.SetDefaults overrides zero-value bool)")
+	}
+	if len(configTask.Config) != 2 {
+		t.Fatalf("expected 2 config keys, got %d", len(configTask.Config))
+	}
+	if configTask.Config["KEY1"] != "val1" {
+		t.Errorf("Config[KEY1] = %q, want %q", configTask.Config["KEY1"], "val1")
+	}
+	if configTask.Config["KEY2"] != "val2" {
+		t.Errorf("Config[KEY2] = %q, want %q", configTask.Config["KEY2"], "val2")
+	}
+}
+
+func TestGetTasksPortsTaskWithMappings(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: set ports
+      dokku_ports:
+        app: test-app
+        port_mappings:
+          - scheme: http
+            host: 80
+            container: 5000
+          - scheme: https
+            host: 443
+            container: 5000
+`)
+	context := map[string]interface{}{}
+
+	tasks, err := GetTasks(data, context)
+	if err != nil {
+		t.Fatalf("GetTasks failed: %v", err)
+	}
+
+	task := tasks.Get("set ports")
+	if task == nil {
+		t.Fatal("task 'set ports' not found")
+	}
+
+	portsTask, ok := task.(*PortsTask)
+	if !ok {
+		pt, ok2 := task.(PortsTask)
+		if !ok2 {
+			t.Fatalf("task is not a PortsTask (type is %T)", task)
+		}
+		portsTask = &pt
+	}
+
+	if len(portsTask.PortMappings) != 2 {
+		t.Fatalf("expected 2 port mappings, got %d", len(portsTask.PortMappings))
+	}
+
+	if portsTask.PortMappings[0].String() != "http:80:5000" {
+		t.Errorf("mapping[0] = %q, want %q", portsTask.PortMappings[0].String(), "http:80:5000")
+	}
+	if portsTask.PortMappings[1].String() != "https:443:5000" {
+		t.Errorf("mapping[1] = %q, want %q", portsTask.PortMappings[1].String(), "https:443:5000")
+	}
+}
+
+func TestGetTasksFromRealExample(t *testing.T) {
+	data := []byte(`---
+- inputs:
+    - name: app
+      description: "Name of app to be deployed"
+      type: string
+      required: true
+    - name: image
+      default: "lscr.io/linuxserver/adguardhome-sync:latest"
+      description: "Image to be deployed"
+  tasks:
+    - name: create app
+      dokku_app:
+        app: {{ .app | default "" }}
+    - name: set config
+      dokku_config:
+        app: {{ .app | default "" }}
+        restart: false
+        config:
+          PUID: "1000"
+          PGID: "1000"
+          TZ: "Europe/UTC"
+          CONFIGFILE: "/config/adguardhome-sync.yaml"
+    - name: ensure storage
+      dokku_storage_ensure:
+        app: {{ .app | default "" }}
+        chown: "heroku"
+    - name: mount storage
+      dokku_storage_mount:
+        app: {{ .app | default "" }}
+        host_dir: "/var/lib/dokku/data/storage/{{ .app | default "" }}"
+        container_dir: "/config"
+    - name: set ports
+      dokku_ports:
+        app: {{ .app | default "" }}
+        port_mappings:
+          - scheme: http
+            host: 80
+            container: 8080
+    - name: deploy image
+      dokku_git_from_image:
+        app: {{ .app | default "" }}
+        image: {{ .image | default "" }}
+`)
+	context := map[string]interface{}{
+		"app":   "test-adguard",
+		"image": "lscr.io/linuxserver/adguardhome-sync:latest",
+	}
+
+	tasks, err := GetTasks(data, context)
+	if err != nil {
+		t.Fatalf("GetTasks failed: %v", err)
+	}
+
+	keys := tasks.Keys()
+	if len(keys) != 6 {
+		t.Fatalf("expected 6 tasks, got %d", len(keys))
+	}
+
+	expectedNames := []string{
+		"create app",
+		"set config",
+		"ensure storage",
+		"mount storage",
+		"set ports",
+		"deploy image",
+	}
+	for i, name := range expectedNames {
+		if keys[i] != name {
+			t.Errorf("task[%d] = %q, want %q", i, keys[i], name)
+		}
+	}
+
+	// verify template context was applied to app task
+	appTaskRaw := tasks.Get("create app")
+	appTask, ok := appTaskRaw.(*AppTask)
+	if !ok {
+		at, ok2 := appTaskRaw.(AppTask)
+		if !ok2 {
+			t.Fatalf("create app is not an AppTask (type is %T)", appTaskRaw)
+		}
+		appTask = &at
+	}
+	if appTask.App != "test-adguard" {
+		t.Errorf("AppTask.App = %q, want %q", appTask.App, "test-adguard")
+	}
+
+	// verify config task has expected config keys
+	configTaskRaw := tasks.Get("set config")
+	configTask2, ok := configTaskRaw.(*ConfigTask)
+	if !ok {
+		ct, ok2 := configTaskRaw.(ConfigTask)
+		if !ok2 {
+			t.Fatalf("set config is not a ConfigTask (type is %T)", configTaskRaw)
+		}
+		configTask2 = &ct
+	}
+	if len(configTask2.Config) != 4 {
+		t.Errorf("expected 4 config keys, got %d", len(configTask2.Config))
+	}
+
+	// verify port mapping was parsed
+	portsTaskRaw := tasks.Get("set ports")
+	portsTask2, ok := portsTaskRaw.(*PortsTask)
+	if !ok {
+		pt, ok2 := portsTaskRaw.(PortsTask)
+		if !ok2 {
+			t.Fatalf("set ports is not a PortsTask (type is %T)", portsTaskRaw)
+		}
+		portsTask2 = &pt
+	}
+	if len(portsTask2.PortMappings) != 1 {
+		t.Errorf("expected 1 port mapping, got %d", len(portsTask2.PortMappings))
+	}
+	if portsTask2.PortMappings[0].String() != "http:80:8080" {
+		t.Errorf("port mapping = %q, want %q", portsTask2.PortMappings[0].String(), "http:80:8080")
+	}
+
+	// verify git from image was parsed with template context
+	gitTaskRaw := tasks.Get("deploy image")
+	gitTask, ok := gitTaskRaw.(*GitFromImageTask)
+	if !ok {
+		gt, ok2 := gitTaskRaw.(GitFromImageTask)
+		if !ok2 {
+			t.Fatalf("deploy image is not a GitFromImageTask (type is %T)", gitTaskRaw)
+		}
+		gitTask = &gt
+	}
+	if gitTask.Image != "lscr.io/linuxserver/adguardhome-sync:latest" {
+		t.Errorf("Image = %q, want %q", gitTask.Image, "lscr.io/linuxserver/adguardhome-sync:latest")
 	}
 }

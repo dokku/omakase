@@ -1,6 +1,8 @@
 package main
 
 import (
+	"omakase/tasks"
+	"strings"
 	"testing"
 )
 
@@ -165,4 +167,214 @@ func TestArgumentGetValue(t *testing.T) {
 			t.Error("HasValue() returned true for unset argument")
 		}
 	})
+}
+
+func TestParseInputYamlValidInputs(t *testing.T) {
+	data := []byte(`---
+- inputs:
+    - name: app
+      default: "myapp"
+      description: "Application name"
+      required: true
+      type: string
+    - name: port
+      default: "8080"
+      description: "Port number"
+      type: int
+  tasks: []
+`)
+	inputs, err := parseInputYaml(data)
+	if err != nil {
+		t.Fatalf("parseInputYaml failed: %v", err)
+	}
+
+	if len(inputs) != 2 {
+		t.Fatalf("expected 2 inputs, got %d", len(inputs))
+	}
+
+	app, ok := inputs["app"]
+	if !ok {
+		t.Fatal("expected 'app' input")
+	}
+	if app.Default != "myapp" {
+		t.Errorf("app.Default = %q, want %q", app.Default, "myapp")
+	}
+	if !app.Required {
+		t.Error("app.Required = false, want true")
+	}
+	if app.Type != "string" {
+		t.Errorf("app.Type = %q, want %q", app.Type, "string")
+	}
+
+	port, ok := inputs["port"]
+	if !ok {
+		t.Fatal("expected 'port' input")
+	}
+	if port.Default != "8080" {
+		t.Errorf("port.Default = %q, want %q", port.Default, "8080")
+	}
+	if port.Type != "int" {
+		t.Errorf("port.Type = %q, want %q", port.Type, "int")
+	}
+}
+
+func TestParseInputYamlNoInputs(t *testing.T) {
+	data := []byte("---\n- tasks: []\n")
+	inputs, err := parseInputYaml(data)
+	if err != nil {
+		t.Fatalf("parseInputYaml failed: %v", err)
+	}
+	if len(inputs) != 0 {
+		t.Errorf("expected 0 inputs, got %d", len(inputs))
+	}
+}
+
+func TestParseInputYamlInvalidYaml(t *testing.T) {
+	data := []byte("not valid yaml: [[[")
+	_, err := parseInputYaml(data)
+	if err == nil {
+		t.Fatal("expected error for invalid YAML")
+	}
+}
+
+func TestParseInputYamlAllTypes(t *testing.T) {
+	data := []byte(`---
+- inputs:
+    - name: str_input
+      type: string
+      default: "hello"
+    - name: int_input
+      type: int
+      default: "42"
+    - name: float_input
+      type: float
+      default: "3.14"
+    - name: bool_input
+      type: bool
+      default: "true"
+  tasks: []
+`)
+	inputs, err := parseInputYaml(data)
+	if err != nil {
+		t.Fatalf("parseInputYaml failed: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		wantType string
+	}{
+		{"str_input", "string"},
+		{"int_input", "int"},
+		{"float_input", "float"},
+		{"bool_input", "bool"},
+	}
+
+	for _, tt := range tests {
+		input, ok := inputs[tt.name]
+		if !ok {
+			t.Errorf("expected input %q", tt.name)
+			continue
+		}
+		if input.Type != tt.wantType {
+			t.Errorf("input %q type = %q, want %q", tt.name, input.Type, tt.wantType)
+		}
+	}
+}
+
+func TestParseInputYamlMultipleRecipes(t *testing.T) {
+	data := []byte(`---
+- inputs:
+    - name: first
+      default: "a"
+  tasks: []
+- inputs:
+    - name: second
+      default: "b"
+  tasks: []
+`)
+	inputs, err := parseInputYaml(data)
+	if err != nil {
+		t.Fatalf("parseInputYaml failed: %v", err)
+	}
+
+	if _, ok := inputs["first"]; !ok {
+		t.Error("expected 'first' input from first recipe section")
+	}
+	if _, ok := inputs["second"]; !ok {
+		t.Error("expected 'second' input from second recipe section")
+	}
+}
+
+func TestGetInputVariablesValid(t *testing.T) {
+	data := []byte(`---
+- inputs:
+    - name: app
+      default: "myapp"
+      description: "App name"
+      required: true
+  tasks: []
+`)
+	inputs, err := getInputVariables(data)
+	if err != nil {
+		t.Fatalf("getInputVariables failed: %v", err)
+	}
+
+	app, ok := inputs["app"]
+	if !ok {
+		t.Fatal("expected 'app' input")
+	}
+	if app.Default != "myapp" {
+		t.Errorf("app.Default = %q, want %q", app.Default, "myapp")
+	}
+	if !app.Required {
+		t.Error("app.Required = false, want true")
+	}
+}
+
+func TestGetInputVariablesTemplateError(t *testing.T) {
+	data := []byte(`---
+- inputs:
+    - name: {{ .broken
+  tasks: []
+`)
+	_, err := getInputVariables(data)
+	if err == nil {
+		t.Fatal("expected error for bad template syntax")
+	}
+	if !strings.Contains(err.Error(), "sigil error") {
+		t.Errorf("expected 'sigil error', got: %v", err)
+	}
+}
+
+func TestInputSetValueAndGetValue(t *testing.T) {
+	input := tasks.Input{}
+	err := input.SetValue("hello")
+	if err != nil {
+		t.Fatalf("SetValue failed: %v", err)
+	}
+	if input.GetValue() != "hello" {
+		t.Errorf("GetValue() = %q, want %q", input.GetValue(), "hello")
+	}
+	if !input.HasValue() {
+		t.Error("HasValue() = false, want true")
+	}
+}
+
+func TestInputHasValueEmpty(t *testing.T) {
+	input := tasks.Input{}
+	if input.HasValue() {
+		t.Error("HasValue() = true for unset input, want false")
+	}
+	if input.GetValue() != "" {
+		t.Errorf("GetValue() = %q for unset input, want empty", input.GetValue())
+	}
+}
+
+func TestInputSetValueOverwrite(t *testing.T) {
+	input := tasks.Input{}
+	input.SetValue("first")
+	input.SetValue("second")
+	if input.GetValue() != "second" {
+		t.Errorf("GetValue() = %q after overwrite, want %q", input.GetValue(), "second")
+	}
 }
