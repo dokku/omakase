@@ -3,7 +3,6 @@ package tasks
 import (
 	"omakase/subprocess"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -588,9 +587,6 @@ func TestIntegrationGitSync(t *testing.T) {
 	}
 	result := task.Execute()
 	if result.Error != nil {
-		if strings.Contains(result.Error.Error(), "unknown flag: --no-build") {
-			t.Skip("skipping: dokku version does not support git:sync --no-build flag")
-		}
 		t.Fatalf("failed to sync git: %v", result.Error)
 	}
 	if result.State != "synced" {

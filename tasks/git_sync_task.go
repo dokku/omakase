@@ -69,7 +69,6 @@ func (t GitSyncTask) Execute() TaskOutputState {
 
 	args := []string{
 		"git:sync",
-		"--no-build",
 	}
 
 	args = append(args, t.App, t.Repository)
