@@ -5,7 +5,7 @@ Manages the configuration for a given dokku application
 ## set KEY=VALUE
 
 ```yaml
-config:
+dokku_config:
     app: hello-world
     restart: true
     config:
@@ -15,7 +15,7 @@ config:
 ## set KEY=VALUE without restart
 
 ```yaml
-config:
+dokku_config:
     app: hello-world
     restart: false
     config:

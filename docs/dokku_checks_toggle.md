@@ -5,7 +5,7 @@ Enables or disables the checks plugin for a given dokku application
 ## Disable the zero downtime deployment
 
 ```yaml
-checks_toggle:
+dokku_checks_toggle:
     app: hello-world
     state: absent
 ```
@@ -13,7 +13,7 @@ checks_toggle:
 ## Re-enable the zero downtime deployment (enabled by default)
 
 ```yaml
-checks_toggle:
+dokku_checks_toggle:
     app: hello-world
     state: present
 ```
