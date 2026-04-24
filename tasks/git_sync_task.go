@@ -38,7 +38,7 @@ type GitSyncTaskExample struct {
 	Name string `yaml:"-"`
 
 	// GitSyncTask is the GitSyncTask configuration
-	GitSyncTask GitSyncTask `yaml:"git_sync"`
+	GitSyncTask GitSyncTask `yaml:"dokku_git_sync"`
 }
 
 // DesiredState returns the desired state of the git sync

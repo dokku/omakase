@@ -31,7 +31,7 @@ type NetworkPropertyTaskExample struct {
 	Name string `yaml:"-"`
 
 	// NetworkPropertyTask is the NetworkPropertyTask configuration
-	NetworkPropertyTask NetworkPropertyTask `yaml:"network_property"`
+	NetworkPropertyTask NetworkPropertyTask `yaml:"dokku_network_property"`
 }
 
 // DesiredState returns the desired state of the network property

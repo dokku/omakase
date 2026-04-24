@@ -37,7 +37,7 @@ type GitFromImageTaskExample struct {
 	Name string `yaml:"-"`
 
 	// GitFromImageTask is the GitFromImageTask configuration
-	GitFromImageTask GitFromImageTask `yaml:"git_from_image"`
+	GitFromImageTask GitFromImageTask `yaml:"dokku_git_from_image"`
 }
 
 // DesiredState returns the desired state of the git repository

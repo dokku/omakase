@@ -26,7 +26,7 @@ type StorageEnsureTaskExample struct {
 	Name string `yaml:"-"`
 
 	// StorageEnsureTask is the StorageEnsureTask configuration
-	StorageEnsureTask StorageEnsureTask `yaml:"storage_ensure"`
+	StorageEnsureTask StorageEnsureTask `yaml:"dokku_storage_ensure"`
 }
 
 // DesiredState returns the desired state of the storage

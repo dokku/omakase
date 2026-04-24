@@ -24,7 +24,7 @@ type ProxyToggleTaskExample struct {
 	Name string `yaml:"-"`
 
 	// ProxyToggleTask is the ProxyToggleTask configuration
-	ProxyToggleTask ProxyToggleTask `yaml:"proxy_toggle"`
+	ProxyToggleTask ProxyToggleTask `yaml:"dokku_proxy_toggle"`
 }
 
 // DesiredState returns the desired state of the proxy
