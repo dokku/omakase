@@ -699,7 +699,7 @@ func TestIntegrationGitFromImage(t *testing.T) {
 
 	task := GitFromImageTask{
 		App:   appName,
-		Image: "nginx:latest",
+		Image: "dokku/smoke-test-app:dockerfile",
 		State: StateDeployed,
 	}
 	result := task.Execute()
@@ -976,6 +976,167 @@ func TestIntegrationResourceReserveProcessType(t *testing.T) {
 	}
 }
 
+func TestIntegrationPsScale(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-psscale"
+
+	// ensure clean state
+	destroyApp(appName)
+	createApp(appName)
+	defer destroyApp(appName)
+
+	// deploy the smoke test app so we have running containers to scale
+	deployTask := GitFromImageTask{
+		App:   appName,
+		Image: "dokku/smoke-test-app:dockerfile",
+		State: StateDeployed,
+	}
+	deployResult := deployTask.Execute()
+	if deployResult.Error != nil {
+		t.Fatalf("failed to deploy app: %v", deployResult.Error)
+	}
+
+	// verify initial web container count is 1 via docker ps
+	countResult, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"ps", "--filter", fmt.Sprintf("label=com.dokku.app-name=%s", appName), "--filter", "label=com.dokku.process-type=web", "--format", "{{.ID}}"},
+	})
+	if err != nil {
+		t.Fatalf("failed to list containers: %v", err)
+	}
+	initialContainers := strings.Split(strings.TrimSpace(countResult.StdoutContents()), "\n")
+	if len(initialContainers) != 1 || initialContainers[0] == "" {
+		t.Fatalf("expected 1 initial web container, got %d", len(initialContainers))
+	}
+
+	// scale web to 2
+	scaleTask := PsScaleTask{
+		App:   appName,
+		Scale: map[string]int{"web": 2},
+		State: StatePresent,
+	}
+	result := scaleTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to scale app: %v", result.Error)
+	}
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for scaling up")
+	}
+
+	// verify 2 web containers via docker ps
+	countResult, err = subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"ps", "--filter", fmt.Sprintf("label=com.dokku.app-name=%s", appName), "--filter", "label=com.dokku.process-type=web", "--format", "{{.ID}}"},
+	})
+	if err != nil {
+		t.Fatalf("failed to list containers after scale: %v", err)
+	}
+	scaledContainers := strings.Split(strings.TrimSpace(countResult.StdoutContents()), "\n")
+	if len(scaledContainers) != 2 {
+		t.Errorf("expected 2 web containers after scaling, got %d", len(scaledContainers))
+	}
+
+	// verify each container is running via docker inspect
+	for _, containerID := range scaledContainers {
+		inspectResult, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+			Command: "docker",
+			Args:    []string{"inspect", "--format", "{{.State.Running}}", containerID},
+		})
+		if err != nil {
+			t.Fatalf("failed to inspect container %s: %v", containerID, err)
+		}
+		if strings.TrimSpace(inspectResult.StdoutContents()) != "true" {
+			t.Errorf("expected container %s to be running", containerID)
+		}
+	}
+
+	// scaling again should be idempotent
+	result = scaleTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent scale failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for unchanged scale")
+	}
+
+	// scale back to 1
+	scaleDownTask := PsScaleTask{
+		App:   appName,
+		Scale: map[string]int{"web": 1},
+		State: StatePresent,
+	}
+	result = scaleDownTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to scale down: %v", result.Error)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for scaling down")
+	}
+
+	// verify 1 web container after scale down
+	countResult, err = subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"ps", "--filter", fmt.Sprintf("label=com.dokku.app-name=%s", appName), "--filter", "label=com.dokku.process-type=web", "--format", "{{.ID}}"},
+	})
+	if err != nil {
+		t.Fatalf("failed to list containers after scale down: %v", err)
+	}
+	finalContainers := strings.Split(strings.TrimSpace(countResult.StdoutContents()), "\n")
+	if len(finalContainers) != 1 || finalContainers[0] == "" {
+		t.Errorf("expected 1 web container after scale down, got %d", len(finalContainers))
+	}
+}
+
+func TestIntegrationPsScaleSkipDeploy(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-psscale-sd"
+
+	destroyApp(appName)
+	createApp(appName)
+	defer destroyApp(appName)
+
+	// scale with skip_deploy on an undeployed app
+	scaleTask := PsScaleTask{
+		App:        appName,
+		Scale:      map[string]int{"web": 2, "worker": 1},
+		SkipDeploy: true,
+		State:      StatePresent,
+	}
+	result := scaleTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to scale with skip_deploy: %v", result.Error)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for initial scale")
+	}
+
+	// verify the scale was set correctly
+	scale, err := getPsScale(appName)
+	if err != nil {
+		t.Fatalf("failed to get ps scale: %v", err)
+	}
+	if scale["web"] != 2 {
+		t.Errorf("expected web=2, got web=%d", scale["web"])
+	}
+	if scale["worker"] != 1 {
+		t.Errorf("expected worker=1, got worker=%d", scale["worker"])
+	}
+
+	// idempotent
+	result = scaleTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent scale failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for unchanged scale")
+	}
+}
+
 func TestIntegrationMultiTaskWorkflow(t *testing.T) {
 	skipIfNoDokkuT(t)
 
@@ -1168,6 +1329,58 @@ func TestIntegrationServiceLinkAndUnlink(t *testing.T) {
 	}
 	if strings.TrimSpace(aliasResult.StdoutContents()) == "" {
 		t.Error("expected service container to have a hostname set")
+	}
+
+	// deploy the smoke test app so we can verify the link inside a running container
+	deployTask := GitFromImageTask{
+		App:   appName,
+		Image: "dokku/smoke-test-app:dockerfile",
+		State: StateDeployed,
+	}
+	deployResult := deployTask.Execute()
+	if deployResult.Error != nil {
+		t.Fatalf("failed to deploy app: %v", deployResult.Error)
+	}
+
+	// find the running app container
+	appContainerResult, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"ps", "--filter", fmt.Sprintf("label=com.dokku.app-name=%s", appName), "--filter", "label=com.dokku.process-type=web", "--format", "{{.ID}}"},
+	})
+	if err != nil {
+		t.Fatalf("failed to find app container: %v", err)
+	}
+	appContainerID := strings.TrimSpace(appContainerResult.StdoutContents())
+	if appContainerID == "" {
+		t.Fatal("expected at least one running app container after deploy")
+	}
+	// take the first container if multiple lines
+	appContainerIDs := strings.Split(appContainerID, "\n")
+	appContainerID = appContainerIDs[0]
+
+	// verify the app container is running via docker inspect
+	appInspectResult, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"inspect", "--format", "{{.State.Running}}", appContainerID},
+	})
+	if err != nil {
+		t.Fatalf("failed to inspect app container: %v", err)
+	}
+	if strings.TrimSpace(appInspectResult.StdoutContents()) != "true" {
+		t.Error("expected app container to be running")
+	}
+
+	// verify REDIS_URL is present inside the running container via docker exec
+	execResult, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"exec", appContainerID, "env"},
+	})
+	if err != nil {
+		t.Fatalf("failed to exec env in app container: %v", err)
+	}
+	envOutput := execResult.StdoutContents()
+	if !strings.Contains(envOutput, "REDIS_URL=redis://") {
+		t.Error("expected REDIS_URL=redis://... to be present in app container environment")
 	}
 
 	// linking again should be idempotent
