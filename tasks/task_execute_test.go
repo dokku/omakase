@@ -138,6 +138,48 @@ func TestDomainsToggleTaskInvalidState(t *testing.T) {
 	}
 }
 
+func TestHttpAuthTaskInvalidState(t *testing.T) {
+	task := HttpAuthTask{App: "test-app", Username: "admin", Password: "secret", State: "invalid"}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with invalid state should return an error")
+	}
+}
+
+func TestHttpAuthTaskDesiredState(t *testing.T) {
+	task := HttpAuthTask{App: "test-app", State: StatePresent}
+	if task.DesiredState() != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
+	}
+
+	task = HttpAuthTask{App: "test-app", State: StateAbsent}
+	if task.DesiredState() != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
+	}
+}
+
+func TestHttpAuthTaskPresentWithoutUsername(t *testing.T) {
+	task := HttpAuthTask{App: "test-app", Password: "secret", State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when present state has no username")
+	}
+	if !strings.Contains(result.Error.Error(), "username is required") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestHttpAuthTaskPresentWithoutPassword(t *testing.T) {
+	task := HttpAuthTask{App: "test-app", Username: "admin", State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when present state has no password")
+	}
+	if !strings.Contains(result.Error.Error(), "password is required") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
 func TestGitFromImageTaskInvalidState(t *testing.T) {
 	task := GitFromImageTask{App: "test-app", Image: "nginx", State: "invalid"}
 	result := task.Execute()
@@ -451,6 +493,8 @@ func TestAllTasksDesiredState(t *testing.T) {
 		{"DomainsToggleTask present", &DomainsToggleTask{App: "test", State: StatePresent}, StatePresent},
 		{"DomainsToggleTask absent", &DomainsToggleTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"GitFromImageTask deployed", &GitFromImageTask{App: "test", Image: "nginx", State: StateDeployed}, StateDeployed},
+		{"HttpAuthTask present", &HttpAuthTask{App: "test", Username: "admin", Password: "secret", State: StatePresent}, StatePresent},
+		{"HttpAuthTask absent", &HttpAuthTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"GitSyncTask present", &GitSyncTask{App: "test", Remote: "https://example.com/repo", State: StatePresent}, StatePresent},
 		{"NetworkTask present", &NetworkTask{Name: "test", State: StatePresent}, StatePresent},
 		{"NetworkTask absent", &NetworkTask{Name: "test", State: StateAbsent}, StateAbsent},
@@ -658,7 +702,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 19
+	expected := 20
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -677,6 +721,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&DomainsToggleTask{}, "Enables or disables the domains plugin for a given dokku application"},
 		{&GitFromImageTask{}, "Deploys a git repository from a docker image"},
 		{&GitSyncTask{}, "Syncs a git repository to a dokku application"},
+		{&HttpAuthTask{}, "Manages HTTP authentication for a given dokku application"},
 		{&NetworkTask{}, "Creates or destroys a Docker network"},
 		{&NetworkPropertyTask{}, "Manages the network property for a given dokku application"},
 		{&PortsTask{}, "Manages the ports for a given dokku application"},
