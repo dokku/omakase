@@ -61,6 +61,75 @@ func TestConfigTaskInvalidState(t *testing.T) {
 	}
 }
 
+func TestDomainsTaskInvalidState(t *testing.T) {
+	task := DomainsTask{App: "test-app", Domains: []string{"example.com"}, State: "invalid"}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with invalid state should return an error")
+	}
+}
+
+func TestDomainsTaskDesiredState(t *testing.T) {
+	task := DomainsTask{App: "test-app", Domains: []string{"example.com"}, State: StatePresent}
+	if task.DesiredState() != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
+	}
+
+	task = DomainsTask{App: "test-app", Domains: []string{"example.com"}, State: StateAbsent}
+	if task.DesiredState() != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
+	}
+
+	task = DomainsTask{App: "test-app", Domains: []string{"example.com"}, State: StateSet}
+	if task.DesiredState() != StateSet {
+		t.Errorf("expected state 'set', got '%s'", task.DesiredState())
+	}
+
+	task = DomainsTask{App: "test-app", State: StateClear}
+	if task.DesiredState() != StateClear {
+		t.Errorf("expected state 'clear', got '%s'", task.DesiredState())
+	}
+}
+
+func TestDomainsTaskMissingApp(t *testing.T) {
+	task := DomainsTask{Domains: []string{"example.com"}, State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute without app and global=false should return an error")
+	}
+}
+
+func TestDomainsTaskGlobalWithApp(t *testing.T) {
+	task := DomainsTask{App: "test-app", Global: true, Domains: []string{"example.com"}, State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when both global and app are set")
+	}
+	if !strings.Contains(result.Error.Error(), "must not be set when 'global' is set to true") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestDomainsTaskEmptyDomains(t *testing.T) {
+	states := []State{StatePresent, StateAbsent, StateSet}
+	for _, s := range states {
+		task := DomainsTask{App: "test-app", Domains: []string{}, State: s}
+		result := task.Execute()
+		if result.Error == nil {
+			t.Fatalf("Execute with empty domains and state=%s should return an error", s)
+		}
+	}
+}
+
+func TestDomainsTaskClearNoDomains(t *testing.T) {
+	task := DomainsTask{App: "test-app", State: StateClear}
+	result := task.Execute()
+	// Should fail because dokku isn't running, but NOT because of missing domains
+	if result.Error != nil && strings.Contains(result.Error.Error(), "must not be empty") {
+		t.Error("clear state should not require domains")
+	}
+}
+
 func TestDomainsToggleTaskInvalidState(t *testing.T) {
 	task := DomainsToggleTask{App: "test-app", State: "invalid"}
 	result := task.Execute()
@@ -375,6 +444,10 @@ func TestAllTasksDesiredState(t *testing.T) {
 		{"ChecksToggleTask absent", &ChecksToggleTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"ConfigTask present", &ConfigTask{App: "test", State: StatePresent}, StatePresent},
 		{"ConfigTask absent", &ConfigTask{App: "test", State: StateAbsent}, StateAbsent},
+		{"DomainsTask present", &DomainsTask{App: "test", Domains: []string{"example.com"}, State: StatePresent}, StatePresent},
+		{"DomainsTask absent", &DomainsTask{App: "test", Domains: []string{"example.com"}, State: StateAbsent}, StateAbsent},
+		{"DomainsTask set", &DomainsTask{App: "test", Domains: []string{"example.com"}, State: StateSet}, StateSet},
+		{"DomainsTask clear", &DomainsTask{App: "test", State: StateClear}, StateClear},
 		{"DomainsToggleTask present", &DomainsToggleTask{App: "test", State: StatePresent}, StatePresent},
 		{"DomainsToggleTask absent", &DomainsToggleTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"GitFromImageTask deployed", &GitFromImageTask{App: "test", Image: "nginx", State: StateDeployed}, StateDeployed},
@@ -585,7 +658,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 18
+	expected := 19
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -600,6 +673,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&BuilderPropertyTask{}, "Manages the builder configuration for a given dokku application"},
 		{&ChecksToggleTask{}, "Enables or disables the checks plugin for a given dokku application"},
 		{&ConfigTask{}, "Manages the configuration for a given dokku application"},
+		{&DomainsTask{}, "Manages the domains for a given dokku application or globally"},
 		{&DomainsToggleTask{}, "Enables or disables the domains plugin for a given dokku application"},
 		{&GitFromImageTask{}, "Deploys a git repository from a docker image"},
 		{&GitSyncTask{}, "Syncs a git repository to a dokku application"},

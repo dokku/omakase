@@ -157,6 +157,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_builder_property",
 		"dokku_checks_toggle",
 		"dokku_config",
+		"dokku_domains",
 		"dokku_domains_toggle",
 		"dokku_git_from_image",
 		"dokku_git_sync",
@@ -882,5 +883,99 @@ func TestGetTasksNetworkTaskParsedCorrectly(t *testing.T) {
 	}
 	if netTask.DesiredState() != StatePresent {
 		t.Errorf("expected default state 'present', got %q", netTask.DesiredState())
+	}
+}
+
+func TestGetTasksDomainsTaskParsedCorrectly(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: add domains
+      dokku_domains:
+        app: test-app
+        domains:
+          - example.com
+          - www.example.com
+        state: present
+`)
+	context := map[string]interface{}{}
+
+	tasks, err := GetTasks(data, context)
+	if err != nil {
+		t.Fatalf("GetTasks failed: %v", err)
+	}
+
+	task := tasks.Get("add domains")
+	if task == nil {
+		t.Fatal("task 'add domains' not found")
+	}
+
+	dTask, ok := task.(*DomainsTask)
+	if !ok {
+		dt, ok2 := task.(DomainsTask)
+		if !ok2 {
+			t.Fatalf("task is not a DomainsTask (type is %T)", task)
+		}
+		dTask = &dt
+	}
+
+	if dTask.App != "test-app" {
+		t.Errorf("App = %q, want %q", dTask.App, "test-app")
+	}
+	if len(dTask.Domains) != 2 {
+		t.Fatalf("expected 2 domains, got %d", len(dTask.Domains))
+	}
+	if dTask.Domains[0] != "example.com" {
+		t.Errorf("Domains[0] = %q, want %q", dTask.Domains[0], "example.com")
+	}
+	if dTask.Domains[1] != "www.example.com" {
+		t.Errorf("Domains[1] = %q, want %q", dTask.Domains[1], "www.example.com")
+	}
+	if dTask.DesiredState() != StatePresent {
+		t.Errorf("expected state 'present', got %q", dTask.DesiredState())
+	}
+}
+
+func TestGetTasksDomainsTaskGlobalParsedCorrectly(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: set global domains
+      dokku_domains:
+        global: true
+        domains:
+          - global.example.com
+        state: set
+`)
+	context := map[string]interface{}{}
+
+	tasks, err := GetTasks(data, context)
+	if err != nil {
+		t.Fatalf("GetTasks failed: %v", err)
+	}
+
+	task := tasks.Get("set global domains")
+	if task == nil {
+		t.Fatal("task 'set global domains' not found")
+	}
+
+	dTask, ok := task.(*DomainsTask)
+	if !ok {
+		dt, ok2 := task.(DomainsTask)
+		if !ok2 {
+			t.Fatalf("task is not a DomainsTask (type is %T)", task)
+		}
+		dTask = &dt
+	}
+
+	if !dTask.Global {
+		t.Error("Global = false, want true")
+	}
+	if len(dTask.Domains) != 1 {
+		t.Fatalf("expected 1 domain, got %d", len(dTask.Domains))
+	}
+	if dTask.Domains[0] != "global.example.com" {
+		t.Errorf("Domains[0] = %q, want %q", dTask.Domains[0], "global.example.com")
+	}
+	if dTask.DesiredState() != StateSet {
+		t.Errorf("expected state 'set', got %q", dTask.DesiredState())
 	}
 }
