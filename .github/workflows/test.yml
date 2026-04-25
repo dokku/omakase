@@ -38,5 +38,7 @@ jobs:
           sudo apt-get update -qq
           sudo DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -qq -y dokku
           sudo dokku plugin:install-dependencies --core
+      - name: install dokku redis plugin
+        run: sudo dokku plugin:install https://github.com/dokku/dokku-redis.git redis
       - name: run integration tests
         run: sudo go test -v -count=1 -run TestIntegration ./tasks/

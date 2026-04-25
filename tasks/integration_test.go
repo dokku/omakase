@@ -3,6 +3,7 @@ package tasks
 import (
 	"omakase/subprocess"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -22,6 +23,31 @@ func skipIfNoDokkuT(t *testing.T) {
 	t.Helper()
 	if !dokkuAvailable() {
 		t.Skip("skipping integration test: dokku not available")
+	}
+}
+
+func dokkuPluginInstalled(plugin string) bool {
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    []string{"plugin:list"},
+	})
+	if err != nil {
+		return false
+	}
+
+	for _, line := range strings.Split(result.StdoutContents(), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == plugin {
+			return true
+		}
+	}
+	return false
+}
+
+func skipIfPluginMissingT(t *testing.T, plugin string) {
+	t.Helper()
+	if !dokkuPluginInstalled(plugin) {
+		t.Skipf("skipping integration test: dokku plugin %q not installed", plugin)
 	}
 }
 
@@ -932,5 +958,66 @@ func TestIntegrationMultiTaskWorkflow(t *testing.T) {
 		if !state.Changed {
 			t.Errorf("task %q: expected changed=true on first run", name)
 		}
+	}
+}
+
+func TestIntegrationServiceCreateAndDestroy(t *testing.T) {
+	skipIfNoDokkuT(t)
+	skipIfPluginMissingT(t, "redis")
+
+	serviceName := "omakase-test-service"
+	serviceType := "redis"
+
+	// ensure clean state
+	destroyService(serviceType, serviceName)
+
+	// create the service
+	task := ServiceCreateTask{Service: serviceType, Name: serviceName, State: StatePresent}
+	result := task.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to create service: %v", result.Error)
+	}
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for new service creation")
+	}
+
+	// creating again should be idempotent
+	result = task.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent create failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for existing service")
+	}
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
+	}
+
+	// destroy the service
+	destroyTask := ServiceCreateTask{Service: serviceType, Name: serviceName, State: StateAbsent}
+	result = destroyTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to destroy service: %v", result.Error)
+	}
+	if result.State != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for service destruction")
+	}
+
+	// destroying again should be idempotent
+	result = destroyTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent destroy failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for nonexistent service")
+	}
+	if result.State != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", result.State)
 	}
 }
