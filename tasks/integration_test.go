@@ -116,19 +116,14 @@ func skipIfDockerLinkUnsupportedT(t *testing.T) {
 	}
 }
 
-// dokkuCleanup runs dokku cleanup to remove old containers from previous deploys
-func dokkuCleanup() {
-	subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    []string{"cleanup"},
-	})
-}
-
-// getRunningContainers returns the IDs of running containers matching the given app and process type
-func getRunningContainers(appName, processType string) ([]string, error) {
+// getActiveContainers returns the IDs of running containers matching the given
+// app and process type, excluding retired containers (those renamed with a
+// timestamp suffix like "app.web.1.1640787924") and interim containers (those
+// with an ".upcoming-" suffix created during deployment).
+func getActiveContainers(appName, processType string) ([]string, error) {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "docker",
-		Args:    []string{"ps", "-q", "--filter", fmt.Sprintf("label=com.dokku.app-name=%s", appName), "--filter", fmt.Sprintf("label=com.dokku.process-type=%s", processType)},
+		Args:    []string{"ps", "--filter", fmt.Sprintf("label=com.dokku.app-name=%s", appName), "--filter", fmt.Sprintf("label=com.dokku.process-type=%s", processType), "--format", "{{.ID}}\t{{.Names}}"},
 	})
 	if err != nil {
 		return nil, err
@@ -137,7 +132,24 @@ func getRunningContainers(appName, processType string) ([]string, error) {
 	if output == "" {
 		return nil, nil
 	}
-	return strings.Split(output, "\n"), nil
+	var ids []string
+	for _, line := range strings.Split(output, "\n") {
+		parts := strings.SplitN(line, "\t", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		containerID := parts[0]
+		containerName := parts[1]
+		// skip retired containers (app.process.N.TIMESTAMP) and
+		// interim containers (app.process.N.upcoming-RANDOM)
+		// active containers have exactly 3 dot-separated segments: app.process.N
+		segments := strings.Split(containerName, ".")
+		if len(segments) != 3 {
+			continue
+		}
+		ids = append(ids, containerID)
+	}
+	return ids, nil
 }
 
 func TestIntegrationAppCreateAndDestroy(t *testing.T) {
@@ -1022,8 +1034,7 @@ func TestIntegrationPsScale(t *testing.T) {
 	}
 
 	// verify initial web container count is 1 via docker ps
-	dokkuCleanup()
-	initialContainers, err := getRunningContainers(appName, "web")
+	initialContainers, err := getActiveContainers(appName, "web")
 	if err != nil {
 		t.Fatalf("failed to list containers: %v", err)
 	}
@@ -1061,8 +1072,7 @@ func TestIntegrationPsScale(t *testing.T) {
 	}
 
 	// clean up old containers and verify 2 web containers via docker ps
-	dokkuCleanup()
-	scaledContainers, err := getRunningContainers(appName, "web")
+	scaledContainers, err := getActiveContainers(appName, "web")
 	if err != nil {
 		t.Fatalf("failed to list containers after scale: %v", err)
 	}
@@ -1108,8 +1118,7 @@ func TestIntegrationPsScale(t *testing.T) {
 	}
 
 	// clean up old containers and verify 1 web container after scale down
-	dokkuCleanup()
-	finalContainers, err := getRunningContainers(appName, "web")
+	finalContainers, err := getActiveContainers(appName, "web")
 	if err != nil {
 		t.Fatalf("failed to list containers after scale down: %v", err)
 	}
