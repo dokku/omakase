@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"fmt"
 	"omakase/subprocess"
 	"os"
 	"strconv"
@@ -1115,6 +1116,19 @@ func TestIntegrationServiceLinkAndUnlink(t *testing.T) {
 		destroyService(serviceType, serviceName)
 	}()
 
+	// verify service container is running via docker inspect
+	containerName := fmt.Sprintf("dokku.%s.%s", serviceType, serviceName)
+	inspectResult, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"inspect", "--format", "{{.State.Running}}", containerName},
+	})
+	if err != nil {
+		t.Fatalf("failed to inspect service container: %v", err)
+	}
+	if strings.TrimSpace(inspectResult.StdoutContents()) != "true" {
+		t.Errorf("expected service container %q to be running", containerName)
+	}
+
 	// link service to app
 	linkTask := ServiceLinkTask{App: appName, Service: serviceType, Name: serviceName, State: StatePresent}
 	result := linkTask.Execute()
@@ -1126,6 +1140,34 @@ func TestIntegrationServiceLinkAndUnlink(t *testing.T) {
 	}
 	if !result.Changed {
 		t.Error("expected changed=true for new service link")
+	}
+
+	// verify REDIS_URL config var was set by the link
+	configResult, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    []string{"config:get", appName, "REDIS_URL"},
+	})
+	if err != nil {
+		t.Fatalf("failed to get REDIS_URL after link: %v", err)
+	}
+	redisURL := strings.TrimSpace(configResult.StdoutContents())
+	if redisURL == "" {
+		t.Error("expected REDIS_URL to be set after linking service")
+	}
+	if !strings.HasPrefix(redisURL, "redis://") {
+		t.Errorf("expected REDIS_URL to start with 'redis://', got %q", redisURL)
+	}
+
+	// verify the service container exposes the expected network alias via docker inspect
+	aliasResult, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"inspect", "--format", "{{.Config.Hostname}}", containerName},
+	})
+	if err != nil {
+		t.Fatalf("failed to inspect service container hostname: %v", err)
+	}
+	if strings.TrimSpace(aliasResult.StdoutContents()) == "" {
+		t.Error("expected service container to have a hostname set")
 	}
 
 	// linking again should be idempotent
@@ -1151,6 +1193,15 @@ func TestIntegrationServiceLinkAndUnlink(t *testing.T) {
 	}
 	if !result.Changed {
 		t.Error("expected changed=true for service unlink")
+	}
+
+	// verify REDIS_URL config var was removed by the unlink
+	configResult, err = subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    []string{"config:get", appName, "REDIS_URL"},
+	})
+	if err == nil && strings.TrimSpace(configResult.StdoutContents()) != "" {
+		t.Error("expected REDIS_URL to be unset after unlinking service")
 	}
 
 	// unlinking again should be idempotent
