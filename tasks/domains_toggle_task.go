@@ -43,15 +43,7 @@ func (t DomainsToggleTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables the domains plugin
 func (t DomainsToggleTask) Execute() TaskOutputState {
-	ctx := ToggleContext{
-		AllowGlobal: false,
-		App:         t.App,
-		Global:      t.Global,
-	}
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return enablePlugin("domains:enable", ctx) },
-		"absent":  func() TaskOutputState { return disablePlugin("domains:disable", ctx) },
-	})
+	return executeToggle(t.State, t.App, t.Global, false, "domains:enable", "domains:disable")
 }
 
 // init registers the DomainsToggleTask with the task registry

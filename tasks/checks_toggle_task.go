@@ -58,15 +58,7 @@ func (t ChecksToggleTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables the checks plugin
 func (t ChecksToggleTask) Execute() TaskOutputState {
-	ctx := ToggleContext{
-		AllowGlobal: false,
-		App:         t.App,
-		Global:      t.Global,
-	}
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return enablePlugin("checks:enable", ctx) },
-		"absent":  func() TaskOutputState { return disablePlugin("checks:disable", ctx) },
-	})
+	return executeToggle(t.State, t.App, t.Global, false, "checks:enable", "checks:disable")
 }
 
 // init registers the ChecksToggleTask with the task registry

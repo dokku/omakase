@@ -43,15 +43,7 @@ func (t ProxyToggleTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables the proxy
 func (t ProxyToggleTask) Execute() TaskOutputState {
-	ctx := ToggleContext{
-		AllowGlobal: false,
-		App:         t.App,
-		Global:      t.Global,
-	}
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return enablePlugin("proxy:enable", ctx) },
-		"absent":  func() TaskOutputState { return disablePlugin("proxy:disable", ctx) },
-	})
+	return executeToggle(t.State, t.App, t.Global, false, "proxy:enable", "proxy:disable")
 }
 
 // init registers the ProxyToggleTask with the task registry
