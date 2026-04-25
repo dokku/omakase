@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // StorageMountTask manages the storage for a given dokku application
@@ -32,6 +30,11 @@ type StorageMountTaskExample struct {
 	StorageMountTask StorageMountTask `yaml:"dokku_storage_mount"`
 }
 
+// GetName returns the name of the example
+func (e StorageMountTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the storage
 func (t StorageMountTask) DesiredState() State {
 	return t.State
@@ -42,40 +45,17 @@ func (t StorageMountTask) Doc() string {
 	return "Mounts or unmounts the storage for a given dokku application"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the storage mount task
 func (t StorageMountTask) Examples() ([]Doc, error) {
-	examples := []StorageMountTaskExample{}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	return MarshalExamples([]StorageMountTaskExample{})
 }
 
 // Execute mounts or unmounts the storage for a given app
 func (t StorageMountTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, string, string) TaskOutputState{
-		"present": mountStorage,
-		"absent":  unmountStorage,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.App, t.HostDir, t.ContainerDir)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return mountStorage(t.App, t.HostDir, t.ContainerDir) },
+		"absent":  func() TaskOutputState { return unmountStorage(t.App, t.HostDir, t.ContainerDir) },
+	})
 }
 
 // mountExists checks if the storage mount exists
@@ -136,9 +116,7 @@ func mountStorage(app, hostDir, containerDir string) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true
@@ -168,9 +146,7 @@ func unmountStorage(app, hostDir, containerDir string) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

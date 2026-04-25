@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
 	"docket/subprocess"
 	"strings"
@@ -19,6 +20,27 @@ type ResourceContext struct {
 
 	// ClearBefore clears all resources before applying new ones
 	ClearBefore bool
+}
+
+// executeResource is a shared Execute implementation for resource tasks.
+func executeResource(state State, app, processType string, resources map[string]string, clearBefore bool, subcommand string) TaskOutputState {
+	if state == StatePresent && len(resources) == 0 {
+		return TaskOutputState{
+			Error:   errors.New("resources are required when state is present"),
+			Message: "resources are required when state is present",
+		}
+	}
+
+	rctx := ResourceContext{
+		App:         app,
+		ProcessType: processType,
+		Resources:   resources,
+		ClearBefore: clearBefore,
+	}
+	return DispatchState(state, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return setResource(subcommand, rctx) },
+		"absent":  func() TaskOutputState { return clearResource(subcommand, rctx) },
+	})
 }
 
 // getResources retrieves the current resources for a given dokku application
@@ -127,9 +149,7 @@ func setResource(subcommand string, rctx ResourceContext) TaskOutputState {
 		Args:    args,
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

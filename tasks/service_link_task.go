@@ -3,8 +3,6 @@ package tasks
 import (
 	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // ServiceLinkTask links or unlinks a dokku service to an app
@@ -31,6 +29,11 @@ type ServiceLinkTaskExample struct {
 	ServiceLinkTask ServiceLinkTask `yaml:"dokku_service_link"`
 }
 
+// GetName returns the name of the example
+func (e ServiceLinkTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the service link
 func (t ServiceLinkTask) DesiredState() State {
 	return t.State
@@ -43,7 +46,7 @@ func (t ServiceLinkTask) Doc() string {
 
 // Examples returns a list of ServiceLinkTaskExamples as yaml
 func (t ServiceLinkTask) Examples() ([]Doc, error) {
-	examples := []ServiceLinkTaskExample{
+	return MarshalExamples([]ServiceLinkTaskExample{
 		{
 			Name: "Link a redis service named my-redis to my-app",
 			ServiceLinkTask: ServiceLinkTask{
@@ -69,38 +72,15 @@ func (t ServiceLinkTask) Examples() ([]Doc, error) {
 				State:   "absent",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute links or unlinks a dokku service to an app
 func (t ServiceLinkTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, string, string) TaskOutputState{
-		"present": linkService,
-		"absent":  unlinkService,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.Service, t.Name, t.App)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return linkService(t.Service, t.Name, t.App) },
+		"absent":  func() TaskOutputState { return unlinkService(t.Service, t.Name, t.App) },
+	})
 }
 
 // serviceLinked checks if a dokku service is linked to an app
@@ -153,9 +133,7 @@ func linkService(service, name, app string) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true
@@ -195,9 +173,7 @@ func unlinkService(service, name, app string) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

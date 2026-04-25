@@ -1,12 +1,5 @@
 package tasks
 
-import (
-	"errors"
-	"fmt"
-
-	yaml "gopkg.in/yaml.v3"
-)
-
 // ResourceReserveTask manages the resource reservations for a given dokku application
 type ResourceReserveTask struct {
 	// App is the name of the app
@@ -34,6 +27,11 @@ type ResourceReserveTaskExample struct {
 	ResourceReserveTask ResourceReserveTask `yaml:"dokku_resource_reserve"`
 }
 
+// GetName returns the name of the example
+func (e ResourceReserveTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the resource reservations
 func (t ResourceReserveTask) DesiredState() State {
 	return t.State
@@ -46,7 +44,7 @@ func (t ResourceReserveTask) Doc() string {
 
 // Examples returns the examples for the resource reserve task
 func (t ResourceReserveTask) Examples() ([]Doc, error) {
-	examples := []ResourceReserveTaskExample{
+	return MarshalExamples([]ResourceReserveTaskExample{
 		{
 			Name: "Set CPU and memory reservations",
 			ResourceReserveTask: ResourceReserveTask{
@@ -74,53 +72,12 @@ func (t ResourceReserveTask) Examples() ([]Doc, error) {
 				State: StateAbsent,
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute sets or clears the resource reservations for a given dokku application
 func (t ResourceReserveTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, ResourceContext) TaskOutputState{
-		"present": setResource,
-		"absent":  clearResource,
-	}
-
-	if t.State == StatePresent && len(t.Resources) == 0 {
-		return TaskOutputState{
-			Error:   errors.New("resources are required when state is present"),
-			Message: "resources are required when state is present",
-		}
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-
-	rctx := ResourceContext{
-		App:         t.App,
-		ProcessType: t.ProcessType,
-		Resources:   t.Resources,
-		ClearBefore: t.ClearBefore,
-	}
-
-	return fn("resource:reserve", rctx)
+	return executeResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:reserve")
 }
 
 // init registers the ResourceReserveTask with the task registry

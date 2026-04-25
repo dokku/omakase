@@ -6,8 +6,6 @@ import (
 	"docket/subprocess"
 	"strconv"
 	"strings"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // PortsTask manages the ports for a given dokku application
@@ -29,6 +27,11 @@ type PortsTaskExample struct {
 
 	// PortsTask is the PortsTask configuration
 	PortsTask PortsTask `yaml:"dokku_ports"`
+}
+
+// GetName returns the name of the example
+func (e PortsTaskExample) GetName() string {
+	return e.Name
 }
 
 // PortMapping represents a port mapping
@@ -58,51 +61,27 @@ func (t PortsTask) Doc() string {
 	return "Manages the ports for a given dokku application"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the ports task
 func (t PortsTask) Examples() ([]Doc, error) {
-	examples := []PortsTaskExample{}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	return MarshalExamples([]PortsTaskExample{})
 }
 
 // Execute sets or unsets the ports
 func (t PortsTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, []PortMapping) TaskOutputState{
-		"present": setPorts,
-		"absent":  unsetPorts,
-	}
-
 	// todo: add port mapping validation
 	if len(t.PortMappings) == 0 {
-		state := TaskOutputState{
+		return TaskOutputState{
 			Changed: false,
 			State:   "absent",
+			Error:   errors.New("no port mappings provided"),
+			Message: "no port mappings provided",
 		}
-		state.Error = errors.New("no port mappings provided")
-		state.Message = "no port mappings provided"
-		return state
 	}
 
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.App, t.PortMappings)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return setPorts(t.App, t.PortMappings) },
+		"absent":  func() TaskOutputState { return unsetPorts(t.App, t.PortMappings) },
+	})
 }
 
 // getPorts gets the ports for a given app
@@ -184,9 +163,7 @@ func setPorts(appName string, portMappings []PortMapping) TaskOutputState {
 		Args:    args,
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true
@@ -229,9 +206,7 @@ func unsetPorts(appName string, portMappings []PortMapping) TaskOutputState {
 		Args:    args,
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

@@ -2,10 +2,7 @@ package tasks
 
 import (
 	"errors"
-	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // StorageEnsureTask manages the storage for a given dokku application
@@ -29,6 +26,11 @@ type StorageEnsureTaskExample struct {
 	StorageEnsureTask StorageEnsureTask `yaml:"dokku_storage_ensure"`
 }
 
+// GetName returns the name of the example
+func (e StorageEnsureTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the storage
 func (t StorageEnsureTask) DesiredState() State {
 	return t.State
@@ -39,40 +41,17 @@ func (t StorageEnsureTask) Doc() string {
 	return "Ensures the storage for a given dokku application"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the storage ensure task
 func (t StorageEnsureTask) Examples() ([]Doc, error) {
-	examples := []StorageEnsureTaskExample{}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	return MarshalExamples([]StorageEnsureTaskExample{})
 }
 
 // Execute ensures the storage for a given app
 func (t StorageEnsureTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, string) TaskOutputState{
-		"present": ensureStorage,
-		"absent":  removeStorage,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.App, t.Chown)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return ensureStorage(t.App, t.Chown) },
+		"absent":  func() TaskOutputState { return removeStorage(t.App, t.Chown) },
+	})
 }
 
 // ensureStorage ensures the storage for a given app
@@ -107,9 +86,7 @@ func ensureStorage(app, chown string) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

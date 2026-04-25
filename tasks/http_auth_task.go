@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"docket/subprocess"
 	"strings"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // HttpAuthTask manages HTTP authentication for a dokku application
@@ -32,6 +30,11 @@ type HttpAuthTaskExample struct {
 	DokkuHttpAuth HttpAuthTask `yaml:"dokku_http_auth"`
 }
 
+// GetName returns the name of the example
+func (e HttpAuthTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the HTTP auth
 func (t HttpAuthTask) DesiredState() State {
 	return t.State
@@ -44,7 +47,7 @@ func (t HttpAuthTask) Doc() string {
 
 // Examples returns a list of HttpAuthTaskExamples as yaml
 func (t HttpAuthTask) Examples() ([]Doc, error) {
-	examples := []HttpAuthTaskExample{
+	return MarshalExamples([]HttpAuthTaskExample{
 		{
 			Name: "Enable HTTP authentication for an app",
 			DokkuHttpAuth: HttpAuthTask{
@@ -60,22 +63,7 @@ func (t HttpAuthTask) Examples() ([]Doc, error) {
 				State: "absent",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute enables or disables HTTP authentication for an app
@@ -91,22 +79,10 @@ func (t HttpAuthTask) Execute() TaskOutputState {
 		}
 	}
 
-	funcMap := map[State]func() TaskOutputState{
-		"present": func() TaskOutputState {
-			return enableHttpAuth(t.App, t.Username, t.Password)
-		},
-		"absent": func() TaskOutputState {
-			return disableHttpAuth(t.App)
-		},
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn()
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return enableHttpAuth(t.App, t.Username, t.Password) },
+		"absent":  func() TaskOutputState { return disableHttpAuth(t.App) },
+	})
 }
 
 // httpAuthEnabled checks if HTTP authentication is enabled for an app
@@ -158,9 +134,7 @@ func enableHttpAuth(app, username, password string) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true
@@ -188,9 +162,7 @@ func disableHttpAuth(app string) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

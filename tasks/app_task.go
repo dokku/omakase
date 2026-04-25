@@ -1,10 +1,7 @@
 package tasks
 
 import (
-	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // AppTask creates or destroys an app
@@ -25,6 +22,11 @@ type AppTaskExample struct {
 	DokkuApp AppTask `yaml:"dokku_app"`
 }
 
+// GetName returns the name of the example
+func (e AppTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the app
 func (t AppTask) DesiredState() State {
 	return t.State
@@ -37,7 +39,7 @@ func (t AppTask) Doc() string {
 
 // Examples returns a list of AppTaskExamples as yaml
 func (t AppTask) Examples() ([]Doc, error) {
-	examples := []AppTaskExample{
+	return MarshalExamples([]AppTaskExample{
 		{
 			Name: "Create an app named hello-world",
 			DokkuApp: AppTask{
@@ -51,38 +53,15 @@ func (t AppTask) Examples() ([]Doc, error) {
 				State: "absent",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute creates or destroys an app
 func (t AppTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string) TaskOutputState{
-		"present": createApp,
-		"absent":  destroyApp,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.App)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return createApp(t.App) },
+		"absent":  func() TaskOutputState { return destroyApp(t.App) },
+	})
 }
 
 // appExists checks if an app exists
@@ -122,9 +101,7 @@ func createApp(app string) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true
@@ -153,9 +130,7 @@ func destroyApp(app string) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

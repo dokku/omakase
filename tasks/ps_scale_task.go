@@ -5,8 +5,6 @@ import (
 	"docket/subprocess"
 	"strconv"
 	"strings"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // PsScaleTask manages the process scale for a given dokku application
@@ -33,6 +31,11 @@ type PsScaleTaskExample struct {
 	PsScaleTask PsScaleTask `yaml:"dokku_ps_scale"`
 }
 
+// GetName returns the name of the example
+func (e PsScaleTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the process scale
 func (t PsScaleTask) DesiredState() State {
 	return t.State
@@ -45,7 +48,7 @@ func (t PsScaleTask) Doc() string {
 
 // Examples returns the examples for the ps scale task
 func (t PsScaleTask) Examples() ([]Doc, error) {
-	examples := []PsScaleTaskExample{
+	return MarshalExamples([]PsScaleTaskExample{
 		{
 			Name: "Scale web and worker processes",
 			PsScaleTask: PsScaleTask{
@@ -67,45 +70,20 @@ func (t PsScaleTask) Examples() ([]Doc, error) {
 				},
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute sets the process scale for a given dokku application
 func (t PsScaleTask) Execute() TaskOutputState {
-	if t.State == StatePresent {
-		if t.Scale == nil || len(t.Scale) == 0 {
-			return TaskOutputState{
-				Error: fmt.Errorf("scale must be specified when state is present"),
-			}
-		}
-	}
-
-	funcMap := map[State]func(PsScaleTask) TaskOutputState{
-		"present": setPsScale,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
+	if t.State == StatePresent && len(t.Scale) == 0 {
 		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
+			Error: fmt.Errorf("scale must be specified when state is present"),
 		}
 	}
-	return fn(t)
+
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return setPsScale(t) },
+	})
 }
 
 // getPsScale retrieves the current process scale for a given dokku application
@@ -181,9 +159,7 @@ func setPsScale(t PsScaleTask) TaskOutputState {
 		Args:    args,
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

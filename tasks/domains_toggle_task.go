@@ -1,11 +1,5 @@
 package tasks
 
-import (
-	"fmt"
-
-	yaml "gopkg.in/yaml.v3"
-)
-
 // DomainsToggleTask enables or disables the domains plugin for a given dokku application
 type DomainsToggleTask struct {
 	// App is the name of the app
@@ -27,6 +21,11 @@ type DomainsToggleTaskExample struct {
 	DomainsToggleTask DomainsToggleTask `yaml:"dokku_domains_toggle"`
 }
 
+// GetName returns the name of the example
+func (e DomainsToggleTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the domains plugin
 func (t DomainsToggleTask) DesiredState() State {
 	return t.State
@@ -37,49 +36,14 @@ func (t DomainsToggleTask) Doc() string {
 	return "Enables or disables the domains plugin for a given dokku application"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the domains toggle task
 func (t DomainsToggleTask) Examples() ([]Doc, error) {
-	examples := []DomainsToggleTaskExample{}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	return MarshalExamples([]DomainsToggleTaskExample{})
 }
 
 // Execute enables or disables the domains plugin
 func (t DomainsToggleTask) Execute() TaskOutputState {
-	ctx := ToggleContext{
-		AllowGlobal: false,
-		App:         t.App,
-		Global:      t.Global,
-	}
-	funcMap := map[State]func() TaskOutputState{
-		"present": func() TaskOutputState {
-			return enablePlugin("domains:enable", ctx)
-		},
-		"absent": func() TaskOutputState {
-			return disablePlugin("domains:disable", ctx)
-		},
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn()
+	return executeToggle(t.State, t.App, t.Global, false, "domains:enable", "domains:disable")
 }
 
 // init registers the DomainsToggleTask with the task registry

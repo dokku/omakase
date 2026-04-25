@@ -1,11 +1,7 @@
 package tasks
 
 import (
-	"encoding/json"
-	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // git:from-image [--build-dir DIRECTORY] <app> <docker-image> [<git-username> <git-email>]
@@ -40,6 +36,11 @@ type GitFromImageTaskExample struct {
 	GitFromImageTask GitFromImageTask `yaml:"dokku_git_from_image"`
 }
 
+// GetName returns the name of the example
+func (e GitFromImageTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the git repository
 func (t GitFromImageTask) DesiredState() State {
 	return t.State
@@ -50,58 +51,21 @@ func (t GitFromImageTask) Doc() string {
 	return "Deploys a git repository from a docker image"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the git from image task
 func (t GitFromImageTask) Examples() ([]Doc, error) {
-	examples := []GitFromImageTaskExample{}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	return MarshalExamples([]GitFromImageTaskExample{})
 }
 
 // Execute deploys a git repository from a docker image
 func (t GitFromImageTask) Execute() TaskOutputState {
-	funcMap := map[State]func(GitFromImageTask) TaskOutputState{
-		"deployed": deployGitFromImage,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"deployed": func() TaskOutputState { return deployGitFromImage(t) },
+	})
 }
 
 // checkAppSourceImage checks if the app is already deployed from a docker image
 func checkAppSourceImage(app, expectedImage string) bool {
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    []string{"apps:report", app, "--format", "json"},
-	})
-	if err != nil {
-		return false
-	}
-
-	type appSource struct {
-		Source         string `json:"app-deploy-source"`
-		SourceMetadata string `json:"app-deploy-source-metadata"`
-	}
-
-	var source appSource
-	err = json.Unmarshal(result.StdoutBytes(), &source)
+	source, err := getAppDeploySource(app)
 	if err != nil {
 		return false
 	}
@@ -143,9 +107,7 @@ func deployGitFromImage(t GitFromImageTask) TaskOutputState {
 		Args:    args,
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

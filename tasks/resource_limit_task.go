@@ -1,12 +1,5 @@
 package tasks
 
-import (
-	"errors"
-	"fmt"
-
-	yaml "gopkg.in/yaml.v3"
-)
-
 // ResourceLimitTask manages the resource limits for a given dokku application
 type ResourceLimitTask struct {
 	// App is the name of the app
@@ -34,6 +27,11 @@ type ResourceLimitTaskExample struct {
 	ResourceLimitTask ResourceLimitTask `yaml:"dokku_resource_limit"`
 }
 
+// GetName returns the name of the example
+func (e ResourceLimitTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the resource limits
 func (t ResourceLimitTask) DesiredState() State {
 	return t.State
@@ -46,7 +44,7 @@ func (t ResourceLimitTask) Doc() string {
 
 // Examples returns the examples for the resource limit task
 func (t ResourceLimitTask) Examples() ([]Doc, error) {
-	examples := []ResourceLimitTaskExample{
+	return MarshalExamples([]ResourceLimitTaskExample{
 		{
 			Name: "Set CPU and memory limits",
 			ResourceLimitTask: ResourceLimitTask{
@@ -74,53 +72,12 @@ func (t ResourceLimitTask) Examples() ([]Doc, error) {
 				State: StateAbsent,
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute sets or clears the resource limits for a given dokku application
 func (t ResourceLimitTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, ResourceContext) TaskOutputState{
-		"present": setResource,
-		"absent":  clearResource,
-	}
-
-	if t.State == StatePresent && len(t.Resources) == 0 {
-		return TaskOutputState{
-			Error:   errors.New("resources are required when state is present"),
-			Message: "resources are required when state is present",
-		}
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-
-	rctx := ResourceContext{
-		App:         t.App,
-		ProcessType: t.ProcessType,
-		Resources:   t.Resources,
-		ClearBefore: t.ClearBefore,
-	}
-
-	return fn("resource:limit", rctx)
+	return executeResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:limit")
 }
 
 // init registers the ResourceLimitTask with the task registry

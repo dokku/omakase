@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"docket/subprocess"
 	"strings"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // DomainsTask manages the domains for a given dokku application or globally
@@ -32,6 +30,11 @@ type DomainsTaskExample struct {
 	DomainsTask DomainsTask `yaml:"dokku_domains"`
 }
 
+// GetName returns the name of the example
+func (e DomainsTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the domains
 func (t DomainsTask) DesiredState() State {
 	return t.State
@@ -44,7 +47,7 @@ func (t DomainsTask) Doc() string {
 
 // Examples returns the examples for the domains task
 func (t DomainsTask) Examples() ([]Doc, error) {
-	examples := []DomainsTaskExample{
+	return MarshalExamples([]DomainsTaskExample{
 		{
 			Name: "Add domains to an app",
 			DomainsTask: DomainsTask{
@@ -75,40 +78,17 @@ func (t DomainsTask) Examples() ([]Doc, error) {
 				State: "clear",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute manages the domains
 func (t DomainsTask) Execute() TaskOutputState {
-	funcMap := map[State]func(DomainsTask) TaskOutputState{
-		StatePresent: addDomains,
-		StateAbsent:  removeDomains,
-		StateSet:     setDomains,
-		StateClear:   clearDomains,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		StatePresent: func() TaskOutputState { return addDomains(t) },
+		StateAbsent:  func() TaskOutputState { return removeDomains(t) },
+		StateSet:     func() TaskOutputState { return setDomains(t) },
+		StateClear:   func() TaskOutputState { return clearDomains(t) },
+	})
 }
 
 // validateDomainsTask validates the domains task parameters
@@ -202,9 +182,7 @@ func addDomains(t DomainsTask) TaskOutputState {
 		Args:    args,
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true
@@ -258,9 +236,7 @@ func removeDomains(t DomainsTask) TaskOutputState {
 		Args:    args,
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true
@@ -295,9 +271,7 @@ func setDomains(t DomainsTask) TaskOutputState {
 		Args:    args,
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true
@@ -331,9 +305,7 @@ func clearDomains(t DomainsTask) TaskOutputState {
 		Args:    args,
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

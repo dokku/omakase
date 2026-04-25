@@ -45,14 +45,25 @@ func enablePlugin(subcommand string, pctx ToggleContext) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true
 	state.State = "present"
 	return state
+}
+
+// executeToggle is a shared Execute implementation for toggle tasks.
+func executeToggle(state State, app string, global bool, allowGlobal bool, enableCmd, disableCmd string) TaskOutputState {
+	ctx := ToggleContext{
+		AllowGlobal: allowGlobal,
+		App:         app,
+		Global:      global,
+	}
+	return DispatchState(state, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return enablePlugin(enableCmd, ctx) },
+		"absent":  func() TaskOutputState { return disablePlugin(disableCmd, ctx) },
+	})
 }
 
 // disablePlugin executes the disable state for a plugin
@@ -83,9 +94,7 @@ func disablePlugin(subcommand string, pctx ToggleContext) TaskOutputState {
 		},
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

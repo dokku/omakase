@@ -1,11 +1,8 @@
 package tasks
 
 import (
-	"encoding/json"
 	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // GitSyncTask syncs a git repository to a dokku application
@@ -41,6 +38,11 @@ type GitSyncTaskExample struct {
 	GitSyncTask GitSyncTask `yaml:"dokku_git_sync"`
 }
 
+// GetName returns the name of the example
+func (e GitSyncTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the git sync
 func (t GitSyncTask) DesiredState() State {
 	return t.State
@@ -53,7 +55,7 @@ func (t GitSyncTask) Doc() string {
 
 // Examples returns the examples for the git sync task
 func (t GitSyncTask) Examples() ([]Doc, error) {
-	examples := []GitSyncTaskExample{
+	return MarshalExamples([]GitSyncTaskExample{
 		{
 			Name: "Sync a git repository to an app",
 			GitSyncTask: GitSyncTask{
@@ -70,56 +72,19 @@ func (t GitSyncTask) Examples() ([]Doc, error) {
 				Build:  true,
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute syncs a git repository to a dokku application
 func (t GitSyncTask) Execute() TaskOutputState {
-	funcMap := map[State]func(GitSyncTask) TaskOutputState{
-		"present": syncGitRepository,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return syncGitRepository(t) },
+	})
 }
 
 // checkAppSyncState checks if the app is already synced from the expected remote and ref
 func checkAppSyncState(app, expectedRemote, expectedRef string) bool {
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    []string{"apps:report", app, "--format", "json"},
-	})
-	if err != nil {
-		return false
-	}
-
-	type appSource struct {
-		Source         string `json:"app-deploy-source"`
-		SourceMetadata string `json:"app-deploy-source-metadata"`
-	}
-
-	var source appSource
-	err = json.Unmarshal(result.StdoutBytes(), &source)
+	source, err := getAppDeploySource(app)
 	if err != nil {
 		return false
 	}
@@ -165,9 +130,7 @@ func syncGitRepository(t GitSyncTask) TaskOutputState {
 		Args:    args,
 	})
 	if err != nil {
-		state.Error = err
-		state.Message = result.StderrContents()
-		return state
+		return TaskOutputErrorFromExec(state, err, result)
 	}
 
 	state.Changed = true

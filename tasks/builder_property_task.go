@@ -1,12 +1,5 @@
 package tasks
 
-import (
-	"errors"
-	"fmt"
-
-	yaml "gopkg.in/yaml.v3"
-)
-
 // BuilderTask manages the builder configuration for a given dokku application
 type BuilderPropertyTask struct {
 	// App is the name of the app. Required if Global is false.
@@ -34,6 +27,11 @@ type BuilderPropertyTaskExample struct {
 	BuilderPropertyTask BuilderPropertyTask `yaml:"dokku_builder_property"`
 }
 
+// GetName returns the name of the example
+func (e BuilderPropertyTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the builder configuration
 func (t BuilderPropertyTask) DesiredState() State {
 	return t.State
@@ -46,7 +44,7 @@ func (t BuilderPropertyTask) Doc() string {
 
 // Examples returns the examples for the builder property task
 func (t BuilderPropertyTask) Examples() ([]Doc, error) {
-	examples := []BuilderPropertyTaskExample{
+	return MarshalExamples([]BuilderPropertyTaskExample{
 		{
 			Name: "Overriding the auto-selected builder",
 			BuilderPropertyTask: BuilderPropertyTask{
@@ -78,54 +76,12 @@ func (t BuilderPropertyTask) Examples() ([]Doc, error) {
 				Value:    "herokuish",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute executes the builder configuration task
 func (t BuilderPropertyTask) Execute() TaskOutputState {
-	if !t.Global && t.App == "" {
-		return TaskOutputState{
-			Error: errors.New("app is required when global is false"),
-		}
-	}
-
-	ctx := PropertyContext{
-		App:      t.App,
-		Global:   t.Global,
-		Property: t.Property,
-		Value:    t.Value,
-	}
-	funcMap := map[State]func() TaskOutputState{
-		"present": func() TaskOutputState {
-			return setProperty("builder:set", ctx)
-		},
-		"absent": func() TaskOutputState {
-			return unsetProperty("builder:set", ctx)
-		},
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn()
+	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder:set")
 }
 
 // init registers the BuilderTask with the task registry
