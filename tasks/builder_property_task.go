@@ -1,9 +1,5 @@
 package tasks
 
-import (
-	"errors"
-)
-
 // BuilderTask manages the builder configuration for a given dokku application
 type BuilderPropertyTask struct {
 	// App is the name of the app. Required if Global is false.
@@ -85,22 +81,7 @@ func (t BuilderPropertyTask) Examples() ([]Doc, error) {
 
 // Execute executes the builder configuration task
 func (t BuilderPropertyTask) Execute() TaskOutputState {
-	if !t.Global && t.App == "" {
-		return TaskOutputState{
-			Error: errors.New("app is required when global is false"),
-		}
-	}
-
-	ctx := PropertyContext{
-		App:      t.App,
-		Global:   t.Global,
-		Property: t.Property,
-		Value:    t.Value,
-	}
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return setProperty("builder:set", ctx) },
-		"absent":  func() TaskOutputState { return unsetProperty("builder:set", ctx) },
-	})
+	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder:set")
 }
 
 // init registers the BuilderTask with the task registry

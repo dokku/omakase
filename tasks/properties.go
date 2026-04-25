@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
 	"docket/subprocess"
 )
@@ -18,6 +19,26 @@ type PropertyContext struct {
 
 	// Value is the value of the property to set
 	Value string `required:"false" yaml:"value"`
+}
+
+// executeProperty is a shared Execute implementation for property tasks.
+func executeProperty(state State, app string, global bool, property, value, subcommand string) TaskOutputState {
+	if !global && app == "" {
+		return TaskOutputState{
+			Error: errors.New("app is required when global is false"),
+		}
+	}
+
+	ctx := PropertyContext{
+		App:      app,
+		Global:   global,
+		Property: property,
+		Value:    value,
+	}
+	return DispatchState(state, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return setProperty(subcommand, ctx) },
+		"absent":  func() TaskOutputState { return unsetProperty(subcommand, ctx) },
+	})
 }
 
 // setProperty sets a property for a given app

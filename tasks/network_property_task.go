@@ -1,9 +1,5 @@
 package tasks
 
-import (
-	"errors"
-)
-
 // NetworkPropertyTask manages the network property for a given dokku application
 type NetworkPropertyTask struct {
 	// App is the name of the app. Required if Global is false.
@@ -85,22 +81,7 @@ func (t NetworkPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the network property
 func (t NetworkPropertyTask) Execute() TaskOutputState {
-	if !t.Global && t.App == "" {
-		return TaskOutputState{
-			Error: errors.New("app is required when global is false"),
-		}
-	}
-
-	ctx := PropertyContext{
-		App:      t.App,
-		Global:   t.Global,
-		Property: t.Property,
-		Value:    t.Value,
-	}
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return setProperty("network:set", ctx) },
-		"absent":  func() TaskOutputState { return unsetProperty("network:set", ctx) },
-	})
+	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "network:set")
 }
 
 // init registers the NetworkPropertyTask with the task registry
