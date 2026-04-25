@@ -116,6 +116,19 @@ func skipIfDockerLinkUnsupportedT(t *testing.T) {
 	}
 }
 
+// retireAndCleanupContainers forces dokku to retire old containers from
+// previous deploys and then cleans up stopped containers
+func retireAndCleanupContainers() {
+	subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    []string{"ps:retire"},
+	})
+	subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    []string{"cleanup"},
+	})
+}
+
 // getActiveContainers returns the IDs of running containers matching the given
 // app and process type, excluding retired containers (those renamed with a
 // timestamp suffix like "app.web.1.1640787924") and interim containers (those
@@ -1034,6 +1047,7 @@ func TestIntegrationPsScale(t *testing.T) {
 	}
 
 	// verify initial web container count is 1 via docker ps
+	retireAndCleanupContainers()
 	initialContainers, err := getActiveContainers(appName, "web")
 	if err != nil {
 		t.Fatalf("failed to list containers: %v", err)
@@ -1072,6 +1086,7 @@ func TestIntegrationPsScale(t *testing.T) {
 	}
 
 	// clean up old containers and verify 2 web containers via docker ps
+	retireAndCleanupContainers()
 	scaledContainers, err := getActiveContainers(appName, "web")
 	if err != nil {
 		t.Fatalf("failed to list containers after scale: %v", err)
@@ -1118,6 +1133,7 @@ func TestIntegrationPsScale(t *testing.T) {
 	}
 
 	// clean up old containers and verify 1 web container after scale down
+	retireAndCleanupContainers()
 	finalContainers, err := getActiveContainers(appName, "web")
 	if err != nil {
 		t.Fatalf("failed to list containers after scale down: %v", err)
