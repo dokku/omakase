@@ -120,19 +120,20 @@ func getPsScale(app string) (map[string]int, error) {
 
 	scale := map[string]int{}
 	for _, line := range strings.Split(result.StdoutContents(), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
+		// strip all whitespace from the line, matching the upstream ansible module
+		line = strings.Join(strings.Fields(line), "")
+		if !strings.Contains(line, ":") {
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) != 2 {
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
 			continue
 		}
-		qty, err := strconv.Atoi(fields[1])
+		qty, err := strconv.Atoi(parts[1])
 		if err != nil {
 			continue
 		}
-		scale[fields[0]] = qty
+		scale[parts[0]] = qty
 	}
 	return scale, nil
 }

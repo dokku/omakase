@@ -116,6 +116,30 @@ func skipIfDockerLinkUnsupportedT(t *testing.T) {
 	}
 }
 
+// dokkuCleanup runs dokku cleanup to remove old containers from previous deploys
+func dokkuCleanup() {
+	subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    []string{"cleanup"},
+	})
+}
+
+// getRunningContainers returns the IDs of running containers matching the given app and process type
+func getRunningContainers(appName, processType string) ([]string, error) {
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"ps", "-q", "--filter", fmt.Sprintf("label=com.dokku.app-name=%s", appName), "--filter", fmt.Sprintf("label=com.dokku.process-type=%s", processType)},
+	})
+	if err != nil {
+		return nil, err
+	}
+	output := strings.TrimSpace(result.StdoutContents())
+	if output == "" {
+		return nil, nil
+	}
+	return strings.Split(output, "\n"), nil
+}
+
 func TestIntegrationAppCreateAndDestroy(t *testing.T) {
 	skipIfNoDokkuT(t)
 
@@ -998,16 +1022,25 @@ func TestIntegrationPsScale(t *testing.T) {
 	}
 
 	// verify initial web container count is 1 via docker ps
-	countResult, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "docker",
-		Args:    []string{"ps", "--filter", fmt.Sprintf("label=com.dokku.app-name=%s", appName), "--filter", "label=com.dokku.process-type=web", "--format", "{{.ID}}"},
-	})
+	dokkuCleanup()
+	initialContainers, err := getRunningContainers(appName, "web")
 	if err != nil {
 		t.Fatalf("failed to list containers: %v", err)
 	}
-	initialContainers := strings.Split(strings.TrimSpace(countResult.StdoutContents()), "\n")
-	if len(initialContainers) != 1 || initialContainers[0] == "" {
+	if len(initialContainers) != 1 {
 		t.Fatalf("expected 1 initial web container, got %d", len(initialContainers))
+	}
+
+	// verify the initial container is running via docker inspect
+	inspectResult, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"inspect", "--format", "{{.State.Running}}", initialContainers[0]},
+	})
+	if err != nil {
+		t.Fatalf("failed to inspect initial container: %v", err)
+	}
+	if strings.TrimSpace(inspectResult.StdoutContents()) != "true" {
+		t.Errorf("expected initial container to be running")
 	}
 
 	// scale web to 2
@@ -1027,17 +1060,14 @@ func TestIntegrationPsScale(t *testing.T) {
 		t.Error("expected changed=true for scaling up")
 	}
 
-	// verify 2 web containers via docker ps
-	countResult, err = subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "docker",
-		Args:    []string{"ps", "--filter", fmt.Sprintf("label=com.dokku.app-name=%s", appName), "--filter", "label=com.dokku.process-type=web", "--format", "{{.ID}}"},
-	})
+	// clean up old containers and verify 2 web containers via docker ps
+	dokkuCleanup()
+	scaledContainers, err := getRunningContainers(appName, "web")
 	if err != nil {
 		t.Fatalf("failed to list containers after scale: %v", err)
 	}
-	scaledContainers := strings.Split(strings.TrimSpace(countResult.StdoutContents()), "\n")
 	if len(scaledContainers) != 2 {
-		t.Errorf("expected 2 web containers after scaling, got %d", len(scaledContainers))
+		t.Fatalf("expected 2 web containers after scaling, got %d", len(scaledContainers))
 	}
 
 	// verify each container is running via docker inspect
@@ -1077,17 +1107,26 @@ func TestIntegrationPsScale(t *testing.T) {
 		t.Error("expected changed=true for scaling down")
 	}
 
-	// verify 1 web container after scale down
-	countResult, err = subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "docker",
-		Args:    []string{"ps", "--filter", fmt.Sprintf("label=com.dokku.app-name=%s", appName), "--filter", "label=com.dokku.process-type=web", "--format", "{{.ID}}"},
-	})
+	// clean up old containers and verify 1 web container after scale down
+	dokkuCleanup()
+	finalContainers, err := getRunningContainers(appName, "web")
 	if err != nil {
 		t.Fatalf("failed to list containers after scale down: %v", err)
 	}
-	finalContainers := strings.Split(strings.TrimSpace(countResult.StdoutContents()), "\n")
-	if len(finalContainers) != 1 || finalContainers[0] == "" {
-		t.Errorf("expected 1 web container after scale down, got %d", len(finalContainers))
+	if len(finalContainers) != 1 {
+		t.Fatalf("expected 1 web container after scale down, got %d", len(finalContainers))
+	}
+
+	// verify the final container is running via docker inspect
+	inspectResult, err = subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"inspect", "--format", "{{.State.Running}}", finalContainers[0]},
+	})
+	if err != nil {
+		t.Fatalf("failed to inspect final container: %v", err)
+	}
+	if strings.TrimSpace(inspectResult.StdoutContents()) != "true" {
+		t.Errorf("expected final container to be running")
 	}
 }
 
