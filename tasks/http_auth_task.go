@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"omakase/subprocess"
+	"docket/subprocess"
 	"strings"
 
 	yaml "gopkg.in/yaml.v3"

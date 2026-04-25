@@ -110,7 +110,7 @@ func TestCallExecCommandFailure(t *testing.T) {
 
 func TestCallExecCommandNotFound(t *testing.T) {
 	_, err := CallExecCommand(ExecCommandInput{
-		Command: "nonexistent-binary-omakase-test-12345",
+		Command: "nonexistent-binary-docket-test-12345",
 	})
 	if err == nil {
 		t.Fatal("expected error for nonexistent command")
@@ -120,13 +120,13 @@ func TestCallExecCommandNotFound(t *testing.T) {
 func TestCallExecCommandWithEnv(t *testing.T) {
 	resp, err := CallExecCommand(ExecCommandInput{
 		Command: "env",
-		Env:     map[string]string{"OMAKASE_TEST_VAR": "test123"},
+		Env:     map[string]string{"DOCKET_TEST_VAR": "test123"},
 	})
 	if err != nil {
 		t.Fatalf("CallExecCommand failed: %v", err)
 	}
-	if !strings.Contains(resp.StdoutContents(), "OMAKASE_TEST_VAR=test123") {
-		t.Errorf("stdout = %q, want it to contain 'OMAKASE_TEST_VAR=test123'", resp.StdoutContents())
+	if !strings.Contains(resp.StdoutContents(), "DOCKET_TEST_VAR=test123") {
+		t.Errorf("stdout = %q, want it to contain 'DOCKET_TEST_VAR=test123'", resp.StdoutContents())
 	}
 }
 

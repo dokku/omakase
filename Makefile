@@ -1,8 +1,8 @@
-NAME = omakase
-EMAIL = omakase@josediazgonzalez.com
+NAME = docket
+EMAIL = docket@josediazgonzalez.com
 MAINTAINER = dokku
 MAINTAINER_NAME = Jose Diaz-Gonzalez
-REPOSITORY = omakase
+REPOSITORY = docket
 HARDWARE = $(shell uname -m)
 SYSTEM_NAME  = $(shell uname -s | tr '[:upper:]' '[:lower:]')
 BASE_VERSION ?= 0.1.0

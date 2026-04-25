@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"omakase/subprocess"
+	"docket/subprocess"
 	"os"
 	"strconv"
 	"strings"
@@ -83,24 +83,24 @@ func dockerLinkSupported() bool {
 	// if the link env vars are present.
 	subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "docker",
-		Args:    []string{"rm", "-f", "omakase-link-test-target", "omakase-link-test-client"},
+		Args:    []string{"rm", "-f", "docket-link-test-target", "docket-link-test-client"},
 	})
 
 	_, err = subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "docker",
-		Args:    []string{"run", "-d", "--name", "omakase-link-test-target", "alpine", "sleep", "30"},
+		Args:    []string{"run", "-d", "--name", "docket-link-test-target", "alpine", "sleep", "30"},
 	})
 	if err != nil {
 		return false
 	}
 	defer subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "docker",
-		Args:    []string{"rm", "-f", "omakase-link-test-target", "omakase-link-test-client"},
+		Args:    []string{"rm", "-f", "docket-link-test-target", "docket-link-test-client"},
 	})
 
 	result, err = subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "docker",
-		Args:    []string{"run", "--rm", "--name", "omakase-link-test-client", "--link", "omakase-link-test-target:target", "alpine", "env"},
+		Args:    []string{"run", "--rm", "--name", "docket-link-test-client", "--link", "docket-link-test-target:target", "alpine", "env"},
 	})
 	if err != nil {
 		return false
@@ -148,7 +148,7 @@ func getCurrentContainerIDs(appName, processType string) ([]string, error) {
 func TestIntegrationAppCreateAndDestroy(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-app"
+	appName := "docket-test-app"
 
 	// ensure clean state
 	destroyApp(appName)
@@ -218,7 +218,7 @@ func dockerNetworkExists(name string) bool {
 func TestIntegrationNetworkCreateAndDestroy(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	networkName := "omakase-test-network"
+	networkName := "docket-test-network"
 
 	// ensure clean state
 	destroyNetwork(networkName)
@@ -305,7 +305,7 @@ func TestIntegrationNetworkCreateAndDestroy(t *testing.T) {
 func TestIntegrationConfigSetAndUnset(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-config"
+	appName := "docket-test-config"
 
 	// ensure clean state
 	destroyApp(appName)
@@ -370,7 +370,7 @@ func TestIntegrationConfigSetAndUnset(t *testing.T) {
 func TestIntegrationBuilderProperty(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-builder"
+	appName := "docket-test-builder"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -409,7 +409,7 @@ func TestIntegrationBuilderProperty(t *testing.T) {
 func TestIntegrationNetworkProperty(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-network"
+	appName := "docket-test-network"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -448,7 +448,7 @@ func TestIntegrationNetworkProperty(t *testing.T) {
 func TestIntegrationStorageEnsure(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-storage"
+	appName := "docket-test-storage"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -471,8 +471,8 @@ func TestIntegrationStorageEnsure(t *testing.T) {
 func TestIntegrationStorageMount(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-mount"
-	hostDir := "/var/lib/dokku/data/storage/omakase-test-mount"
+	appName := "docket-test-mount"
+	hostDir := "/var/lib/dokku/data/storage/docket-test-mount"
 	containerDir := "/app/storage"
 
 	destroyApp(appName)
@@ -543,7 +543,7 @@ func TestIntegrationStorageMount(t *testing.T) {
 func TestIntegrationGetTasksFullWorkflow(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-workflow"
+	appName := "docket-test-workflow"
 
 	// ensure clean state
 	destroyApp(appName)
@@ -577,7 +577,7 @@ func TestIntegrationGetTasksFullWorkflow(t *testing.T) {
 func TestIntegrationChecksToggle(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-checks"
+	appName := "docket-test-checks"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -607,7 +607,7 @@ func TestIntegrationChecksToggle(t *testing.T) {
 func TestIntegrationDomainsToggle(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-domains"
+	appName := "docket-test-domains"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -650,7 +650,7 @@ func getReportedDomains(appName string) []string {
 func TestIntegrationDomainsAddAndRemove(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-domains-task"
+	appName := "docket-test-domains-task"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -786,7 +786,7 @@ func TestIntegrationDomainsAddAndRemove(t *testing.T) {
 func TestIntegrationProxyToggle(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-proxy"
+	appName := "docket-test-proxy"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -816,7 +816,7 @@ func TestIntegrationProxyToggle(t *testing.T) {
 func TestIntegrationPortsAddAndRemove(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-ports"
+	appName := "docket-test-ports"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -874,7 +874,7 @@ func TestIntegrationPortsAddAndRemove(t *testing.T) {
 func TestIntegrationConfigMultipleKeys(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-multiconfig"
+	appName := "docket-test-multiconfig"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -941,7 +941,7 @@ func TestIntegrationConfigMultipleKeys(t *testing.T) {
 func TestIntegrationGitSync(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-gitsync"
+	appName := "docket-test-gitsync"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -967,7 +967,7 @@ func TestIntegrationGitSync(t *testing.T) {
 func TestIntegrationGitFromImage(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-fromimage"
+	appName := "docket-test-fromimage"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -1005,7 +1005,7 @@ func TestIntegrationGitFromImage(t *testing.T) {
 func TestIntegrationResourceLimit(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-reslimit"
+	appName := "docket-test-reslimit"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -1066,7 +1066,7 @@ func TestIntegrationResourceLimit(t *testing.T) {
 func TestIntegrationResourceLimitProcessType(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-reslimit-pt"
+	appName := "docket-test-reslimit-pt"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -1130,7 +1130,7 @@ func TestIntegrationResourceLimitProcessType(t *testing.T) {
 func TestIntegrationResourceReserve(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-resreserve"
+	appName := "docket-test-resreserve"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -1191,7 +1191,7 @@ func TestIntegrationResourceReserve(t *testing.T) {
 func TestIntegrationResourceReserveProcessType(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-resreserve-pt"
+	appName := "docket-test-resreserve-pt"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -1255,7 +1255,7 @@ func TestIntegrationResourceReserveProcessType(t *testing.T) {
 func TestIntegrationPsScale(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-psscale"
+	appName := "docket-test-psscale"
 
 	// ensure clean state
 	destroyApp(appName)
@@ -1382,7 +1382,7 @@ func TestIntegrationPsScale(t *testing.T) {
 func TestIntegrationPsScaleSkipDeploy(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-psscale-sd"
+	appName := "docket-test-psscale-sd"
 
 	destroyApp(appName)
 	createApp(appName)
@@ -1428,7 +1428,7 @@ func TestIntegrationPsScaleSkipDeploy(t *testing.T) {
 func TestIntegrationMultiTaskWorkflow(t *testing.T) {
 	skipIfNoDokkuT(t)
 
-	appName := "omakase-test-multi"
+	appName := "docket-test-multi"
 
 	destroyApp(appName)
 	defer destroyApp(appName)
@@ -1479,7 +1479,7 @@ func TestIntegrationServiceCreateAndDestroy(t *testing.T) {
 	skipIfNoDokkuT(t)
 	skipIfPluginMissingT(t, "redis")
 
-	serviceName := "omakase-test-service"
+	serviceName := "docket-test-service"
 	serviceType := "redis"
 
 	// ensure clean state
@@ -1541,8 +1541,8 @@ func TestIntegrationServiceLinkAndUnlink(t *testing.T) {
 	skipIfPluginMissingT(t, "redis")
 	skipIfDockerLinkUnsupportedT(t)
 
-	appName := "omakase-test-link-app"
-	serviceName := "omakase-test-link-svc"
+	appName := "docket-test-link-app"
+	serviceName := "docket-test-link-svc"
 	serviceType := "redis"
 
 	// ensure clean state
@@ -1722,7 +1722,7 @@ func TestIntegrationHttpAuth(t *testing.T) {
 	skipIfNoDokkuT(t)
 	skipIfPluginMissingT(t, "http-auth")
 
-	appName := "omakase-test-http-auth"
+	appName := "docket-test-http-auth"
 
 	destroyApp(appName)
 	createApp(appName)

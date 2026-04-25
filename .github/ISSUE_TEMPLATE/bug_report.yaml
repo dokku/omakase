@@ -24,8 +24,8 @@ body:
   - type: textarea
     id: report-output
     attributes:
-      label: omakase version
-      description: Please paste the output of the command `omakase version`
+      label: docket version
+      description: Please paste the output of the command `docket version`
     validations:
       required: true
   - type: textarea
