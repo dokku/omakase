@@ -30,6 +30,12 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+      - name: enable docker legacy link support
+        run: |
+          sudo mkdir -p /etc/systemd/system/docker.service.d
+          printf '[Service]\nEnvironment="DOCKER_KEEP_DEPRECATED_LEGACY_LINKS_ENV_VARS=1"\n' | sudo tee /etc/systemd/system/docker.service.d/legacy-links.conf
+          sudo systemctl daemon-reload
+          sudo systemctl restart docker
       - name: install dokku
         run: |
           sudo mkdir -p /etc/apt/keyrings

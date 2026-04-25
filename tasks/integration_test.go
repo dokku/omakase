@@ -3,6 +3,7 @@ package tasks
 import (
 	"omakase/subprocess"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -48,6 +49,69 @@ func skipIfPluginMissingT(t *testing.T, plugin string) {
 	t.Helper()
 	if !dokkuPluginInstalled(plugin) {
 		t.Skipf("skipping integration test: dokku plugin %q not installed", plugin)
+	}
+}
+
+func dockerLinkSupported() bool {
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"version", "--format", "{{.Server.Version}}"},
+	})
+	if err != nil {
+		return false
+	}
+
+	version := strings.TrimSpace(result.StdoutContents())
+	parts := strings.SplitN(version, ".", 2)
+	if len(parts) == 0 {
+		return false
+	}
+
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return false
+	}
+
+	// Docker < 29 supports --link natively
+	if major < 29 {
+		return true
+	}
+
+	// Docker >= 29 requires DOCKER_KEEP_DEPRECATED_LEGACY_LINKS_ENV_VARS=1
+	// on the daemon. Test by creating two containers with --link and checking
+	// if the link env vars are present.
+	subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"rm", "-f", "omakase-link-test-target", "omakase-link-test-client"},
+	})
+
+	_, err = subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"run", "-d", "--name", "omakase-link-test-target", "alpine", "sleep", "30"},
+	})
+	if err != nil {
+		return false
+	}
+	defer subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"rm", "-f", "omakase-link-test-target", "omakase-link-test-client"},
+	})
+
+	result, err = subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "docker",
+		Args:    []string{"run", "--rm", "--name", "omakase-link-test-client", "--link", "omakase-link-test-target:target", "alpine", "env"},
+	})
+	if err != nil {
+		return false
+	}
+
+	return strings.Contains(result.StdoutContents(), "TARGET_NAME=")
+}
+
+func skipIfDockerLinkUnsupportedT(t *testing.T) {
+	t.Helper()
+	if !dockerLinkSupported() {
+		t.Skip("skipping integration test: docker does not support legacy container links")
 	}
 }
 
@@ -1016,6 +1080,86 @@ func TestIntegrationServiceCreateAndDestroy(t *testing.T) {
 	}
 	if result.Changed {
 		t.Error("expected changed=false for nonexistent service")
+	}
+	if result.State != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", result.State)
+	}
+}
+
+func TestIntegrationServiceLinkAndUnlink(t *testing.T) {
+	skipIfNoDokkuT(t)
+	skipIfPluginMissingT(t, "redis")
+	skipIfDockerLinkUnsupportedT(t)
+
+	appName := "omakase-test-link-app"
+	serviceName := "omakase-test-link-svc"
+	serviceType := "redis"
+
+	// ensure clean state
+	destroyApp(appName)
+	destroyService(serviceType, serviceName)
+
+	// create prerequisites
+	createApp(appName)
+	defer destroyApp(appName)
+
+	createTask := ServiceCreateTask{Service: serviceType, Name: serviceName, State: StatePresent}
+	createResult := createTask.Execute()
+	if createResult.Error != nil {
+		t.Fatalf("failed to create service: %v", createResult.Error)
+	}
+	defer func() {
+		// unlink before destroying service
+		unlinkTask := ServiceLinkTask{App: appName, Service: serviceType, Name: serviceName, State: StateAbsent}
+		unlinkTask.Execute()
+		destroyService(serviceType, serviceName)
+	}()
+
+	// link service to app
+	linkTask := ServiceLinkTask{App: appName, Service: serviceType, Name: serviceName, State: StatePresent}
+	result := linkTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to link service: %v", result.Error)
+	}
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for new service link")
+	}
+
+	// linking again should be idempotent
+	result = linkTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent link failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for existing service link")
+	}
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
+	}
+
+	// unlink service from app
+	unlinkTask := ServiceLinkTask{App: appName, Service: serviceType, Name: serviceName, State: StateAbsent}
+	result = unlinkTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to unlink service: %v", result.Error)
+	}
+	if result.State != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for service unlink")
+	}
+
+	// unlinking again should be idempotent
+	result = unlinkTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent unlink failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for already-unlinked service")
 	}
 	if result.State != StateAbsent {
 		t.Errorf("expected state 'absent', got '%s'", result.State)

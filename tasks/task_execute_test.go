@@ -239,6 +239,26 @@ func TestServiceCreateTaskDesiredState(t *testing.T) {
 	}
 }
 
+func TestServiceLinkTaskInvalidState(t *testing.T) {
+	task := ServiceLinkTask{App: "test-app", Service: "redis", Name: "test-service", State: "invalid"}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with invalid state should return an error")
+	}
+}
+
+func TestServiceLinkTaskDesiredState(t *testing.T) {
+	task := ServiceLinkTask{App: "test-app", Service: "redis", Name: "test-service", State: StatePresent}
+	if task.DesiredState() != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
+	}
+
+	task = ServiceLinkTask{App: "test-app", Service: "redis", Name: "test-service", State: StateAbsent}
+	if task.DesiredState() != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
+	}
+}
+
 func TestResourceReserveTaskInvalidState(t *testing.T) {
 	task := ResourceReserveTask{
 		App:       "test-app",
@@ -318,6 +338,8 @@ func TestAllTasksDesiredState(t *testing.T) {
 		{"ResourceReserveTask absent", &ResourceReserveTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"ServiceCreateTask present", &ServiceCreateTask{Service: "redis", Name: "test", State: StatePresent}, StatePresent},
 		{"ServiceCreateTask absent", &ServiceCreateTask{Service: "redis", Name: "test", State: StateAbsent}, StateAbsent},
+		{"ServiceLinkTask present", &ServiceLinkTask{App: "test", Service: "redis", Name: "test", State: StatePresent}, StatePresent},
+		{"ServiceLinkTask absent", &ServiceLinkTask{App: "test", Service: "redis", Name: "test", State: StateAbsent}, StateAbsent},
 		{"ProxyToggleTask present", &ProxyToggleTask{App: "test", State: StatePresent}, StatePresent},
 		{"ProxyToggleTask absent", &ProxyToggleTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"StorageEnsureTask present", &StorageEnsureTask{App: "test", Chown: "heroku", State: StatePresent}, StatePresent},
@@ -509,7 +531,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 15
+	expected := 16
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -532,6 +554,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&ResourceLimitTask{}, "Manages the resource limits for a given dokku application"},
 		{&ResourceReserveTask{}, "Manages the resource reservations for a given dokku application"},
 		{&ServiceCreateTask{}, "Creates or destroys a dokku service"},
+		{&ServiceLinkTask{}, "Links or unlinks a dokku service to an app"},
 		{&ProxyToggleTask{}, "Enables or disables the proxy plugin for a given dokku application"},
 		{&StorageEnsureTask{}, "Ensures the storage for a given dokku application"},
 		{&StorageMountTask{}, "Mounts or unmounts the storage for a given dokku application"},
