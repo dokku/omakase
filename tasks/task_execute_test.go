@@ -179,6 +179,37 @@ func TestStorageEnsureAbsentStateReturnsError(t *testing.T) {
 	}
 }
 
+func TestPsScaleTaskInvalidState(t *testing.T) {
+	task := PsScaleTask{App: "test-app", Scale: map[string]int{"web": 1}, State: "invalid"}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with invalid state should return an error")
+	}
+}
+
+func TestPsScaleTaskDesiredState(t *testing.T) {
+	task := PsScaleTask{App: "test-app", Scale: map[string]int{"web": 1}, State: StatePresent}
+	if task.DesiredState() != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
+	}
+}
+
+func TestPsScaleTaskEmptyScale(t *testing.T) {
+	task := PsScaleTask{App: "test-app", Scale: map[string]int{}, State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with empty scale and state=present should return an error")
+	}
+}
+
+func TestPsScaleTaskNilScale(t *testing.T) {
+	task := PsScaleTask{App: "test-app", State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with nil scale and state=present should return an error")
+	}
+}
+
 func TestResourceLimitTaskInvalidState(t *testing.T) {
 	task := ResourceLimitTask{
 		App:       "test-app",
@@ -332,6 +363,7 @@ func TestAllTasksDesiredState(t *testing.T) {
 		{"NetworkPropertyTask absent", &NetworkPropertyTask{App: "test", Property: "bind-all-interfaces", State: StateAbsent}, StateAbsent},
 		{"PortsTask present", &PortsTask{App: "test", State: StatePresent}, StatePresent},
 		{"PortsTask absent", &PortsTask{App: "test", State: StateAbsent}, StateAbsent},
+		{"PsScaleTask present", &PsScaleTask{App: "test", Scale: map[string]int{"web": 1}, State: StatePresent}, StatePresent},
 		{"ResourceLimitTask present", &ResourceLimitTask{App: "test", Resources: map[string]string{"cpu": "100"}, State: StatePresent}, StatePresent},
 		{"ResourceLimitTask absent", &ResourceLimitTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"ResourceReserveTask present", &ResourceReserveTask{App: "test", Resources: map[string]string{"cpu": "100"}, State: StatePresent}, StatePresent},
@@ -531,7 +563,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 16
+	expected := 17
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -551,6 +583,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&GitSyncTask{}, "Syncs a git repository to a dokku application"},
 		{&NetworkPropertyTask{}, "Manages the network property for a given dokku application"},
 		{&PortsTask{}, "Manages the ports for a given dokku application"},
+		{&PsScaleTask{}, "Manages the process scale for a given dokku application"},
 		{&ResourceLimitTask{}, "Manages the resource limits for a given dokku application"},
 		{&ResourceReserveTask{}, "Manages the resource reservations for a given dokku application"},
 		{&ServiceCreateTask{}, "Creates or destroys a dokku service"},
