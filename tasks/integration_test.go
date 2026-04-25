@@ -3,6 +3,7 @@ package tasks
 import (
 	"omakase/subprocess"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -22,6 +23,31 @@ func skipIfNoDokkuT(t *testing.T) {
 	t.Helper()
 	if !dokkuAvailable() {
 		t.Skip("skipping integration test: dokku not available")
+	}
+}
+
+func dokkuPluginInstalled(plugin string) bool {
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    []string{"plugin:list"},
+	})
+	if err != nil {
+		return false
+	}
+
+	for _, line := range strings.Split(result.StdoutContents(), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == plugin {
+			return true
+		}
+	}
+	return false
+}
+
+func skipIfPluginMissingT(t *testing.T, plugin string) {
+	t.Helper()
+	if !dokkuPluginInstalled(plugin) {
+		t.Skipf("skipping integration test: dokku plugin %q not installed", plugin)
 	}
 }
 
@@ -937,6 +963,7 @@ func TestIntegrationMultiTaskWorkflow(t *testing.T) {
 
 func TestIntegrationServiceCreateAndDestroy(t *testing.T) {
 	skipIfNoDokkuT(t)
+	skipIfPluginMissingT(t, "redis")
 
 	serviceName := "omakase-test-service"
 	serviceType := "redis"
