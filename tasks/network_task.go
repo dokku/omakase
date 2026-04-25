@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"fmt"
 	"docket/subprocess"
 )
 
@@ -59,18 +58,10 @@ func (t NetworkTask) Examples() ([]Doc, error) {
 
 // Execute creates or destroys a Docker network
 func (t NetworkTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string) TaskOutputState{
-		"present": createNetwork,
-		"absent":  destroyNetwork,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.Name)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return createNetwork(t.Name) },
+		"absent":  func() TaskOutputState { return destroyNetwork(t.Name) },
+	})
 }
 
 // networkExists checks if a Docker network exists

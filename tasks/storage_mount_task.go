@@ -52,18 +52,10 @@ func (t StorageMountTask) Examples() ([]Doc, error) {
 
 // Execute mounts or unmounts the storage for a given app
 func (t StorageMountTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, string, string) TaskOutputState{
-		"present": mountStorage,
-		"absent":  unmountStorage,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.App, t.HostDir, t.ContainerDir)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return mountStorage(t.App, t.HostDir, t.ContainerDir) },
+		"absent":  func() TaskOutputState { return unmountStorage(t.App, t.HostDir, t.ContainerDir) },
+	})
 }
 
 // mountExists checks if the storage mount exists

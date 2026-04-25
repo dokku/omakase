@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"errors"
-	"fmt"
 )
 
 // NetworkPropertyTask manages the network property for a given dokku application
@@ -98,22 +97,10 @@ func (t NetworkPropertyTask) Execute() TaskOutputState {
 		Property: t.Property,
 		Value:    t.Value,
 	}
-	funcMap := map[State]func() TaskOutputState{
-		"present": func() TaskOutputState {
-			return setProperty("network:set", ctx)
-		},
-		"absent": func() TaskOutputState {
-			return unsetProperty("network:set", ctx)
-		},
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn()
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return setProperty("network:set", ctx) },
+		"absent":  func() TaskOutputState { return unsetProperty("network:set", ctx) },
+	})
 }
 
 // init registers the NetworkPropertyTask with the task registry

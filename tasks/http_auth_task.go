@@ -79,22 +79,10 @@ func (t HttpAuthTask) Execute() TaskOutputState {
 		}
 	}
 
-	funcMap := map[State]func() TaskOutputState{
-		"present": func() TaskOutputState {
-			return enableHttpAuth(t.App, t.Username, t.Password)
-		},
-		"absent": func() TaskOutputState {
-			return disableHttpAuth(t.App)
-		},
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn()
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return enableHttpAuth(t.App, t.Username, t.Password) },
+		"absent":  func() TaskOutputState { return disableHttpAuth(t.App) },
+	})
 }
 
 // httpAuthEnabled checks if HTTP authentication is enabled for an app

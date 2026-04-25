@@ -68,29 +68,20 @@ func (t PortsTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the ports
 func (t PortsTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, []PortMapping) TaskOutputState{
-		"present": setPorts,
-		"absent":  unsetPorts,
-	}
-
 	// todo: add port mapping validation
 	if len(t.PortMappings) == 0 {
-		state := TaskOutputState{
+		return TaskOutputState{
 			Changed: false,
 			State:   "absent",
+			Error:   errors.New("no port mappings provided"),
+			Message: "no port mappings provided",
 		}
-		state.Error = errors.New("no port mappings provided")
-		state.Message = "no port mappings provided"
-		return state
 	}
 
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.App, t.PortMappings)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return setPorts(t.App, t.PortMappings) },
+		"absent":  func() TaskOutputState { return unsetPorts(t.App, t.PortMappings) },
+	})
 }
 
 // getPorts gets the ports for a given app

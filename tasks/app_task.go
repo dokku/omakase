@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"fmt"
 	"docket/subprocess"
 )
 
@@ -59,18 +58,10 @@ func (t AppTask) Examples() ([]Doc, error) {
 
 // Execute creates or destroys an app
 func (t AppTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string) TaskOutputState{
-		"present": createApp,
-		"absent":  destroyApp,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.App)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return createApp(t.App) },
+		"absent":  func() TaskOutputState { return destroyApp(t.App) },
+	})
 }
 
 // appExists checks if an app exists

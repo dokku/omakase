@@ -77,18 +77,10 @@ func (t ServiceLinkTask) Examples() ([]Doc, error) {
 
 // Execute links or unlinks a dokku service to an app
 func (t ServiceLinkTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, string, string) TaskOutputState{
-		"present": linkService,
-		"absent":  unlinkService,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.Service, t.Name, t.App)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return linkService(t.Service, t.Name, t.App) },
+		"absent":  func() TaskOutputState { return unlinkService(t.Service, t.Name, t.App) },
+	})
 }
 
 // serviceLinked checks if a dokku service is linked to an app

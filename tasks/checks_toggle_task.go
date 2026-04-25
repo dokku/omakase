@@ -1,9 +1,5 @@
 package tasks
 
-import (
-	"fmt"
-)
-
 // ChecksToggleTask enables or disables the checks plugin for a given dokku application
 type ChecksToggleTask struct {
 	// App is the name of the app
@@ -67,22 +63,10 @@ func (t ChecksToggleTask) Execute() TaskOutputState {
 		App:         t.App,
 		Global:      t.Global,
 	}
-	funcMap := map[State]func() TaskOutputState{
-		"present": func() TaskOutputState {
-			return enablePlugin("checks:enable", ctx)
-		},
-		"absent": func() TaskOutputState {
-			return disablePlugin("checks:disable", ctx)
-		},
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn()
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return enablePlugin("checks:enable", ctx) },
+		"absent":  func() TaskOutputState { return disablePlugin("checks:disable", ctx) },
+	})
 }
 
 // init registers the ChecksToggleTask with the task registry

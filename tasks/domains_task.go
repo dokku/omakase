@@ -83,20 +83,12 @@ func (t DomainsTask) Examples() ([]Doc, error) {
 
 // Execute manages the domains
 func (t DomainsTask) Execute() TaskOutputState {
-	funcMap := map[State]func(DomainsTask) TaskOutputState{
-		StatePresent: addDomains,
-		StateAbsent:  removeDomains,
-		StateSet:     setDomains,
-		StateClear:   clearDomains,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		StatePresent: func() TaskOutputState { return addDomains(t) },
+		StateAbsent:  func() TaskOutputState { return removeDomains(t) },
+		StateSet:     func() TaskOutputState { return setDomains(t) },
+		StateClear:   func() TaskOutputState { return clearDomains(t) },
+	})
 }
 
 // validateDomainsTask validates the domains task parameters

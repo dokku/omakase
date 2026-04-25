@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"errors"
-	"fmt"
 )
 
 // ResourceReserveTask manages the resource reservations for a given dokku application
@@ -82,22 +81,10 @@ func (t ResourceReserveTask) Examples() ([]Doc, error) {
 
 // Execute sets or clears the resource reservations for a given dokku application
 func (t ResourceReserveTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, ResourceContext) TaskOutputState{
-		"present": setResource,
-		"absent":  clearResource,
-	}
-
 	if t.State == StatePresent && len(t.Resources) == 0 {
 		return TaskOutputState{
 			Error:   errors.New("resources are required when state is present"),
 			Message: "resources are required when state is present",
-		}
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
 		}
 	}
 
@@ -107,8 +94,10 @@ func (t ResourceReserveTask) Execute() TaskOutputState {
 		Resources:   t.Resources,
 		ClearBefore: t.ClearBefore,
 	}
-
-	return fn("resource:reserve", rctx)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return setResource("resource:reserve", rctx) },
+		"absent":  func() TaskOutputState { return clearResource("resource:reserve", rctx) },
+	})
 }
 
 // init registers the ResourceReserveTask with the task registry

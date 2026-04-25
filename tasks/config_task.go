@@ -74,18 +74,10 @@ func (t ConfigTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the configuration for a given dokku application
 func (t ConfigTask) Execute() TaskOutputState {
-	funcMap := map[State]func(ConfigTask) TaskOutputState{
-		"present": setConfig,
-		"absent":  unsetConfig,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return setConfig(t) },
+		"absent":  func() TaskOutputState { return unsetConfig(t) },
+	})
 }
 
 // getConfig retrieves the current configuration for a given dokku application

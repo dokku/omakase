@@ -71,18 +71,10 @@ func (t ServiceCreateTask) Examples() ([]Doc, error) {
 
 // Execute creates or destroys a dokku service
 func (t ServiceCreateTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, string) TaskOutputState{
-		"present": createService,
-		"absent":  destroyService,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.Service, t.Name)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return createService(t.Service, t.Name) },
+		"absent":  func() TaskOutputState { return destroyService(t.Service, t.Name) },
+	})
 }
 
 // serviceExists checks if a dokku service exists

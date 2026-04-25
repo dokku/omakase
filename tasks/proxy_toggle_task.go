@@ -1,9 +1,5 @@
 package tasks
 
-import (
-	"fmt"
-)
-
 // ProxyToggleTask manages the proxy for a given dokku application
 type ProxyToggleTask struct {
 	// App is the name of the app
@@ -52,22 +48,10 @@ func (t ProxyToggleTask) Execute() TaskOutputState {
 		App:         t.App,
 		Global:      t.Global,
 	}
-	funcMap := map[State]func() TaskOutputState{
-		"present": func() TaskOutputState {
-			return enablePlugin("proxy:enable", ctx)
-		},
-		"absent": func() TaskOutputState {
-			return disablePlugin("proxy:disable", ctx)
-		},
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn()
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return enablePlugin("proxy:enable", ctx) },
+		"absent":  func() TaskOutputState { return disablePlugin("proxy:disable", ctx) },
+	})
 }
 
 // init registers the ProxyToggleTask with the task registry

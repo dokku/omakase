@@ -78,17 +78,9 @@ func (t GitSyncTask) Examples() ([]Doc, error) {
 
 // Execute syncs a git repository to a dokku application
 func (t GitSyncTask) Execute() TaskOutputState {
-	funcMap := map[State]func(GitSyncTask) TaskOutputState{
-		"present": syncGitRepository,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return syncGitRepository(t) },
+	})
 }
 
 // checkAppSyncState checks if the app is already synced from the expected remote and ref

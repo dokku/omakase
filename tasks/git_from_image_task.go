@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"encoding/json"
-	"fmt"
 	"docket/subprocess"
 )
 
@@ -60,17 +59,9 @@ func (t GitFromImageTask) Examples() ([]Doc, error) {
 
 // Execute deploys a git repository from a docker image
 func (t GitFromImageTask) Execute() TaskOutputState {
-	funcMap := map[State]func(GitFromImageTask) TaskOutputState{
-		"deployed": deployGitFromImage,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"deployed": func() TaskOutputState { return deployGitFromImage(t) },
+	})
 }
 
 // checkAppSourceImage checks if the app is already deployed from a docker image

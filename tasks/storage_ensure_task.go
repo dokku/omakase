@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"errors"
-	"fmt"
 	"docket/subprocess"
 )
 
@@ -49,18 +48,10 @@ func (t StorageEnsureTask) Examples() ([]Doc, error) {
 
 // Execute ensures the storage for a given app
 func (t StorageEnsureTask) Execute() TaskOutputState {
-	funcMap := map[State]func(string, string) TaskOutputState{
-		"present": ensureStorage,
-		"absent":  removeStorage,
-	}
-
-	fn, ok := funcMap[t.State]
-	if !ok {
-		return TaskOutputState{
-			Error: fmt.Errorf("invalid state: %s", t.State),
-		}
-	}
-	return fn(t.App, t.Chown)
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"present": func() TaskOutputState { return ensureStorage(t.App, t.Chown) },
+		"absent":  func() TaskOutputState { return removeStorage(t.App, t.Chown) },
+	})
 }
 
 // ensureStorage ensures the storage for a given app
