@@ -1,9 +1,5 @@
 package tasks
 
-import (
-	"errors"
-)
-
 // ResourceLimitTask manages the resource limits for a given dokku application
 type ResourceLimitTask struct {
 	// App is the name of the app
@@ -81,23 +77,7 @@ func (t ResourceLimitTask) Examples() ([]Doc, error) {
 
 // Execute sets or clears the resource limits for a given dokku application
 func (t ResourceLimitTask) Execute() TaskOutputState {
-	if t.State == StatePresent && len(t.Resources) == 0 {
-		return TaskOutputState{
-			Error:   errors.New("resources are required when state is present"),
-			Message: "resources are required when state is present",
-		}
-	}
-
-	rctx := ResourceContext{
-		App:         t.App,
-		ProcessType: t.ProcessType,
-		Resources:   t.Resources,
-		ClearBefore: t.ClearBefore,
-	}
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return setResource("resource:limit", rctx) },
-		"absent":  func() TaskOutputState { return clearResource("resource:limit", rctx) },
-	})
+	return executeResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:limit")
 }
 
 // init registers the ResourceLimitTask with the task registry

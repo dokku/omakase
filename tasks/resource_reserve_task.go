@@ -1,9 +1,5 @@
 package tasks
 
-import (
-	"errors"
-)
-
 // ResourceReserveTask manages the resource reservations for a given dokku application
 type ResourceReserveTask struct {
 	// App is the name of the app
@@ -81,23 +77,7 @@ func (t ResourceReserveTask) Examples() ([]Doc, error) {
 
 // Execute sets or clears the resource reservations for a given dokku application
 func (t ResourceReserveTask) Execute() TaskOutputState {
-	if t.State == StatePresent && len(t.Resources) == 0 {
-		return TaskOutputState{
-			Error:   errors.New("resources are required when state is present"),
-			Message: "resources are required when state is present",
-		}
-	}
-
-	rctx := ResourceContext{
-		App:         t.App,
-		ProcessType: t.ProcessType,
-		Resources:   t.Resources,
-		ClearBefore: t.ClearBefore,
-	}
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return setResource("resource:reserve", rctx) },
-		"absent":  func() TaskOutputState { return clearResource("resource:reserve", rctx) },
-	})
+	return executeResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:reserve")
 }
 
 // init registers the ResourceReserveTask with the task registry
