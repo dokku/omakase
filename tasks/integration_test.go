@@ -634,6 +634,101 @@ func TestIntegrationDomainsToggle(t *testing.T) {
 	}
 }
 
+func TestIntegrationDomainsAddAndRemove(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "omakase-test-domains-task"
+
+	destroyApp(appName)
+	createApp(appName)
+	defer destroyApp(appName)
+
+	// add domains
+	addTask := DomainsTask{
+		App:     appName,
+		Domains: []string{"example.com", "www.example.com"},
+		State:   StatePresent,
+	}
+	result := addTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to add domains: %v", result.Error)
+	}
+	if result.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for new domains")
+	}
+
+	// add same domains again (idempotent)
+	result = addTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent add failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for existing domains")
+	}
+
+	// remove one domain
+	removeTask := DomainsTask{
+		App:     appName,
+		Domains: []string{"www.example.com"},
+		State:   StateAbsent,
+	}
+	result = removeTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to remove domain: %v", result.Error)
+	}
+	if result.State != StateAbsent {
+		t.Errorf("expected state 'absent', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for domain removal")
+	}
+
+	// remove same domain again (idempotent)
+	result = removeTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("idempotent remove failed: %v", result.Error)
+	}
+	if result.Changed {
+		t.Error("expected changed=false for already-removed domain")
+	}
+
+	// set domains (replaces all)
+	setTask := DomainsTask{
+		App:     appName,
+		Domains: []string{"new.example.com"},
+		State:   StateSet,
+	}
+	result = setTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to set domains: %v", result.Error)
+	}
+	if result.State != StateSet {
+		t.Errorf("expected state 'set', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for set domains")
+	}
+
+	// clear all domains
+	clearTask := DomainsTask{
+		App:   appName,
+		State: StateClear,
+	}
+	result = clearTask.Execute()
+	if result.Error != nil {
+		t.Fatalf("failed to clear domains: %v", result.Error)
+	}
+	if result.State != StateClear {
+		t.Errorf("expected state 'clear', got '%s'", result.State)
+	}
+	if !result.Changed {
+		t.Error("expected changed=true for clear domains")
+	}
+}
+
 func TestIntegrationProxyToggle(t *testing.T) {
 	skipIfNoDokkuT(t)
 

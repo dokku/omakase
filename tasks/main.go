@@ -24,6 +24,10 @@ const (
 	StateAbsent State = "absent"
 	// StateDeployed represents the deployed state
 	StateDeployed State = "deployed"
+	// StateSet represents the set state
+	StateSet State = "set"
+	// StateClear represents the clear state
+	StateClear State = "clear"
 )
 
 // Recipe represents a recipe for a task
