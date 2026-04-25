@@ -160,6 +160,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_domains_toggle",
 		"dokku_git_from_image",
 		"dokku_git_sync",
+		"dokku_network",
 		"dokku_network_property",
 		"dokku_ports",
 		"dokku_proxy_toggle",
@@ -845,5 +846,41 @@ func TestGetTasksServiceLinkWithTemplateContext(t *testing.T) {
 	}
 	if slTask.Name != "my-db" {
 		t.Errorf("Name = %q, want %q", slTask.Name, "my-db")
+	}
+}
+
+func TestGetTasksNetworkTaskParsedCorrectly(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: create test network
+      dokku_network:
+        name: test-network
+`)
+	context := map[string]interface{}{}
+
+	tasks, err := GetTasks(data, context)
+	if err != nil {
+		t.Fatalf("GetTasks failed: %v", err)
+	}
+
+	task := tasks.Get("create test network")
+	if task == nil {
+		t.Fatal("task 'create test network' not found")
+	}
+
+	netTask, ok := task.(*NetworkTask)
+	if !ok {
+		nt, ok2 := task.(NetworkTask)
+		if !ok2 {
+			t.Fatalf("task is not a NetworkTask (type is %T)", task)
+		}
+		netTask = &nt
+	}
+
+	if netTask.Name != "test-network" {
+		t.Errorf("Name = %q, want %q", netTask.Name, "test-network")
+	}
+	if netTask.DesiredState() != StatePresent {
+		t.Errorf("expected default state 'present', got %q", netTask.DesiredState())
 	}
 }
