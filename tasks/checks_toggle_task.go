@@ -2,8 +2,6 @@ package tasks
 
 import (
 	"fmt"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // ChecksToggleTask enables or disables the checks plugin for a given dokku application
@@ -27,6 +25,11 @@ type ChecksToggleTaskExample struct {
 	ChecksToggleTask ChecksToggleTask `yaml:"dokku_checks_toggle"`
 }
 
+// GetName returns the name of the example
+func (e ChecksToggleTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the checks plugin
 func (t ChecksToggleTask) DesiredState() State {
 	return t.State
@@ -37,9 +40,9 @@ func (t ChecksToggleTask) Doc() string {
 	return "Enables or disables the checks plugin for a given dokku application"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the checks toggle task
 func (t ChecksToggleTask) Examples() ([]Doc, error) {
-	examples := []ChecksToggleTaskExample{
+	return MarshalExamples([]ChecksToggleTaskExample{
 		{
 			Name: "Disable the zero downtime deployment",
 			ChecksToggleTask: ChecksToggleTask{
@@ -54,22 +57,7 @@ func (t ChecksToggleTask) Examples() ([]Doc, error) {
 				State: "present",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute enables or disables the checks plugin

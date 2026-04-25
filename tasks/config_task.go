@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // ConfigTask manages the configuration for a given dokku application
@@ -33,6 +31,11 @@ type ConfigTaskExample struct {
 	ConfigTask ConfigTask `yaml:"dokku_config"`
 }
 
+// GetName returns the name of the example
+func (e ConfigTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the configuration
 func (t ConfigTask) DesiredState() State {
 	return t.State
@@ -43,9 +46,9 @@ func (t ConfigTask) Doc() string {
 	return "Manages the configuration for a given dokku application"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the config task
 func (t ConfigTask) Examples() ([]Doc, error) {
-	examples := []ConfigTaskExample{
+	return MarshalExamples([]ConfigTaskExample{
 		{
 			Name: "set KEY=VALUE",
 			ConfigTask: ConfigTask{
@@ -66,22 +69,7 @@ func (t ConfigTask) Examples() ([]Doc, error) {
 				},
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute sets or unsets the configuration for a given dokku application

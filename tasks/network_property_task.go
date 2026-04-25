@@ -3,8 +3,6 @@ package tasks
 import (
 	"errors"
 	"fmt"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // NetworkPropertyTask manages the network property for a given dokku application
@@ -34,6 +32,11 @@ type NetworkPropertyTaskExample struct {
 	NetworkPropertyTask NetworkPropertyTask `yaml:"dokku_network_property"`
 }
 
+// GetName returns the name of the example
+func (e NetworkPropertyTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the network property
 func (t NetworkPropertyTask) DesiredState() State {
 	return t.State
@@ -44,9 +47,9 @@ func (t NetworkPropertyTask) Doc() string {
 	return "Manages the network property for a given dokku application"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the network property task
 func (t NetworkPropertyTask) Examples() ([]Doc, error) {
-	examples := []NetworkPropertyTaskExample{
+	return MarshalExamples([]NetworkPropertyTaskExample{
 		{
 			Name: "Associates a network after a container is created but before it is started",
 			NetworkPropertyTask: NetworkPropertyTask{
@@ -78,22 +81,7 @@ func (t NetworkPropertyTask) Examples() ([]Doc, error) {
 				Property: "attach-post-create",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute sets or unsets the network property

@@ -3,8 +3,6 @@ package tasks
 import (
 	"errors"
 	"fmt"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // ResourceReserveTask manages the resource reservations for a given dokku application
@@ -34,6 +32,11 @@ type ResourceReserveTaskExample struct {
 	ResourceReserveTask ResourceReserveTask `yaml:"dokku_resource_reserve"`
 }
 
+// GetName returns the name of the example
+func (e ResourceReserveTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the resource reservations
 func (t ResourceReserveTask) DesiredState() State {
 	return t.State
@@ -46,7 +49,7 @@ func (t ResourceReserveTask) Doc() string {
 
 // Examples returns the examples for the resource reserve task
 func (t ResourceReserveTask) Examples() ([]Doc, error) {
-	examples := []ResourceReserveTaskExample{
+	return MarshalExamples([]ResourceReserveTaskExample{
 		{
 			Name: "Set CPU and memory reservations",
 			ResourceReserveTask: ResourceReserveTask{
@@ -74,22 +77,7 @@ func (t ResourceReserveTask) Examples() ([]Doc, error) {
 				State: StateAbsent,
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute sets or clears the resource reservations for a given dokku application

@@ -3,8 +3,6 @@ package tasks
 import (
 	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // NetworkTask creates or destroys a Docker network
@@ -25,6 +23,11 @@ type NetworkTaskExample struct {
 	DokkuNetwork NetworkTask `yaml:"dokku_network"`
 }
 
+// GetName returns the name of the example
+func (e NetworkTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the network
 func (t NetworkTask) DesiredState() State {
 	return t.State
@@ -37,7 +40,7 @@ func (t NetworkTask) Doc() string {
 
 // Examples returns a list of NetworkTaskExamples as yaml
 func (t NetworkTask) Examples() ([]Doc, error) {
-	examples := []NetworkTaskExample{
+	return MarshalExamples([]NetworkTaskExample{
 		{
 			Name: "Create a network named example-network",
 			DokkuNetwork: NetworkTask{
@@ -51,22 +54,7 @@ func (t NetworkTask) Examples() ([]Doc, error) {
 				State: "absent",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute creates or destroys a Docker network

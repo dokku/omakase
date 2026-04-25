@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"docket/subprocess"
 	"strings"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // HttpAuthTask manages HTTP authentication for a dokku application
@@ -32,6 +30,11 @@ type HttpAuthTaskExample struct {
 	DokkuHttpAuth HttpAuthTask `yaml:"dokku_http_auth"`
 }
 
+// GetName returns the name of the example
+func (e HttpAuthTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the HTTP auth
 func (t HttpAuthTask) DesiredState() State {
 	return t.State
@@ -44,7 +47,7 @@ func (t HttpAuthTask) Doc() string {
 
 // Examples returns a list of HttpAuthTaskExamples as yaml
 func (t HttpAuthTask) Examples() ([]Doc, error) {
-	examples := []HttpAuthTaskExample{
+	return MarshalExamples([]HttpAuthTaskExample{
 		{
 			Name: "Enable HTTP authentication for an app",
 			DokkuHttpAuth: HttpAuthTask{
@@ -60,22 +63,7 @@ func (t HttpAuthTask) Examples() ([]Doc, error) {
 				State: "absent",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute enables or disables HTTP authentication for an app

@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // StorageEnsureTask manages the storage for a given dokku application
@@ -29,6 +27,11 @@ type StorageEnsureTaskExample struct {
 	StorageEnsureTask StorageEnsureTask `yaml:"dokku_storage_ensure"`
 }
 
+// GetName returns the name of the example
+func (e StorageEnsureTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the storage
 func (t StorageEnsureTask) DesiredState() State {
 	return t.State
@@ -39,24 +42,9 @@ func (t StorageEnsureTask) Doc() string {
 	return "Ensures the storage for a given dokku application"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the storage ensure task
 func (t StorageEnsureTask) Examples() ([]Doc, error) {
-	examples := []StorageEnsureTaskExample{}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	return MarshalExamples([]StorageEnsureTaskExample{})
 }
 
 // Execute ensures the storage for a given app

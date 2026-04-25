@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // StorageMountTask manages the storage for a given dokku application
@@ -32,6 +30,11 @@ type StorageMountTaskExample struct {
 	StorageMountTask StorageMountTask `yaml:"dokku_storage_mount"`
 }
 
+// GetName returns the name of the example
+func (e StorageMountTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the storage
 func (t StorageMountTask) DesiredState() State {
 	return t.State
@@ -42,24 +45,9 @@ func (t StorageMountTask) Doc() string {
 	return "Mounts or unmounts the storage for a given dokku application"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the storage mount task
 func (t StorageMountTask) Examples() ([]Doc, error) {
-	examples := []StorageMountTaskExample{}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	return MarshalExamples([]StorageMountTaskExample{})
 }
 
 // Execute mounts or unmounts the storage for a given app

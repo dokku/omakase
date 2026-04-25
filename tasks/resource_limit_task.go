@@ -3,8 +3,6 @@ package tasks
 import (
 	"errors"
 	"fmt"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // ResourceLimitTask manages the resource limits for a given dokku application
@@ -34,6 +32,11 @@ type ResourceLimitTaskExample struct {
 	ResourceLimitTask ResourceLimitTask `yaml:"dokku_resource_limit"`
 }
 
+// GetName returns the name of the example
+func (e ResourceLimitTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the resource limits
 func (t ResourceLimitTask) DesiredState() State {
 	return t.State
@@ -46,7 +49,7 @@ func (t ResourceLimitTask) Doc() string {
 
 // Examples returns the examples for the resource limit task
 func (t ResourceLimitTask) Examples() ([]Doc, error) {
-	examples := []ResourceLimitTaskExample{
+	return MarshalExamples([]ResourceLimitTaskExample{
 		{
 			Name: "Set CPU and memory limits",
 			ResourceLimitTask: ResourceLimitTask{
@@ -74,22 +77,7 @@ func (t ResourceLimitTask) Examples() ([]Doc, error) {
 				State: StateAbsent,
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute sets or clears the resource limits for a given dokku application

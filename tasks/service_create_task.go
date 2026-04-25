@@ -3,8 +3,6 @@ package tasks
 import (
 	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // ServiceCreateTask creates or destroys a dokku service
@@ -28,6 +26,11 @@ type ServiceCreateTaskExample struct {
 	ServiceCreateTask ServiceCreateTask `yaml:"dokku_service_create"`
 }
 
+// GetName returns the name of the example
+func (e ServiceCreateTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the service
 func (t ServiceCreateTask) DesiredState() State {
 	return t.State
@@ -40,7 +43,7 @@ func (t ServiceCreateTask) Doc() string {
 
 // Examples returns a list of ServiceCreateTaskExamples as yaml
 func (t ServiceCreateTask) Examples() ([]Doc, error) {
-	examples := []ServiceCreateTaskExample{
+	return MarshalExamples([]ServiceCreateTaskExample{
 		{
 			Name: "Create a redis service named my-redis",
 			ServiceCreateTask: ServiceCreateTask{
@@ -63,22 +66,7 @@ func (t ServiceCreateTask) Examples() ([]Doc, error) {
 				State:   "absent",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute creates or destroys a dokku service

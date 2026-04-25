@@ -6,8 +6,6 @@ import (
 	"docket/subprocess"
 	"strconv"
 	"strings"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // PortsTask manages the ports for a given dokku application
@@ -29,6 +27,11 @@ type PortsTaskExample struct {
 
 	// PortsTask is the PortsTask configuration
 	PortsTask PortsTask `yaml:"dokku_ports"`
+}
+
+// GetName returns the name of the example
+func (e PortsTaskExample) GetName() string {
+	return e.Name
 }
 
 // PortMapping represents a port mapping
@@ -58,24 +61,9 @@ func (t PortsTask) Doc() string {
 	return "Manages the ports for a given dokku application"
 }
 
-// Examples returns the examples for the builder property task
+// Examples returns the examples for the ports task
 func (t PortsTask) Examples() ([]Doc, error) {
-	examples := []PortsTaskExample{}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	return MarshalExamples([]PortsTaskExample{})
 }
 
 // Execute sets or unsets the ports

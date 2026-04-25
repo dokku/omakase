@@ -3,8 +3,6 @@ package tasks
 import (
 	"errors"
 	"fmt"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // BuilderTask manages the builder configuration for a given dokku application
@@ -34,6 +32,11 @@ type BuilderPropertyTaskExample struct {
 	BuilderPropertyTask BuilderPropertyTask `yaml:"dokku_builder_property"`
 }
 
+// GetName returns the name of the example
+func (e BuilderPropertyTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the builder configuration
 func (t BuilderPropertyTask) DesiredState() State {
 	return t.State
@@ -46,7 +49,7 @@ func (t BuilderPropertyTask) Doc() string {
 
 // Examples returns the examples for the builder property task
 func (t BuilderPropertyTask) Examples() ([]Doc, error) {
-	examples := []BuilderPropertyTaskExample{
+	return MarshalExamples([]BuilderPropertyTaskExample{
 		{
 			Name: "Overriding the auto-selected builder",
 			BuilderPropertyTask: BuilderPropertyTask{
@@ -78,22 +81,7 @@ func (t BuilderPropertyTask) Examples() ([]Doc, error) {
 				Value:    "herokuish",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute executes the builder configuration task

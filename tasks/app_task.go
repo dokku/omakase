@@ -3,8 +3,6 @@ package tasks
 import (
 	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // AppTask creates or destroys an app
@@ -25,6 +23,11 @@ type AppTaskExample struct {
 	DokkuApp AppTask `yaml:"dokku_app"`
 }
 
+// GetName returns the name of the example
+func (e AppTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the app
 func (t AppTask) DesiredState() State {
 	return t.State
@@ -37,7 +40,7 @@ func (t AppTask) Doc() string {
 
 // Examples returns a list of AppTaskExamples as yaml
 func (t AppTask) Examples() ([]Doc, error) {
-	examples := []AppTaskExample{
+	return MarshalExamples([]AppTaskExample{
 		{
 			Name: "Create an app named hello-world",
 			DokkuApp: AppTask{
@@ -51,22 +54,7 @@ func (t AppTask) Examples() ([]Doc, error) {
 				State: "absent",
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute creates or destroys an app

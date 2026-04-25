@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"docket/subprocess"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // GitSyncTask syncs a git repository to a dokku application
@@ -41,6 +39,11 @@ type GitSyncTaskExample struct {
 	GitSyncTask GitSyncTask `yaml:"dokku_git_sync"`
 }
 
+// GetName returns the name of the example
+func (e GitSyncTaskExample) GetName() string {
+	return e.Name
+}
+
 // DesiredState returns the desired state of the git sync
 func (t GitSyncTask) DesiredState() State {
 	return t.State
@@ -53,7 +56,7 @@ func (t GitSyncTask) Doc() string {
 
 // Examples returns the examples for the git sync task
 func (t GitSyncTask) Examples() ([]Doc, error) {
-	examples := []GitSyncTaskExample{
+	return MarshalExamples([]GitSyncTaskExample{
 		{
 			Name: "Sync a git repository to an app",
 			GitSyncTask: GitSyncTask{
@@ -70,22 +73,7 @@ func (t GitSyncTask) Examples() ([]Doc, error) {
 				Build:  true,
 			},
 		},
-	}
-
-	var output []Doc
-	for _, example := range examples {
-		b, err := yaml.Marshal(example)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, Doc{
-			Name:      example.Name,
-			Codeblock: string(b),
-		})
-	}
-
-	return output, nil
+	})
 }
 
 // Execute syncs a git repository to a dokku application
