@@ -1,7 +1,7 @@
 package main
 
 import (
-	"omakase/tasks"
+	"docket/tasks"
 	"strings"
 	"testing"
 )
@@ -57,27 +57,27 @@ func TestGetTaskYamlFilename(t *testing.T) {
 	}{
 		{
 			name:     "default when no --tasks flag",
-			args:     []string{"omakase"},
+			args:     []string{"docket"},
 			expected: "tasks.yml",
 		},
 		{
 			name:     "separate --tasks flag",
-			args:     []string{"omakase", "--tasks", "custom.yml"},
+			args:     []string{"docket", "--tasks", "custom.yml"},
 			expected: "custom.yml",
 		},
 		{
 			name:     "equals --tasks=flag",
-			args:     []string{"omakase", "--tasks=custom.yml"},
+			args:     []string{"docket", "--tasks=custom.yml"},
 			expected: "custom.yml",
 		},
 		{
 			name:     "--tasks at end with no value",
-			args:     []string{"omakase", "--tasks"},
+			args:     []string{"docket", "--tasks"},
 			expected: "tasks.yml",
 		},
 		{
 			name:     "--tasks with other flags before",
-			args:     []string{"omakase", "--app", "myapp", "--tasks", "other.yml"},
+			args:     []string{"docket", "--app", "myapp", "--tasks", "other.yml"},
 			expected: "other.yml",
 		},
 		{

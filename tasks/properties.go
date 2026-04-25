@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"omakase/subprocess"
+	"docket/subprocess"
 )
 
 // PropertyContext represents the context for a property

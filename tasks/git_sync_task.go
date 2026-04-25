@@ -3,7 +3,7 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
-	"omakase/subprocess"
+	"docket/subprocess"
 
 	yaml "gopkg.in/yaml.v3"
 )
