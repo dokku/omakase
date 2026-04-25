@@ -161,6 +161,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_domains_toggle",
 		"dokku_git_from_image",
 		"dokku_git_sync",
+		"dokku_http_auth",
 		"dokku_network",
 		"dokku_network_property",
 		"dokku_ports",
@@ -977,5 +978,49 @@ func TestGetTasksDomainsTaskGlobalParsedCorrectly(t *testing.T) {
 	}
 	if dTask.DesiredState() != StateSet {
 		t.Errorf("expected state 'set', got %q", dTask.DesiredState())
+	}
+}
+
+func TestGetTasksHttpAuthTaskParsedCorrectly(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: enable http auth
+      dokku_http_auth:
+        app: test-app
+        username: admin
+        password: secret
+`)
+	context := map[string]interface{}{}
+
+	tasks, err := GetTasks(data, context)
+	if err != nil {
+		t.Fatalf("GetTasks failed: %v", err)
+	}
+
+	task := tasks.Get("enable http auth")
+	if task == nil {
+		t.Fatal("task 'enable http auth' not found")
+	}
+
+	haTask, ok := task.(*HttpAuthTask)
+	if !ok {
+		ht, ok2 := task.(HttpAuthTask)
+		if !ok2 {
+			t.Fatalf("task is not an HttpAuthTask (type is %T)", task)
+		}
+		haTask = &ht
+	}
+
+	if haTask.App != "test-app" {
+		t.Errorf("App = %q, want %q", haTask.App, "test-app")
+	}
+	if haTask.Username != "admin" {
+		t.Errorf("Username = %q, want %q", haTask.Username, "admin")
+	}
+	if haTask.Password != "secret" {
+		t.Errorf("Password = %q, want %q", haTask.Password, "secret")
+	}
+	if haTask.DesiredState() != StatePresent {
+		t.Errorf("expected default state 'present', got %q", haTask.DesiredState())
 	}
 }
