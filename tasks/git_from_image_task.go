@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"encoding/json"
 	"docket/subprocess"
 )
 
@@ -66,21 +65,7 @@ func (t GitFromImageTask) Execute() TaskOutputState {
 
 // checkAppSourceImage checks if the app is already deployed from a docker image
 func checkAppSourceImage(app, expectedImage string) bool {
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    []string{"apps:report", app, "--format", "json"},
-	})
-	if err != nil {
-		return false
-	}
-
-	type appSource struct {
-		Source         string `json:"app-deploy-source"`
-		SourceMetadata string `json:"app-deploy-source-metadata"`
-	}
-
-	var source appSource
-	err = json.Unmarshal(result.StdoutBytes(), &source)
+	source, err := getAppDeploySource(app)
 	if err != nil {
 		return false
 	}
