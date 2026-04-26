@@ -1,0 +1,77 @@
+package tasks
+
+// BuilderLambdaPropertyTask manages the builder-lambda configuration for a given dokku application
+type BuilderLambdaPropertyTask struct {
+	// App is the name of the app. Required if Global is false.
+	App string `required:"false" yaml:"app"`
+
+	// Global is a flag indicating if the builder-lambda configuration should be applied globally
+	Global bool `required:"false" yaml:"global,omitempty"`
+
+	// Property is the name of the builder-lambda property to set
+	Property string `required:"true" yaml:"property"`
+
+	// Value is the value to set for the builder-lambda property
+	Value string `required:"false" yaml:"value,omitempty"`
+
+	// State is the desired state of the builder-lambda configuration
+	State State `required:"true" yaml:"state,omitempty" default:"present" options:"present,absent"`
+}
+
+// BuilderLambdaPropertyTaskExample contains an example of a BuilderLambdaPropertyTask
+type BuilderLambdaPropertyTaskExample struct {
+	// Name is the task name holding the BuilderLambdaPropertyTask description
+	Name string `yaml:"-"`
+
+	// BuilderLambdaPropertyTask is the BuilderLambdaPropertyTask configuration
+	BuilderLambdaPropertyTask BuilderLambdaPropertyTask `yaml:"dokku_builder_lambda_property"`
+}
+
+// GetName returns the name of the example
+func (e BuilderLambdaPropertyTaskExample) GetName() string {
+	return e.Name
+}
+
+// Doc returns the docblock for the builder-lambda property task
+func (t BuilderLambdaPropertyTask) Doc() string {
+	return "Manages the builder-lambda configuration for a given dokku application"
+}
+
+// Examples returns the examples for the builder-lambda property task
+func (t BuilderLambdaPropertyTask) Examples() ([]Doc, error) {
+	return MarshalExamples([]BuilderLambdaPropertyTaskExample{
+		{
+			Name: "Setting the lambda.yml path for an app",
+			BuilderLambdaPropertyTask: BuilderLambdaPropertyTask{
+				App:      "node-js-app",
+				Property: "lambdayml-path",
+				Value:    "config/lambda.yml",
+			},
+		},
+		{
+			Name: "Setting the lambda.yml path globally",
+			BuilderLambdaPropertyTask: BuilderLambdaPropertyTask{
+				Global:   true,
+				Property: "lambdayml-path",
+				Value:    "lambda.yml",
+			},
+		},
+		{
+			Name: "Clearing the lambda.yml path for an app",
+			BuilderLambdaPropertyTask: BuilderLambdaPropertyTask{
+				App:      "node-js-app",
+				Property: "lambdayml-path",
+			},
+		},
+	})
+}
+
+// Execute sets or unsets the builder-lambda property
+func (t BuilderLambdaPropertyTask) Execute() TaskOutputState {
+	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-lambda:set")
+}
+
+// init registers the BuilderLambdaPropertyTask with the task registry
+func init() {
+	RegisterTask(&BuilderLambdaPropertyTask{})
+}
