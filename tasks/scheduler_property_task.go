@@ -1,0 +1,77 @@
+package tasks
+
+// SchedulerPropertyTask manages the scheduler configuration for a given dokku application
+type SchedulerPropertyTask struct {
+	// App is the name of the app. Required if Global is false.
+	App string `required:"false" yaml:"app"`
+
+	// Global is a flag indicating if the scheduler configuration should be applied globally
+	Global bool `required:"false" yaml:"global,omitempty"`
+
+	// Property is the name of the scheduler property to set
+	Property string `required:"true" yaml:"property"`
+
+	// Value is the value to set for the scheduler property
+	Value string `required:"false" yaml:"value,omitempty"`
+
+	// State is the desired state of the scheduler configuration
+	State State `required:"true" yaml:"state,omitempty" default:"present" options:"present,absent"`
+}
+
+// SchedulerPropertyTaskExample contains an example of a SchedulerPropertyTask
+type SchedulerPropertyTaskExample struct {
+	// Name is the task name holding the SchedulerPropertyTask description
+	Name string `yaml:"-"`
+
+	// SchedulerPropertyTask is the SchedulerPropertyTask configuration
+	SchedulerPropertyTask SchedulerPropertyTask `yaml:"dokku_scheduler_property"`
+}
+
+// GetName returns the name of the example
+func (e SchedulerPropertyTaskExample) GetName() string {
+	return e.Name
+}
+
+// Doc returns the docblock for the scheduler property task
+func (t SchedulerPropertyTask) Doc() string {
+	return "Manages the scheduler configuration for a given dokku application"
+}
+
+// Examples returns the examples for the scheduler property task
+func (t SchedulerPropertyTask) Examples() ([]Doc, error) {
+	return MarshalExamples([]SchedulerPropertyTaskExample{
+		{
+			Name: "Selecting the scheduler for an app",
+			SchedulerPropertyTask: SchedulerPropertyTask{
+				App:      "node-js-app",
+				Property: "selected",
+				Value:    "docker-local",
+			},
+		},
+		{
+			Name: "Selecting the scheduler globally",
+			SchedulerPropertyTask: SchedulerPropertyTask{
+				Global:   true,
+				Property: "selected",
+				Value:    "docker-local",
+			},
+		},
+		{
+			Name: "Clearing the scheduler property for an app",
+			SchedulerPropertyTask: SchedulerPropertyTask{
+				App:      "node-js-app",
+				Property: "selected",
+			},
+		},
+	})
+}
+
+// Execute sets or unsets the scheduler property
+func (t SchedulerPropertyTask) Execute() TaskOutputState {
+	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "scheduler:set")
+}
+
+// init registers the SchedulerPropertyTask with the task registry
+func init() {
+	RegisterTask(&SchedulerPropertyTask{})
+}
