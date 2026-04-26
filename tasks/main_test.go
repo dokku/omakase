@@ -158,6 +158,7 @@ func TestGetTasksWithTemplateContext(t *testing.T) {
 func TestRegisteredTasksExist(t *testing.T) {
 	expectedTasks := []string{
 		"dokku_app",
+		"dokku_app_json_property",
 		"dokku_builder_property",
 		"dokku_checks_property",
 		"dokku_checks_toggle",
@@ -451,7 +452,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 27
+	expected := 28
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -463,6 +464,7 @@ func TestTaskDocStrings(t *testing.T) {
 		want string
 	}{
 		{&AppTask{}, "Creates or destroys an app"},
+		{&AppJsonPropertyTask{}, "Manages the app.json configuration for a given dokku application"},
 		{&BuilderPropertyTask{}, "Manages the builder configuration for a given dokku application"},
 		{&BuildpacksPropertyTask{}, "Manages the buildpacks configuration for a given dokku application"},
 		{&ChecksPropertyTask{}, "Manages the checks configuration for a given dokku application"},
