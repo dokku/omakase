@@ -1,0 +1,148 @@
+package tasks
+
+import (
+	"fmt"
+
+	"docket/subprocess"
+)
+
+// GitFromArchiveTask deploys a git repository from an archive URL
+type GitFromArchiveTask struct {
+	// App is the name of the app
+	App string `required:"true" yaml:"app"`
+
+	// ArchiveURL is the URL of the archive to deploy
+	ArchiveURL string `required:"true" yaml:"archive_url"`
+
+	// ArchiveType is the format of the archive
+	ArchiveType string `required:"false" yaml:"archive_type,omitempty" default:"tar" options:"tar,tar.gz,zip"`
+
+	// GitUsername is the git author username for the synthetic commit
+	GitUsername string `required:"false" yaml:"git_username,omitempty"`
+
+	// GitEmail is the git author email for the synthetic commit
+	GitEmail string `required:"false" yaml:"git_email,omitempty"`
+
+	// State is the desired state of the deployment
+	State State `required:"false" yaml:"state,omitempty" default:"deployed" options:"deployed"`
+}
+
+// GitFromArchiveTaskExample contains an example of a GitFromArchiveTask
+type GitFromArchiveTaskExample struct {
+	// Name is the task name holding the GitFromArchiveTask description
+	Name string `yaml:"-"`
+
+	// GitFromArchiveTask is the GitFromArchiveTask configuration
+	GitFromArchiveTask GitFromArchiveTask `yaml:"dokku_git_from_archive"`
+}
+
+// GetName returns the name of the example
+func (e GitFromArchiveTaskExample) GetName() string {
+	return e.Name
+}
+
+// Doc returns the docblock for the git from archive task
+func (t GitFromArchiveTask) Doc() string {
+	return "Deploys a git repository from an archive URL"
+}
+
+// Examples returns the examples for the git from archive task
+func (t GitFromArchiveTask) Examples() ([]Doc, error) {
+	return MarshalExamples([]GitFromArchiveTaskExample{
+		{
+			Name: "Deploy a tar archive",
+			GitFromArchiveTask: GitFromArchiveTask{
+				App:        "node-js-app",
+				ArchiveURL: "https://example.com/release-1.0.0.tar",
+			},
+		},
+		{
+			Name: "Deploy a zip archive with author metadata",
+			GitFromArchiveTask: GitFromArchiveTask{
+				App:         "node-js-app",
+				ArchiveURL:  "https://example.com/release-1.0.0.zip",
+				ArchiveType: "zip",
+				GitUsername: "deploy-bot",
+				GitEmail:    "deploy@example.com",
+			},
+		},
+	})
+}
+
+var validGitFromArchiveTypes = map[string]bool{"tar": true, "tar.gz": true, "zip": true}
+
+// Execute deploys a git repository from an archive URL
+func (t GitFromArchiveTask) Execute() TaskOutputState {
+	return DispatchState(t.State, map[State]func() TaskOutputState{
+		"deployed": func() TaskOutputState { return deployGitFromArchive(t) },
+	})
+}
+
+// checkAppSourceArchive returns true if the app is already deployed from the
+// expected archive URL with the expected archive type. The archive type is
+// stored as the deploy source value, so a tar.gz deploy reports source "tar.gz".
+func checkAppSourceArchive(app, expectedType, expectedURL string) bool {
+	source, err := getAppDeploySource(app)
+	if err != nil {
+		return false
+	}
+	return source.Source == expectedType && source.SourceMetadata == expectedURL
+}
+
+// deployGitFromArchive deploys a git repository from an archive URL
+func deployGitFromArchive(t GitFromArchiveTask) TaskOutputState {
+	state := TaskOutputState{
+		Changed: false,
+		State:   "undeployed",
+	}
+
+	if t.App == "" {
+		state.Error = fmt.Errorf("'app' is required")
+		return state
+	}
+	if t.ArchiveURL == "" {
+		state.Error = fmt.Errorf("'archive_url' is required")
+		return state
+	}
+
+	archiveType := t.ArchiveType
+	if archiveType == "" {
+		archiveType = "tar"
+	}
+	if !validGitFromArchiveTypes[archiveType] {
+		state.Error = fmt.Errorf("'archive_type' must be one of tar, tar.gz, zip")
+		return state
+	}
+
+	if (t.GitUsername == "") != (t.GitEmail == "") {
+		state.Error = fmt.Errorf("'git_username' and 'git_email' must be set together")
+		return state
+	}
+
+	if checkAppSourceArchive(t.App, archiveType, t.ArchiveURL) {
+		state.State = "deployed"
+		return state
+	}
+
+	args := []string{"git:from-archive", "--archive-type", archiveType, t.App, t.ArchiveURL}
+	if t.GitUsername != "" {
+		args = append(args, t.GitUsername, t.GitEmail)
+	}
+
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    args,
+	})
+	if err != nil {
+		return TaskOutputErrorFromExec(state, err, result)
+	}
+
+	state.Changed = true
+	state.State = "deployed"
+	return state
+}
+
+// init registers the GitFromArchiveTask with the task registry
+func init() {
+	RegisterTask(&GitFromArchiveTask{})
+}

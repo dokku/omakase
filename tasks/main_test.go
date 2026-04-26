@@ -179,6 +179,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_domains",
 		"dokku_domains_toggle",
 		"dokku_git_auth",
+		"dokku_git_from_archive",
 		"dokku_git_from_image",
 		"dokku_git_property",
 		"dokku_git_sync",
@@ -473,7 +474,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 49
+	expected := 50
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -507,6 +508,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&DomainsTask{}, "Manages the domains for a given dokku application or globally"},
 		{&DomainsToggleTask{}, "Enables or disables the domains plugin for a given dokku application"},
 		{&GitAuthTask{}, "Manages netrc credentials for a git host"},
+		{&GitFromArchiveTask{}, "Deploys a git repository from an archive URL"},
 		{&GitFromImageTask{}, "Deploys a git repository from a docker image"},
 		{&GitPropertyTask{}, "Manages the git configuration for a given dokku application"},
 		{&GitSyncTask{}, "Syncs a git repository to a dokku application"},
