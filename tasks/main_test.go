@@ -186,6 +186,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_proxy_toggle",
 		"dokku_ps_property",
 		"dokku_ps_scale",
+		"dokku_registry_property",
 		"dokku_resource_limit",
 		"dokku_resource_reserve",
 		"dokku_scheduler_docker_local_property",
@@ -464,7 +465,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 40
+	expected := 41
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -503,6 +504,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&OpenrestyPropertyTask{}, "Manages the openresty configuration for a given dokku application"},
 		{&PortsTask{}, "Manages the ports for a given dokku application"},
 		{&PsScaleTask{}, "Manages the process scale for a given dokku application"},
+		{&RegistryPropertyTask{}, "Manages the registry configuration for a given dokku application"},
 		{&ResourceLimitTask{}, "Manages the resource limits for a given dokku application"},
 		{&ResourceReserveTask{}, "Manages the resource reservations for a given dokku application"},
 		{&SchedulerDockerLocalPropertyTask{}, "Manages the scheduler-docker-local configuration for a given dokku application"},

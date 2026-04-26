@@ -1,0 +1,85 @@
+package tasks
+
+// RegistryPropertyTask manages the registry configuration for a given dokku application
+type RegistryPropertyTask struct {
+	// App is the name of the app. Required if Global is false.
+	App string `required:"false" yaml:"app"`
+
+	// Global is a flag indicating if the registry configuration should be applied globally
+	Global bool `required:"false" yaml:"global,omitempty"`
+
+	// Property is the name of the registry property to set
+	Property string `required:"true" yaml:"property"`
+
+	// Value is the value to set for the registry property
+	Value string `required:"false" yaml:"value,omitempty"`
+
+	// State is the desired state of the registry configuration
+	State State `required:"true" yaml:"state,omitempty" default:"present" options:"present,absent"`
+}
+
+// RegistryPropertyTaskExample contains an example of a RegistryPropertyTask
+type RegistryPropertyTaskExample struct {
+	// Name is the task name holding the RegistryPropertyTask description
+	Name string `yaml:"-"`
+
+	// RegistryPropertyTask is the RegistryPropertyTask configuration
+	RegistryPropertyTask RegistryPropertyTask `yaml:"dokku_registry_property"`
+}
+
+// GetName returns the name of the example
+func (e RegistryPropertyTaskExample) GetName() string {
+	return e.Name
+}
+
+// Doc returns the docblock for the registry property task
+func (t RegistryPropertyTask) Doc() string {
+	return "Manages the registry configuration for a given dokku application"
+}
+
+// Examples returns the examples for the registry property task
+func (t RegistryPropertyTask) Examples() ([]Doc, error) {
+	return MarshalExamples([]RegistryPropertyTaskExample{
+		{
+			Name: "Setting the image repo for an app",
+			RegistryPropertyTask: RegistryPropertyTask{
+				App:      "node-js-app",
+				Property: "image-repo",
+				Value:    "registry.example.com/node-js-app",
+			},
+		},
+		{
+			Name: "Enabling push-on-release for an app",
+			RegistryPropertyTask: RegistryPropertyTask{
+				App:      "node-js-app",
+				Property: "push-on-release",
+				Value:    "true",
+			},
+		},
+		{
+			Name: "Setting the registry server globally",
+			RegistryPropertyTask: RegistryPropertyTask{
+				Global:   true,
+				Property: "server",
+				Value:    "registry.example.com",
+			},
+		},
+		{
+			Name: "Clearing the image repo for an app",
+			RegistryPropertyTask: RegistryPropertyTask{
+				App:      "node-js-app",
+				Property: "image-repo",
+			},
+		},
+	})
+}
+
+// Execute sets or unsets the registry property
+func (t RegistryPropertyTask) Execute() TaskOutputState {
+	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "registry:set")
+}
+
+// init registers the RegistryPropertyTask with the task registry
+func init() {
+	RegisterTask(&RegistryPropertyTask{})
+}
