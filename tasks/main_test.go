@@ -161,6 +161,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_app_json_property",
 		"dokku_builder_dockerfile_property",
 		"dokku_builder_herokuish_property",
+		"dokku_builder_nixpacks_property",
 		"dokku_builder_pack_property",
 		"dokku_builder_property",
 		"dokku_caddy_property",
@@ -462,7 +463,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 38
+	expected := 39
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -477,6 +478,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&AppJsonPropertyTask{}, "Manages the app.json configuration for a given dokku application"},
 		{&BuilderDockerfilePropertyTask{}, "Manages the builder-dockerfile configuration for a given dokku application"},
 		{&BuilderHerokuishPropertyTask{}, "Manages the builder-herokuish configuration for a given dokku application"},
+		{&BuilderNixpacksPropertyTask{}, "Manages the builder-nixpacks configuration for a given dokku application"},
 		{&BuilderPackPropertyTask{}, "Manages the builder-pack configuration for a given dokku application"},
 		{&BuilderPropertyTask{}, "Manages the builder configuration for a given dokku application"},
 		{&BuildpacksPropertyTask{}, "Manages the buildpacks configuration for a given dokku application"},
