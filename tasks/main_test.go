@@ -184,6 +184,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_ps_scale",
 		"dokku_resource_limit",
 		"dokku_resource_reserve",
+		"dokku_scheduler_docker_local_property",
 		"dokku_scheduler_k3s_property",
 		"dokku_scheduler_property",
 		"dokku_service_create",
@@ -459,7 +460,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 35
+	expected := 36
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -496,6 +497,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&PsScaleTask{}, "Manages the process scale for a given dokku application"},
 		{&ResourceLimitTask{}, "Manages the resource limits for a given dokku application"},
 		{&ResourceReserveTask{}, "Manages the resource reservations for a given dokku application"},
+		{&SchedulerDockerLocalPropertyTask{}, "Manages the scheduler-docker-local configuration for a given dokku application"},
 		{&SchedulerK3sPropertyTask{}, "Manages the scheduler-k3s configuration for a given dokku application"},
 		{&SchedulerPropertyTask{}, "Manages the scheduler configuration for a given dokku application"},
 		{&ServiceCreateTask{}, "Creates or destroys a dokku service"},
