@@ -14,10 +14,14 @@ func TestIntegrationPsProperty(t *testing.T) {
 	defer destroyApp(appName)
 
 	// set ps property
+	// Use procfile-path because it goes through dokku's generic property
+	// setter and supports unset via the absent state. restart-policy is
+	// special-cased on the dokku side and rejects empty values, so it
+	// cannot be cleared via `ps:set <app> restart-policy` (no value).
 	setTask := PsPropertyTask{
 		App:      appName,
-		Property: "restart-policy",
-		Value:    "on-failure:5",
+		Property: "procfile-path",
+		Value:    "Procfile.custom",
 		State:    StatePresent,
 	}
 	result := setTask.Execute()
@@ -31,7 +35,7 @@ func TestIntegrationPsProperty(t *testing.T) {
 	// unset ps property
 	unsetTask := PsPropertyTask{
 		App:      appName,
-		Property: "restart-policy",
+		Property: "procfile-path",
 		State:    StateAbsent,
 	}
 	result = unsetTask.Execute()
