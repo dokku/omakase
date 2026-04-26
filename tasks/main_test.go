@@ -159,6 +159,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 	expectedTasks := []string{
 		"dokku_app",
 		"dokku_builder_property",
+		"dokku_checks_property",
 		"dokku_checks_toggle",
 		"dokku_config",
 		"dokku_domains",
