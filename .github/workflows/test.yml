@@ -48,5 +48,7 @@ jobs:
         run: sudo dokku plugin:install https://github.com/dokku/dokku-redis.git redis
       - name: install dokku http-auth plugin
         run: sudo dokku plugin:install https://github.com/dokku/dokku-http-auth.git http-auth
+      - name: install dokku global-cert plugin
+        run: sudo dokku plugin:install https://github.com/dokku-community/dokku-global-cert.git global-cert
       - name: run integration tests
         run: sudo go test -v -count=1 -run TestIntegration ./tasks/
