@@ -1,0 +1,90 @@
+package tasks
+
+// GitPropertyTask manages the git configuration for a given dokku application
+type GitPropertyTask struct {
+	// App is the name of the app. Required if Global is false.
+	App string `required:"false" yaml:"app"`
+
+	// Global is a flag indicating if the git configuration should be applied globally
+	Global bool `required:"false" yaml:"global,omitempty"`
+
+	// Property is the name of the git property to set
+	Property string `required:"true" yaml:"property"`
+
+	// Value is the value to set for the git property
+	Value string `required:"false" yaml:"value,omitempty"`
+
+	// State is the desired state of the git configuration
+	State State `required:"true" yaml:"state,omitempty" default:"present" options:"present,absent"`
+}
+
+// GitPropertyTaskExample contains an example of a GitPropertyTask
+type GitPropertyTaskExample struct {
+	// Name is the task name holding the GitPropertyTask description
+	Name string `yaml:"-"`
+
+	// GitPropertyTask is the GitPropertyTask configuration
+	GitPropertyTask GitPropertyTask `yaml:"dokku_git_property"`
+}
+
+// GetName returns the name of the example
+func (e GitPropertyTaskExample) GetName() string {
+	return e.Name
+}
+
+// DesiredState returns the desired state of the git configuration
+func (t GitPropertyTask) DesiredState() State {
+	return t.State
+}
+
+// Doc returns the docblock for the git property task
+func (t GitPropertyTask) Doc() string {
+	return "Manages the git configuration for a given dokku application"
+}
+
+// Examples returns the examples for the git property task
+func (t GitPropertyTask) Examples() ([]Doc, error) {
+	return MarshalExamples([]GitPropertyTaskExample{
+		{
+			Name: "Setting the deploy branch for an app",
+			GitPropertyTask: GitPropertyTask{
+				App:      "node-js-app",
+				Property: "deploy-branch",
+				Value:    "main",
+			},
+		},
+		{
+			Name: "Keeping the .git directory during builds",
+			GitPropertyTask: GitPropertyTask{
+				App:      "node-js-app",
+				Property: "keep-git-dir",
+				Value:    "true",
+			},
+		},
+		{
+			Name: "Setting the rev env var globally",
+			GitPropertyTask: GitPropertyTask{
+				Global:   true,
+				Property: "rev-env-var",
+				Value:    "GIT_REV",
+			},
+		},
+		{
+			Name: "Clearing a git property",
+			GitPropertyTask: GitPropertyTask{
+				App:      "node-js-app",
+				Property: "deploy-branch",
+			},
+		},
+	})
+}
+
+// Execute sets or unsets the git property
+func (t GitPropertyTask) Execute() TaskOutputState {
+	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "git:set")
+}
+
+// init registers the GitPropertyTask with the task registry
+func init() {
+	RegisterTask(&GitPropertyTask{})
+}

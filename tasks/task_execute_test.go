@@ -273,6 +273,71 @@ func TestNginxPropertyTaskAbsentWithValue(t *testing.T) {
 	}
 }
 
+func TestGitPropertyTaskInvalidState(t *testing.T) {
+	task := GitPropertyTask{App: "test-app", Property: "deploy-branch", State: "invalid"}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with invalid state should return an error")
+	}
+}
+
+func TestGitPropertyTaskMissingApp(t *testing.T) {
+	task := GitPropertyTask{Property: "deploy-branch", Value: "main", State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute without app and global=false should return an error")
+	}
+}
+
+func TestGitPropertyTaskGlobalWithAppSet(t *testing.T) {
+	task := GitPropertyTask{
+		App:      "test-app",
+		Global:   true,
+		Property: "deploy-branch",
+		Value:    "main",
+		State:    StatePresent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when both global and app are set")
+	}
+	if !strings.Contains(result.Error.Error(), "must not be set when 'global' is set to true") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestGitPropertyTaskPresentWithoutValue(t *testing.T) {
+	task := GitPropertyTask{
+		App:      "test-app",
+		Property: "deploy-branch",
+		Value:    "",
+		State:    StatePresent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when present state has no value")
+	}
+	if !strings.Contains(result.Error.Error(), "invalid without a value") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestGitPropertyTaskAbsentWithValue(t *testing.T) {
+	task := GitPropertyTask{
+		App:      "test-app",
+		Property: "deploy-branch",
+		Value:    "main",
+		State:    StateAbsent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when absent state has a value")
+	}
+	if !strings.Contains(result.Error.Error(), "invalid with a value") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
 func TestNetworkPropertyTaskInvalidState(t *testing.T) {
 	task := NetworkPropertyTask{App: "test-app", Property: "attach-post-create", State: "invalid"}
 	result := task.Execute()
@@ -558,6 +623,8 @@ func TestAllTasksDesiredState(t *testing.T) {
 		{"DomainsToggleTask present", &DomainsToggleTask{App: "test", State: StatePresent}, StatePresent},
 		{"DomainsToggleTask absent", &DomainsToggleTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"GitFromImageTask deployed", &GitFromImageTask{App: "test", Image: "nginx", State: StateDeployed}, StateDeployed},
+		{"GitPropertyTask present", &GitPropertyTask{App: "test", Property: "deploy-branch", State: StatePresent}, StatePresent},
+		{"GitPropertyTask absent", &GitPropertyTask{App: "test", Property: "deploy-branch", State: StateAbsent}, StateAbsent},
 		{"HttpAuthTask present", &HttpAuthTask{App: "test", Username: "admin", Password: "secret", State: StatePresent}, StatePresent},
 		{"HttpAuthTask absent", &HttpAuthTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"GitSyncTask present", &GitSyncTask{App: "test", Remote: "https://example.com/repo", State: StatePresent}, StatePresent},
@@ -769,7 +836,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 21
+	expected := 22
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -787,6 +854,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&DomainsTask{}, "Manages the domains for a given dokku application or globally"},
 		{&DomainsToggleTask{}, "Enables or disables the domains plugin for a given dokku application"},
 		{&GitFromImageTask{}, "Deploys a git repository from a docker image"},
+		{&GitPropertyTask{}, "Manages the git configuration for a given dokku application"},
 		{&GitSyncTask{}, "Syncs a git repository to a dokku application"},
 		{&HttpAuthTask{}, "Manages HTTP authentication for a given dokku application"},
 		{&NetworkTask{}, "Creates or destroys a Docker network"},
