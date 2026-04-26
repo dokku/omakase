@@ -160,6 +160,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_app",
 		"dokku_app_clone",
 		"dokku_app_json_property",
+		"dokku_app_lock",
 		"dokku_builder_dockerfile_property",
 		"dokku_builder_herokuish_property",
 		"dokku_builder_lambda_property",
@@ -468,7 +469,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 44
+	expected := 45
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -482,6 +483,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&AppTask{}, "Creates or destroys an app"},
 		{&AppCloneTask{}, "Clones an existing dokku app to a new app"},
 		{&AppJsonPropertyTask{}, "Manages the app.json configuration for a given dokku application"},
+		{&AppLockTask{}, "Locks or unlocks a dokku application from deployment"},
 		{&BuilderDockerfilePropertyTask{}, "Manages the builder-dockerfile configuration for a given dokku application"},
 		{&BuilderHerokuishPropertyTask{}, "Manages the builder-herokuish configuration for a given dokku application"},
 		{&BuilderLambdaPropertyTask{}, "Manages the builder-lambda configuration for a given dokku application"},
