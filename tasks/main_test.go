@@ -175,6 +175,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_checks_toggle",
 		"dokku_config",
 		"dokku_cron_property",
+		"dokku_docker_options",
 		"dokku_domains",
 		"dokku_domains_toggle",
 		"dokku_git_from_image",
@@ -470,7 +471,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 46
+	expected := 47
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -500,6 +501,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&ChecksToggleTask{}, "Enables or disables the checks plugin for a given dokku application"},
 		{&ConfigTask{}, "Manages the configuration for a given dokku application"},
 		{&CronPropertyTask{}, "Manages the cron configuration for a given dokku application"},
+		{&DockerOptionsTask{}, "Manages docker-options for a given dokku application"},
 		{&DomainsTask{}, "Manages the domains for a given dokku application or globally"},
 		{&DomainsToggleTask{}, "Enables or disables the domains plugin for a given dokku application"},
 		{&GitFromImageTask{}, "Deploys a git repository from a docker image"},
