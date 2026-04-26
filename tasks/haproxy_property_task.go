@@ -1,0 +1,77 @@
+package tasks
+
+// HaproxyPropertyTask manages the haproxy configuration for a given dokku application
+type HaproxyPropertyTask struct {
+	// App is the name of the app. Required if Global is false.
+	App string `required:"false" yaml:"app"`
+
+	// Global is a flag indicating if the haproxy configuration should be applied globally
+	Global bool `required:"false" yaml:"global,omitempty"`
+
+	// Property is the name of the haproxy property to set
+	Property string `required:"true" yaml:"property"`
+
+	// Value is the value to set for the haproxy property
+	Value string `required:"false" yaml:"value,omitempty"`
+
+	// State is the desired state of the haproxy configuration
+	State State `required:"true" yaml:"state,omitempty" default:"present" options:"present,absent"`
+}
+
+// HaproxyPropertyTaskExample contains an example of a HaproxyPropertyTask
+type HaproxyPropertyTaskExample struct {
+	// Name is the task name holding the HaproxyPropertyTask description
+	Name string `yaml:"-"`
+
+	// HaproxyPropertyTask is the HaproxyPropertyTask configuration
+	HaproxyPropertyTask HaproxyPropertyTask `yaml:"dokku_haproxy_property"`
+}
+
+// GetName returns the name of the example
+func (e HaproxyPropertyTaskExample) GetName() string {
+	return e.Name
+}
+
+// Doc returns the docblock for the haproxy property task
+func (t HaproxyPropertyTask) Doc() string {
+	return "Manages the haproxy configuration for a given dokku application"
+}
+
+// Examples returns the examples for the haproxy property task
+func (t HaproxyPropertyTask) Examples() ([]Doc, error) {
+	return MarshalExamples([]HaproxyPropertyTaskExample{
+		{
+			Name: "Setting the letsencrypt email for an app",
+			HaproxyPropertyTask: HaproxyPropertyTask{
+				App:      "node-js-app",
+				Property: "letsencrypt-email",
+				Value:    "admin@example.com",
+			},
+		},
+		{
+			Name: "Setting the log level globally",
+			HaproxyPropertyTask: HaproxyPropertyTask{
+				Global:   true,
+				Property: "log-level",
+				Value:    "INFO",
+			},
+		},
+		{
+			Name: "Clearing the letsencrypt email for an app",
+			HaproxyPropertyTask: HaproxyPropertyTask{
+				App:      "node-js-app",
+				Property: "letsencrypt-email",
+			},
+		},
+	})
+}
+
+// Execute sets or unsets the haproxy property
+func (t HaproxyPropertyTask) Execute() TaskOutputState {
+	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "haproxy:set")
+}
+
+// init registers the HaproxyPropertyTask with the task registry
+func init() {
+	RegisterTask(&HaproxyPropertyTask{})
+}
