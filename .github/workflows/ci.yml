@@ -9,7 +9,10 @@ on:
   push:
     branches:
       - 'master'
-      - 'release'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -17,7 +20,6 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       GITHUB_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
-      PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
 
     steps:
       - uses: actions/checkout@v6
@@ -33,11 +35,29 @@ jobs:
         with:
           name: build
           path: build/**/*
-      - name: make release-in-docker
+
+  binary-check:
+    name: binary-check
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Get Repository Name
+        id: repo-name
         run: |
-          if [[ "${GITHUB_REF#refs/heads/}" == "release" ]]; then
-            export CI_BRANCH=${GITHUB_REF#refs/heads/}
-            export PACKAGECLOUD_REPOSITORY=dokku/dokku
-            rm .env.docker
-            make .env.docker release-in-docker release-packagecloud-in-docker
-          fi
+          echo "REPOSITORY_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)" >> $GITHUB_OUTPUT
+          echo "TARGET_ARCHITECTURE=$(dpkg --print-architecture)" >> $GITHUB_OUTPUT
+      - name: Build binary
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          make build/linux/${{ steps.repo-name.outputs.REPOSITORY_NAME }}-${{ steps.repo-name.outputs.TARGET_ARCHITECTURE }}
+          mkdir -p dist
+          cp build/linux/${{ steps.repo-name.outputs.REPOSITORY_NAME }}-${{ steps.repo-name.outputs.TARGET_ARCHITECTURE }} \
+             dist/${{ steps.repo-name.outputs.REPOSITORY_NAME }}-linux-${{ steps.repo-name.outputs.TARGET_ARCHITECTURE }}
+      - name: Check version
+        run: |
+          "dist/${{ steps.repo-name.outputs.REPOSITORY_NAME }}-linux-${{ steps.repo-name.outputs.TARGET_ARCHITECTURE }}" --version
