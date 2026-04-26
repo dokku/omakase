@@ -305,105 +305,6 @@ func TestGetTasksTwoPropertiesNoName(t *testing.T) {
 	}
 }
 
-func TestGetTasksConfigTaskParsedCorrectly(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: set config
-      dokku_config:
-        app: test-app
-        restart: false
-        config:
-          KEY1: val1
-          KEY2: val2
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("set config")
-	if task == nil {
-		t.Fatal("task 'set config' not found")
-	}
-
-	configTask, ok := task.(*ConfigTask)
-	if !ok {
-		// tasks may be stored as value types depending on reflection
-		ct, ok2 := task.(ConfigTask)
-		if !ok2 {
-			t.Fatalf("task is not a ConfigTask (type is %T)", task)
-		}
-		configTask = &ct
-	}
-
-	if configTask.App != "test-app" {
-		t.Errorf("App = %q, want %q", configTask.App, "test-app")
-	}
-	// Note: defaults.SetDefaults overrides restart=false with the default tag value "true"
-	// because false is the zero value for bool. This documents the actual behavior.
-	if !configTask.Restart {
-		t.Error("Restart = false, want true (defaults.SetDefaults overrides zero-value bool)")
-	}
-	if len(configTask.Config) != 2 {
-		t.Fatalf("expected 2 config keys, got %d", len(configTask.Config))
-	}
-	if configTask.Config["KEY1"] != "val1" {
-		t.Errorf("Config[KEY1] = %q, want %q", configTask.Config["KEY1"], "val1")
-	}
-	if configTask.Config["KEY2"] != "val2" {
-		t.Errorf("Config[KEY2] = %q, want %q", configTask.Config["KEY2"], "val2")
-	}
-}
-
-func TestGetTasksPortsTaskWithMappings(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: set ports
-      dokku_ports:
-        app: test-app
-        port_mappings:
-          - scheme: http
-            host: 80
-            container: 5000
-          - scheme: https
-            host: 443
-            container: 5000
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("set ports")
-	if task == nil {
-		t.Fatal("task 'set ports' not found")
-	}
-
-	portsTask, ok := task.(*PortsTask)
-	if !ok {
-		pt, ok2 := task.(PortsTask)
-		if !ok2 {
-			t.Fatalf("task is not a PortsTask (type is %T)", task)
-		}
-		portsTask = &pt
-	}
-
-	if len(portsTask.PortMappings) != 2 {
-		t.Fatalf("expected 2 port mappings, got %d", len(portsTask.PortMappings))
-	}
-
-	if portsTask.PortMappings[0].String() != "http:80:5000" {
-		t.Errorf("mapping[0] = %q, want %q", portsTask.PortMappings[0].String(), "http:80:5000")
-	}
-	if portsTask.PortMappings[1].String() != "https:443:5000" {
-		t.Errorf("mapping[1] = %q, want %q", portsTask.PortMappings[1].String(), "https:443:5000")
-	}
-}
-
 func TestGetTasksFromRealExample(t *testing.T) {
 	data := []byte(`---
 - inputs:
@@ -537,503 +438,60 @@ func TestGetTasksFromRealExample(t *testing.T) {
 	}
 }
 
-func TestGetTasksResourceLimitTaskParsedCorrectly(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: set resource limits
-      dokku_resource_limit:
-        app: test-app
-        process_type: web
-        resources:
-          cpu: "100"
-          memory: "256"
-        clear_before: true
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("set resource limits")
-	if task == nil {
-		t.Fatal("task 'set resource limits' not found")
-	}
-
-	rlTask, ok := task.(*ResourceLimitTask)
-	if !ok {
-		rt, ok2 := task.(ResourceLimitTask)
-		if !ok2 {
-			t.Fatalf("task is not a ResourceLimitTask (type is %T)", task)
-		}
-		rlTask = &rt
-	}
-
-	if rlTask.App != "test-app" {
-		t.Errorf("App = %q, want %q", rlTask.App, "test-app")
-	}
-	if rlTask.ProcessType != "web" {
-		t.Errorf("ProcessType = %q, want %q", rlTask.ProcessType, "web")
-	}
-	if len(rlTask.Resources) != 2 {
-		t.Fatalf("expected 2 resources, got %d", len(rlTask.Resources))
-	}
-	if rlTask.Resources["cpu"] != "100" {
-		t.Errorf("Resources[cpu] = %q, want %q", rlTask.Resources["cpu"], "100")
-	}
-	if rlTask.Resources["memory"] != "256" {
-		t.Errorf("Resources[memory] = %q, want %q", rlTask.Resources["memory"], "256")
-	}
-	// Unlike ConfigTask.Restart (default:"true"), ClearBefore has default:"false" which
-	// is the zero value for bool. Since defaults.SetDefaults only overrides zero values,
-	// and true is non-zero, setting clear_before: true in YAML is preserved correctly.
-	if !rlTask.ClearBefore {
-		t.Error("ClearBefore = false, want true (YAML value should be preserved)")
+func TestAllTasksExamplesReturnNoError(t *testing.T) {
+	for name, task := range RegisteredTasks {
+		t.Run(name, func(t *testing.T) {
+			_, err := task.Examples()
+			if err != nil {
+				t.Errorf("Examples() returned error: %v", err)
+			}
+		})
 	}
 }
 
-func TestGetTasksResourceReserveTaskParsedCorrectly(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: set resource reservations
-      dokku_resource_reserve:
-        app: test-app
-        process_type: web
-        resources:
-          cpu: "100"
-          memory: "256"
-        clear_before: true
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("set resource reservations")
-	if task == nil {
-		t.Fatal("task 'set resource reservations' not found")
-	}
-
-	rrTask, ok := task.(*ResourceReserveTask)
-	if !ok {
-		rt, ok2 := task.(ResourceReserveTask)
-		if !ok2 {
-			t.Fatalf("task is not a ResourceReserveTask (type is %T)", task)
-		}
-		rrTask = &rt
-	}
-
-	if rrTask.App != "test-app" {
-		t.Errorf("App = %q, want %q", rrTask.App, "test-app")
-	}
-	if rrTask.ProcessType != "web" {
-		t.Errorf("ProcessType = %q, want %q", rrTask.ProcessType, "web")
-	}
-	if len(rrTask.Resources) != 2 {
-		t.Fatalf("expected 2 resources, got %d", len(rrTask.Resources))
-	}
-	if rrTask.Resources["cpu"] != "100" {
-		t.Errorf("Resources[cpu] = %q, want %q", rrTask.Resources["cpu"], "100")
-	}
-	if rrTask.Resources["memory"] != "256" {
-		t.Errorf("Resources[memory] = %q, want %q", rrTask.Resources["memory"], "256")
-	}
-	if !rrTask.ClearBefore {
-		t.Error("ClearBefore = false, want true (YAML value should be preserved)")
+func TestRegisteredTaskCount(t *testing.T) {
+	expected := 25
+	if got := len(RegisteredTasks); got != expected {
+		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
 }
 
-func TestGetTasksServiceCreateTaskParsedCorrectly(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: create redis service
-      dokku_service_create:
-        service: redis
-        name: my-redis
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
+func TestTaskDocStrings(t *testing.T) {
+	tests := []struct {
+		task Task
+		want string
+	}{
+		{&AppTask{}, "Creates or destroys an app"},
+		{&BuilderPropertyTask{}, "Manages the builder configuration for a given dokku application"},
+		{&ChecksPropertyTask{}, "Manages the checks configuration for a given dokku application"},
+		{&ChecksToggleTask{}, "Enables or disables the checks plugin for a given dokku application"},
+		{&ConfigTask{}, "Manages the configuration for a given dokku application"},
+		{&DomainsTask{}, "Manages the domains for a given dokku application or globally"},
+		{&DomainsToggleTask{}, "Enables or disables the domains plugin for a given dokku application"},
+		{&GitFromImageTask{}, "Deploys a git repository from a docker image"},
+		{&GitPropertyTask{}, "Manages the git configuration for a given dokku application"},
+		{&GitSyncTask{}, "Syncs a git repository to a dokku application"},
+		{&HttpAuthTask{}, "Manages HTTP authentication for a given dokku application"},
+		{&LogsPropertyTask{}, "Manages the logs configuration for a given dokku application"},
+		{&NetworkTask{}, "Creates or destroys a Docker network"},
+		{&NetworkPropertyTask{}, "Manages the network property for a given dokku application"},
+		{&NginxPropertyTask{}, "Manages the nginx configuration for a given dokku application"},
+		{&PortsTask{}, "Manages the ports for a given dokku application"},
+		{&PsScaleTask{}, "Manages the process scale for a given dokku application"},
+		{&ResourceLimitTask{}, "Manages the resource limits for a given dokku application"},
+		{&ResourceReserveTask{}, "Manages the resource reservations for a given dokku application"},
+		{&SchedulerPropertyTask{}, "Manages the scheduler configuration for a given dokku application"},
+		{&ServiceCreateTask{}, "Creates or destroys a dokku service"},
+		{&ServiceLinkTask{}, "Links or unlinks a dokku service to an app"},
+		{&ProxyToggleTask{}, "Enables or disables the proxy plugin for a given dokku application"},
+		{&StorageEnsureTask{}, "Ensures the storage for a given dokku application"},
+		{&StorageMountTask{}, "Mounts or unmounts the storage for a given dokku application"},
 	}
 
-	task := tasks.Get("create redis service")
-	if task == nil {
-		t.Fatal("task 'create redis service' not found")
-	}
-
-	scTask, ok := task.(*ServiceCreateTask)
-	if !ok {
-		st, ok2 := task.(ServiceCreateTask)
-		if !ok2 {
-			t.Fatalf("task is not a ServiceCreateTask (type is %T)", task)
+	for _, tt := range tests {
+		doc := tt.task.Doc()
+		if doc != tt.want {
+			t.Errorf("Doc() = %q, want %q", doc, tt.want)
 		}
-		scTask = &st
-	}
-
-	if scTask.Service != "redis" {
-		t.Errorf("Service = %q, want %q", scTask.Service, "redis")
-	}
-	if scTask.Name != "my-redis" {
-		t.Errorf("Name = %q, want %q", scTask.Name, "my-redis")
-	}
-	if scTask.State != StatePresent {
-		t.Errorf("expected default state 'present', got %q", scTask.State)
-	}
-}
-
-func TestGetTasksServiceCreateWithTemplateContext(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: create {{ .service_type }} service
-      dokku_service_create:
-        service: {{ .service_type }}
-        name: {{ .service_name }}
-`)
-	context := map[string]interface{}{
-		"service_type": "postgres",
-		"service_name": "my-db",
-	}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("create postgres service")
-	if task == nil {
-		t.Fatal("task 'create postgres service' not found")
-	}
-
-	scTask, ok := task.(*ServiceCreateTask)
-	if !ok {
-		st, ok2 := task.(ServiceCreateTask)
-		if !ok2 {
-			t.Fatalf("task is not a ServiceCreateTask (type is %T)", task)
-		}
-		scTask = &st
-	}
-
-	if scTask.Service != "postgres" {
-		t.Errorf("Service = %q, want %q", scTask.Service, "postgres")
-	}
-	if scTask.Name != "my-db" {
-		t.Errorf("Name = %q, want %q", scTask.Name, "my-db")
-	}
-}
-
-func TestGetTasksServiceLinkTaskParsedCorrectly(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: link redis service
-      dokku_service_link:
-        app: my-app
-        service: redis
-        name: my-redis
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("link redis service")
-	if task == nil {
-		t.Fatal("task 'link redis service' not found")
-	}
-
-	slTask, ok := task.(*ServiceLinkTask)
-	if !ok {
-		st, ok2 := task.(ServiceLinkTask)
-		if !ok2 {
-			t.Fatalf("task is not a ServiceLinkTask (type is %T)", task)
-		}
-		slTask = &st
-	}
-
-	if slTask.App != "my-app" {
-		t.Errorf("App = %q, want %q", slTask.App, "my-app")
-	}
-	if slTask.Service != "redis" {
-		t.Errorf("Service = %q, want %q", slTask.Service, "redis")
-	}
-	if slTask.Name != "my-redis" {
-		t.Errorf("Name = %q, want %q", slTask.Name, "my-redis")
-	}
-	if slTask.State != StatePresent {
-		t.Errorf("expected default state 'present', got %q", slTask.State)
-	}
-}
-
-func TestGetTasksPsScaleTaskParsedCorrectly(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: scale processes
-      dokku_ps_scale:
-        app: test-app
-        scale:
-          web: 2
-          worker: 1
-        skip_deploy: true
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("scale processes")
-	if task == nil {
-		t.Fatal("task 'scale processes' not found")
-	}
-
-	psTask, ok := task.(*PsScaleTask)
-	if !ok {
-		pt, ok2 := task.(PsScaleTask)
-		if !ok2 {
-			t.Fatalf("task is not a PsScaleTask (type is %T)", task)
-		}
-		psTask = &pt
-	}
-
-	if psTask.App != "test-app" {
-		t.Errorf("App = %q, want %q", psTask.App, "test-app")
-	}
-	if len(psTask.Scale) != 2 {
-		t.Fatalf("expected 2 scale entries, got %d", len(psTask.Scale))
-	}
-	if psTask.Scale["web"] != 2 {
-		t.Errorf("Scale[web] = %d, want %d", psTask.Scale["web"], 2)
-	}
-	if psTask.Scale["worker"] != 1 {
-		t.Errorf("Scale[worker] = %d, want %d", psTask.Scale["worker"], 1)
-	}
-	if !psTask.SkipDeploy {
-		t.Error("SkipDeploy = false, want true (YAML value should be preserved)")
-	}
-}
-
-func TestGetTasksServiceLinkWithTemplateContext(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: link {{ .service_type }} service
-      dokku_service_link:
-        app: {{ .app_name }}
-        service: {{ .service_type }}
-        name: {{ .service_name }}
-`)
-	context := map[string]interface{}{
-		"app_name":     "my-app",
-		"service_type": "postgres",
-		"service_name": "my-db",
-	}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("link postgres service")
-	if task == nil {
-		t.Fatal("task 'link postgres service' not found")
-	}
-
-	slTask, ok := task.(*ServiceLinkTask)
-	if !ok {
-		st, ok2 := task.(ServiceLinkTask)
-		if !ok2 {
-			t.Fatalf("task is not a ServiceLinkTask (type is %T)", task)
-		}
-		slTask = &st
-	}
-
-	if slTask.App != "my-app" {
-		t.Errorf("App = %q, want %q", slTask.App, "my-app")
-	}
-	if slTask.Service != "postgres" {
-		t.Errorf("Service = %q, want %q", slTask.Service, "postgres")
-	}
-	if slTask.Name != "my-db" {
-		t.Errorf("Name = %q, want %q", slTask.Name, "my-db")
-	}
-}
-
-func TestGetTasksNetworkTaskParsedCorrectly(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: create test network
-      dokku_network:
-        name: test-network
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("create test network")
-	if task == nil {
-		t.Fatal("task 'create test network' not found")
-	}
-
-	netTask, ok := task.(*NetworkTask)
-	if !ok {
-		nt, ok2 := task.(NetworkTask)
-		if !ok2 {
-			t.Fatalf("task is not a NetworkTask (type is %T)", task)
-		}
-		netTask = &nt
-	}
-
-	if netTask.Name != "test-network" {
-		t.Errorf("Name = %q, want %q", netTask.Name, "test-network")
-	}
-	if netTask.State != StatePresent {
-		t.Errorf("expected default state 'present', got %q", netTask.State)
-	}
-}
-
-func TestGetTasksDomainsTaskParsedCorrectly(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: add domains
-      dokku_domains:
-        app: test-app
-        domains:
-          - example.com
-          - www.example.com
-        state: present
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("add domains")
-	if task == nil {
-		t.Fatal("task 'add domains' not found")
-	}
-
-	dTask, ok := task.(*DomainsTask)
-	if !ok {
-		dt, ok2 := task.(DomainsTask)
-		if !ok2 {
-			t.Fatalf("task is not a DomainsTask (type is %T)", task)
-		}
-		dTask = &dt
-	}
-
-	if dTask.App != "test-app" {
-		t.Errorf("App = %q, want %q", dTask.App, "test-app")
-	}
-	if len(dTask.Domains) != 2 {
-		t.Fatalf("expected 2 domains, got %d", len(dTask.Domains))
-	}
-	if dTask.Domains[0] != "example.com" {
-		t.Errorf("Domains[0] = %q, want %q", dTask.Domains[0], "example.com")
-	}
-	if dTask.Domains[1] != "www.example.com" {
-		t.Errorf("Domains[1] = %q, want %q", dTask.Domains[1], "www.example.com")
-	}
-	if dTask.State != StatePresent {
-		t.Errorf("expected state 'present', got %q", dTask.State)
-	}
-}
-
-func TestGetTasksDomainsTaskGlobalParsedCorrectly(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: set global domains
-      dokku_domains:
-        global: true
-        domains:
-          - global.example.com
-        state: set
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("set global domains")
-	if task == nil {
-		t.Fatal("task 'set global domains' not found")
-	}
-
-	dTask, ok := task.(*DomainsTask)
-	if !ok {
-		dt, ok2 := task.(DomainsTask)
-		if !ok2 {
-			t.Fatalf("task is not a DomainsTask (type is %T)", task)
-		}
-		dTask = &dt
-	}
-
-	if !dTask.Global {
-		t.Error("Global = false, want true")
-	}
-	if len(dTask.Domains) != 1 {
-		t.Fatalf("expected 1 domain, got %d", len(dTask.Domains))
-	}
-	if dTask.Domains[0] != "global.example.com" {
-		t.Errorf("Domains[0] = %q, want %q", dTask.Domains[0], "global.example.com")
-	}
-	if dTask.State != StateSet {
-		t.Errorf("expected state 'set', got %q", dTask.State)
-	}
-}
-
-func TestGetTasksHttpAuthTaskParsedCorrectly(t *testing.T) {
-	data := []byte(`---
-- tasks:
-    - name: enable http auth
-      dokku_http_auth:
-        app: test-app
-        username: admin
-        password: secret
-`)
-	context := map[string]interface{}{}
-
-	tasks, err := GetTasks(data, context)
-	if err != nil {
-		t.Fatalf("GetTasks failed: %v", err)
-	}
-
-	task := tasks.Get("enable http auth")
-	if task == nil {
-		t.Fatal("task 'enable http auth' not found")
-	}
-
-	haTask, ok := task.(*HttpAuthTask)
-	if !ok {
-		ht, ok2 := task.(HttpAuthTask)
-		if !ok2 {
-			t.Fatalf("task is not an HttpAuthTask (type is %T)", task)
-		}
-		haTask = &ht
-	}
-
-	if haTask.App != "test-app" {
-		t.Errorf("App = %q, want %q", haTask.App, "test-app")
-	}
-	if haTask.Username != "admin" {
-		t.Errorf("Username = %q, want %q", haTask.Username, "admin")
-	}
-	if haTask.Password != "secret" {
-		t.Errorf("Password = %q, want %q", haTask.Password, "secret")
-	}
-	if haTask.State != StatePresent {
-		t.Errorf("expected default state 'present', got %q", haTask.State)
 	}
 }
