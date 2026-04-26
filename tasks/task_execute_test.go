@@ -208,6 +208,71 @@ func TestNetworkTaskDesiredState(t *testing.T) {
 	}
 }
 
+func TestNginxPropertyTaskInvalidState(t *testing.T) {
+	task := NginxPropertyTask{App: "test-app", Property: "proxy-read-timeout", State: "invalid"}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute with invalid state should return an error")
+	}
+}
+
+func TestNginxPropertyTaskMissingApp(t *testing.T) {
+	task := NginxPropertyTask{Property: "proxy-read-timeout", Value: "120s", State: StatePresent}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("Execute without app and global=false should return an error")
+	}
+}
+
+func TestNginxPropertyTaskGlobalWithAppSet(t *testing.T) {
+	task := NginxPropertyTask{
+		App:      "test-app",
+		Global:   true,
+		Property: "proxy-read-timeout",
+		Value:    "120s",
+		State:    StatePresent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when both global and app are set")
+	}
+	if !strings.Contains(result.Error.Error(), "must not be set when 'global' is set to true") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestNginxPropertyTaskPresentWithoutValue(t *testing.T) {
+	task := NginxPropertyTask{
+		App:      "test-app",
+		Property: "proxy-read-timeout",
+		Value:    "",
+		State:    StatePresent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when present state has no value")
+	}
+	if !strings.Contains(result.Error.Error(), "invalid without a value") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestNginxPropertyTaskAbsentWithValue(t *testing.T) {
+	task := NginxPropertyTask{
+		App:      "test-app",
+		Property: "proxy-read-timeout",
+		Value:    "120s",
+		State:    StateAbsent,
+	}
+	result := task.Execute()
+	if result.Error == nil {
+		t.Fatal("expected error when absent state has a value")
+	}
+	if !strings.Contains(result.Error.Error(), "invalid with a value") {
+		t.Errorf("unexpected error: %v", result.Error)
+	}
+}
+
 func TestNetworkPropertyTaskInvalidState(t *testing.T) {
 	task := NetworkPropertyTask{App: "test-app", Property: "attach-post-create", State: "invalid"}
 	result := task.Execute()
@@ -500,6 +565,8 @@ func TestAllTasksDesiredState(t *testing.T) {
 		{"NetworkTask absent", &NetworkTask{Name: "test", State: StateAbsent}, StateAbsent},
 		{"NetworkPropertyTask present", &NetworkPropertyTask{App: "test", Property: "bind-all-interfaces", State: StatePresent}, StatePresent},
 		{"NetworkPropertyTask absent", &NetworkPropertyTask{App: "test", Property: "bind-all-interfaces", State: StateAbsent}, StateAbsent},
+		{"NginxPropertyTask present", &NginxPropertyTask{App: "test", Property: "proxy-read-timeout", State: StatePresent}, StatePresent},
+		{"NginxPropertyTask absent", &NginxPropertyTask{App: "test", Property: "proxy-read-timeout", State: StateAbsent}, StateAbsent},
 		{"PortsTask present", &PortsTask{App: "test", State: StatePresent}, StatePresent},
 		{"PortsTask absent", &PortsTask{App: "test", State: StateAbsent}, StateAbsent},
 		{"PsScaleTask present", &PsScaleTask{App: "test", Scale: map[string]int{"web": 1}, State: StatePresent}, StatePresent},
@@ -702,7 +769,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 20
+	expected := 21
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -724,6 +791,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&HttpAuthTask{}, "Manages HTTP authentication for a given dokku application"},
 		{&NetworkTask{}, "Creates or destroys a Docker network"},
 		{&NetworkPropertyTask{}, "Manages the network property for a given dokku application"},
+		{&NginxPropertyTask{}, "Manages the nginx configuration for a given dokku application"},
 		{&PortsTask{}, "Manages the ports for a given dokku application"},
 		{&PsScaleTask{}, "Manages the process scale for a given dokku application"},
 		{&ResourceLimitTask{}, "Manages the resource limits for a given dokku application"},
