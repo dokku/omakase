@@ -3,7 +3,7 @@ package tasks
 import (
 	"fmt"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // AppCloneTask clones an existing dokku app to a new app

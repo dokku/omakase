@@ -3,7 +3,7 @@ package tasks
 import (
 	"errors"
 	"fmt"
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 	"strings"
 )
 

@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // ServiceCreateTask creates or destroys a dokku service

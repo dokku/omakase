@@ -3,7 +3,7 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // StorageMountTask manages the storage for a given dokku application

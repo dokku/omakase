@@ -3,7 +3,7 @@ package tasks
 import (
 	"fmt"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // GitFromArchiveTask deploys a git repository from an archive URL

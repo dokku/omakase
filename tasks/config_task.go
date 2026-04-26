@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // ConfigTask manages the configuration for a given dokku application

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // AclAppTask manages the dokku-acl access list for a dokku application

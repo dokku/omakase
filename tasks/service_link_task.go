@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // ServiceLinkTask links or unlinks a dokku service to an app

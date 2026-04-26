@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"errors"
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // StorageEnsureTask manages the storage for a given dokku application

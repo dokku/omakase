@@ -1,10 +1,12 @@
-package main
+package commands
 
 import (
 	"fmt"
 	"io"
-	"docket/tasks"
 	"strconv"
+	"strings"
+
+	"github.com/dokku/docket/tasks"
 
 	sigil "github.com/gliderlabs/sigil"
 	flag "github.com/spf13/pflag"
@@ -74,6 +76,20 @@ func isFalseString(s string) bool {
 	return falseStrings[s]
 }
 
+func getTaskYamlFilename(s []string) string {
+	for i, arg := range s {
+		if arg == "--tasks" {
+			if len(s) > i+1 {
+				return s[i+1]
+			}
+		}
+		if taskFile, found := strings.CutPrefix(arg, "--tasks="); found {
+			return taskFile
+		}
+	}
+	return "tasks.yml"
+}
+
 func getInputVariables(data []byte) (map[string]*tasks.Input, error) {
 	vars := make(map[string]interface{})
 	render, err := sigil.Execute(data, vars, "tasks")
@@ -89,64 +105,54 @@ func getInputVariables(data []byte) (map[string]*tasks.Input, error) {
 	return parseInputYaml(out)
 }
 
-func parseArgs(data []byte) (map[string]interface{}, error) {
-	context := make(map[string]interface{})
+// registerInputFlags reads the task file inputs and registers a flag for each
+// dynamic input on the given FlagSet. It returns the Argument map keyed by
+// input name so the caller can collect values after flags.Parse.
+func registerInputFlags(f *flag.FlagSet, data []byte) (map[string]*Argument, error) {
+	arguments := make(map[string]*Argument)
 	inputs, err := getInputVariables(data)
 	if err != nil {
-		return context, err
+		return arguments, err
 	}
 
-	inputs["tasks"] = &tasks.Input{
-		Name:        "tasks",
-		Default:     "tasks.yml",
-		Description: "a yaml file containing a task list",
-	}
-
-	arguments := make(map[string]*Argument)
 	for _, input := range inputs {
-		arg := Argument{Required: input.Required}
+		if input.Name == "tasks" {
+			continue
+		}
+		arg := &Argument{Required: input.Required}
 		switch input.Type {
 		case "string", "":
-			arg.SetStringValue(flag.String(input.Name, input.Default, input.Description))
+			arg.SetStringValue(f.String(input.Name, input.Default, input.Description))
 		case "int":
 			i, err := strconv.Atoi(input.Default)
 			if err != nil {
-				return context, fmt.Errorf("Error parsing input '%s': %v", input.Name, err.Error())
+				return arguments, fmt.Errorf("Error parsing input '%s': %v", input.Name, err.Error())
 			}
-			arg.SetIntValue(flag.Int(input.Name, i, input.Description))
+			arg.SetIntValue(f.Int(input.Name, i, input.Description))
 		case "float":
-			f, err := strconv.ParseFloat(input.Default, 64)
+			ff, err := strconv.ParseFloat(input.Default, 64)
 			if err != nil {
-				return context, fmt.Errorf("Error parsing input '%s': %v", input.Name, err.Error())
+				return arguments, fmt.Errorf("Error parsing input '%s': %v", input.Name, err.Error())
 			}
-			arg.SetFloatValue(flag.Float64(input.Name, f, input.Description))
+			arg.SetFloatValue(f.Float64(input.Name, ff, input.Description))
 		case "bool":
 			if isTrueString(input.Default) {
-				arg.SetBoolValue(flag.Bool(input.Name, true, input.Description))
+				arg.SetBoolValue(f.Bool(input.Name, true, input.Description))
 			} else if isFalseString(input.Default) {
-				arg.SetBoolValue(flag.Bool(input.Name, false, input.Description))
+				arg.SetBoolValue(f.Bool(input.Name, false, input.Description))
 			} else {
-				return context, fmt.Errorf("Error parsing input '%s': invalid default value", input.Name)
+				return arguments, fmt.Errorf("Error parsing input '%s': invalid default value", input.Name)
 			}
 		default:
-			return context, fmt.Errorf("Error parsing input '%s': invalid type", input.Name)
+			return arguments, fmt.Errorf("Error parsing input '%s': invalid type", input.Name)
 		}
-		arguments[input.Name] = &arg
+		arguments[input.Name] = arg
 	}
 
-	flag.Parse()
-
-	for name, argument := range arguments {
-		if argument.Required && !argument.HasValue() {
-			return context, fmt.Errorf("Missing flag '--%s'", name)
-		}
-		context[name] = argument.GetValue()
-	}
-
-	return context, nil
+	return arguments, nil
 }
 
-func parseInputYaml(data []byte) (map[string]*tasks.Input, error) { // read variables and ensure they all exist
+func parseInputYaml(data []byte) (map[string]*tasks.Input, error) {
 	inputs := make(map[string]*tasks.Input)
 	t := tasks.Recipe{}
 	if err := yaml.Unmarshal(data, &t); err != nil {

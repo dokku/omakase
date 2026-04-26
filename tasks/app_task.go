@@ -1,7 +1,7 @@
 package tasks
 
 import (
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // AppTask creates or destroys an app

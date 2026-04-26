@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // startTestRegistry boots a temporary `registry:2` container on a high port

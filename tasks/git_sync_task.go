@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // GitSyncTask syncs a git repository to a dokku application

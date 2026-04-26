@@ -3,7 +3,7 @@ package tasks
 import (
 	"fmt"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // AppLockTask locks or unlocks a dokku application from deployment
