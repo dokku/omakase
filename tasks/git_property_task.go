@@ -32,11 +32,6 @@ func (e GitPropertyTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the git configuration
-func (t GitPropertyTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the git property task
 func (t GitPropertyTask) Doc() string {
 	return "Manages the git configuration for a given dokku application"

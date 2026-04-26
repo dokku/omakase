@@ -32,11 +32,6 @@ func (e ResourceLimitTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the resource limits
-func (t ResourceLimitTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the resource limit task
 func (t ResourceLimitTask) Doc() string {
 	return "Manages the resource limits for a given dokku application"

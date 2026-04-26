@@ -32,11 +32,6 @@ func (e ResourceReserveTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the resource reservations
-func (t ResourceReserveTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the resource reserve task
 func (t ResourceReserveTask) Doc() string {
 	return "Manages the resource reservations for a given dokku application"

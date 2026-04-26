@@ -646,8 +646,8 @@ func TestIntegrationGetTasksFullWorkflow(t *testing.T) {
 		if state.Error != nil {
 			t.Fatalf("task %q failed: %v", name, state.Error)
 		}
-		if state.State != task.DesiredState() {
-			t.Errorf("task %q: expected state %q, got %q", name, task.DesiredState(), state.State)
+		if state.State != state.DesiredState {
+			t.Errorf("task %q: expected state %q, got %q", name, state.DesiredState, state.State)
 		}
 	}
 }
@@ -1544,8 +1544,8 @@ func TestIntegrationMultiTaskWorkflow(t *testing.T) {
 		if state.Error != nil {
 			t.Fatalf("task %q failed: %v", name, state.Error)
 		}
-		if state.State != task.DesiredState() {
-			t.Errorf("task %q: expected state %q, got %q", name, task.DesiredState(), state.State)
+		if state.State != state.DesiredState {
+			t.Errorf("task %q: expected state %q, got %q", name, state.DesiredState, state.State)
 		}
 		if !state.Changed {
 			t.Errorf("task %q: expected changed=true on first run", name)

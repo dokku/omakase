@@ -65,6 +65,9 @@ type TaskOutputState struct {
 	// Changed is a flag indicating if the task was changed
 	Changed bool
 
+	// DesiredState is the desired state of the task
+	DesiredState State
+
 	// Error is the error of the task
 	Error error
 
@@ -80,9 +83,6 @@ type TaskOutputState struct {
 
 // Task represents a task
 type Task interface {
-	// DesiredState returns the desired state of the task
-	DesiredState() State
-
 	// Doc returns the docblock for the task
 	Doc() string
 

@@ -26,11 +26,6 @@ func (e ChecksToggleTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the checks plugin
-func (t ChecksToggleTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the checks toggle task
 func (t ChecksToggleTask) Doc() string {
 	return "Enables or disables the checks plugin for a given dokku application"

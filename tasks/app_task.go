@@ -27,11 +27,6 @@ func (e AppTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the app
-func (t AppTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the app task
 func (t AppTask) Doc() string {
 	return "Creates or destroys an app"

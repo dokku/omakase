@@ -26,11 +26,6 @@ func (e ProxyToggleTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the proxy
-func (t ProxyToggleTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the proxy toggle task
 func (t ProxyToggleTask) Doc() string {
 	return "Enables or disables the proxy plugin for a given dokku application"

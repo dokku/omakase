@@ -35,11 +35,6 @@ func (e DomainsTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the domains
-func (t DomainsTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the domains task
 func (t DomainsTask) Doc() string {
 	return "Manages the domains for a given dokku application or globally"

@@ -32,11 +32,6 @@ func (e BuilderPropertyTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the builder configuration
-func (t BuilderPropertyTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the builder property task
 func (t BuilderPropertyTask) Doc() string {
 	return "Manages the builder configuration for a given dokku application"

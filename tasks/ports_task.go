@@ -51,11 +51,6 @@ func (p PortMapping) String() string {
 	return fmt.Sprintf("%s:%d:%d", p.Scheme, p.Host, p.Container)
 }
 
-// DesiredState returns the desired state of the ports
-func (t PortsTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the ports task
 func (t PortsTask) Doc() string {
 	return "Manages the ports for a given dokku application"

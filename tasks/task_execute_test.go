@@ -13,18 +13,6 @@ func TestAppTaskInvalidState(t *testing.T) {
 	}
 }
 
-func TestAppTaskDesiredState(t *testing.T) {
-	task := AppTask{App: "test-app", State: StatePresent}
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
-	}
-
-	task = AppTask{App: "test-app", State: StateAbsent}
-	if task.DesiredState() != StateAbsent {
-		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
-	}
-}
-
 func TestBuilderPropertyTaskInvalidState(t *testing.T) {
 	task := BuilderPropertyTask{App: "test-app", Property: "selected", State: "invalid"}
 	result := task.Execute()
@@ -66,28 +54,6 @@ func TestDomainsTaskInvalidState(t *testing.T) {
 	result := task.Execute()
 	if result.Error == nil {
 		t.Fatal("Execute with invalid state should return an error")
-	}
-}
-
-func TestDomainsTaskDesiredState(t *testing.T) {
-	task := DomainsTask{App: "test-app", Domains: []string{"example.com"}, State: StatePresent}
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
-	}
-
-	task = DomainsTask{App: "test-app", Domains: []string{"example.com"}, State: StateAbsent}
-	if task.DesiredState() != StateAbsent {
-		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
-	}
-
-	task = DomainsTask{App: "test-app", Domains: []string{"example.com"}, State: StateSet}
-	if task.DesiredState() != StateSet {
-		t.Errorf("expected state 'set', got '%s'", task.DesiredState())
-	}
-
-	task = DomainsTask{App: "test-app", State: StateClear}
-	if task.DesiredState() != StateClear {
-		t.Errorf("expected state 'clear', got '%s'", task.DesiredState())
 	}
 }
 
@@ -146,18 +112,6 @@ func TestHttpAuthTaskInvalidState(t *testing.T) {
 	}
 }
 
-func TestHttpAuthTaskDesiredState(t *testing.T) {
-	task := HttpAuthTask{App: "test-app", State: StatePresent}
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
-	}
-
-	task = HttpAuthTask{App: "test-app", State: StateAbsent}
-	if task.DesiredState() != StateAbsent {
-		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
-	}
-}
-
 func TestHttpAuthTaskPresentWithoutUsername(t *testing.T) {
 	task := HttpAuthTask{App: "test-app", Password: "secret", State: StatePresent}
 	result := task.Execute()
@@ -193,18 +147,6 @@ func TestNetworkTaskInvalidState(t *testing.T) {
 	result := task.Execute()
 	if result.Error == nil {
 		t.Fatal("Execute with invalid state should return an error")
-	}
-}
-
-func TestNetworkTaskDesiredState(t *testing.T) {
-	task := NetworkTask{Name: "test-network", State: StatePresent}
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
-	}
-
-	task = NetworkTask{Name: "test-network", State: StateAbsent}
-	if task.DesiredState() != StateAbsent {
-		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
 	}
 }
 
@@ -448,13 +390,6 @@ func TestPsScaleTaskInvalidState(t *testing.T) {
 	}
 }
 
-func TestPsScaleTaskDesiredState(t *testing.T) {
-	task := PsScaleTask{App: "test-app", Scale: map[string]int{"web": 1}, State: StatePresent}
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
-	}
-}
-
 func TestPsScaleTaskEmptyScale(t *testing.T) {
 	task := PsScaleTask{App: "test-app", Scale: map[string]int{}, State: StatePresent}
 	result := task.Execute()
@@ -483,18 +418,6 @@ func TestResourceLimitTaskInvalidState(t *testing.T) {
 	}
 }
 
-func TestResourceLimitTaskDesiredState(t *testing.T) {
-	task := ResourceLimitTask{App: "test-app", State: StatePresent}
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
-	}
-
-	task = ResourceLimitTask{App: "test-app", State: StateAbsent}
-	if task.DesiredState() != StateAbsent {
-		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
-	}
-}
-
 func TestResourceLimitTaskEmptyResources(t *testing.T) {
 	task := ResourceLimitTask{App: "test-app", Resources: map[string]string{}, State: StatePresent}
 	result := task.Execute()
@@ -519,35 +442,11 @@ func TestServiceCreateTaskInvalidState(t *testing.T) {
 	}
 }
 
-func TestServiceCreateTaskDesiredState(t *testing.T) {
-	task := ServiceCreateTask{Service: "redis", Name: "test-service", State: StatePresent}
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
-	}
-
-	task = ServiceCreateTask{Service: "redis", Name: "test-service", State: StateAbsent}
-	if task.DesiredState() != StateAbsent {
-		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
-	}
-}
-
 func TestServiceLinkTaskInvalidState(t *testing.T) {
 	task := ServiceLinkTask{App: "test-app", Service: "redis", Name: "test-service", State: "invalid"}
 	result := task.Execute()
 	if result.Error == nil {
 		t.Fatal("Execute with invalid state should return an error")
-	}
-}
-
-func TestServiceLinkTaskDesiredState(t *testing.T) {
-	task := ServiceLinkTask{App: "test-app", Service: "redis", Name: "test-service", State: StatePresent}
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
-	}
-
-	task = ServiceLinkTask{App: "test-app", Service: "redis", Name: "test-service", State: StateAbsent}
-	if task.DesiredState() != StateAbsent {
-		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
 	}
 }
 
@@ -560,18 +459,6 @@ func TestResourceReserveTaskInvalidState(t *testing.T) {
 	result := task.Execute()
 	if result.Error == nil {
 		t.Fatal("Execute with invalid state should return an error")
-	}
-}
-
-func TestResourceReserveTaskDesiredState(t *testing.T) {
-	task := ResourceReserveTask{App: "test-app", State: StatePresent}
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
-	}
-
-	task = ResourceReserveTask{App: "test-app", State: StateAbsent}
-	if task.DesiredState() != StateAbsent {
-		t.Errorf("expected state 'absent', got '%s'", task.DesiredState())
 	}
 }
 
@@ -588,77 +475,6 @@ func TestResourceReserveTaskNilResources(t *testing.T) {
 	result := task.Execute()
 	if result.Error == nil {
 		t.Fatal("Execute with nil resources and state=present should return an error")
-	}
-}
-
-func TestGitSyncTaskDesiredState(t *testing.T) {
-	task := GitSyncTask{
-		App:    "test-app",
-		Remote: "https://github.com/example/repo",
-		State:  StatePresent,
-	}
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
-	}
-}
-
-func TestAllTasksDesiredState(t *testing.T) {
-	tests := []struct {
-		name  string
-		task  Task
-		state State
-	}{
-		{"AppTask present", &AppTask{App: "test", State: StatePresent}, StatePresent},
-		{"AppTask absent", &AppTask{App: "test", State: StateAbsent}, StateAbsent},
-		{"BuilderPropertyTask present", &BuilderPropertyTask{App: "test", Property: "selected", State: StatePresent}, StatePresent},
-		{"BuilderPropertyTask absent", &BuilderPropertyTask{App: "test", Property: "selected", State: StateAbsent}, StateAbsent},
-		{"ChecksToggleTask present", &ChecksToggleTask{App: "test", State: StatePresent}, StatePresent},
-		{"ChecksToggleTask absent", &ChecksToggleTask{App: "test", State: StateAbsent}, StateAbsent},
-		{"ConfigTask present", &ConfigTask{App: "test", State: StatePresent}, StatePresent},
-		{"ConfigTask absent", &ConfigTask{App: "test", State: StateAbsent}, StateAbsent},
-		{"DomainsTask present", &DomainsTask{App: "test", Domains: []string{"example.com"}, State: StatePresent}, StatePresent},
-		{"DomainsTask absent", &DomainsTask{App: "test", Domains: []string{"example.com"}, State: StateAbsent}, StateAbsent},
-		{"DomainsTask set", &DomainsTask{App: "test", Domains: []string{"example.com"}, State: StateSet}, StateSet},
-		{"DomainsTask clear", &DomainsTask{App: "test", State: StateClear}, StateClear},
-		{"DomainsToggleTask present", &DomainsToggleTask{App: "test", State: StatePresent}, StatePresent},
-		{"DomainsToggleTask absent", &DomainsToggleTask{App: "test", State: StateAbsent}, StateAbsent},
-		{"GitFromImageTask deployed", &GitFromImageTask{App: "test", Image: "nginx", State: StateDeployed}, StateDeployed},
-		{"GitPropertyTask present", &GitPropertyTask{App: "test", Property: "deploy-branch", State: StatePresent}, StatePresent},
-		{"GitPropertyTask absent", &GitPropertyTask{App: "test", Property: "deploy-branch", State: StateAbsent}, StateAbsent},
-		{"HttpAuthTask present", &HttpAuthTask{App: "test", Username: "admin", Password: "secret", State: StatePresent}, StatePresent},
-		{"HttpAuthTask absent", &HttpAuthTask{App: "test", State: StateAbsent}, StateAbsent},
-		{"GitSyncTask present", &GitSyncTask{App: "test", Remote: "https://example.com/repo", State: StatePresent}, StatePresent},
-		{"NetworkTask present", &NetworkTask{Name: "test", State: StatePresent}, StatePresent},
-		{"NetworkTask absent", &NetworkTask{Name: "test", State: StateAbsent}, StateAbsent},
-		{"NetworkPropertyTask present", &NetworkPropertyTask{App: "test", Property: "bind-all-interfaces", State: StatePresent}, StatePresent},
-		{"NetworkPropertyTask absent", &NetworkPropertyTask{App: "test", Property: "bind-all-interfaces", State: StateAbsent}, StateAbsent},
-		{"NginxPropertyTask present", &NginxPropertyTask{App: "test", Property: "proxy-read-timeout", State: StatePresent}, StatePresent},
-		{"NginxPropertyTask absent", &NginxPropertyTask{App: "test", Property: "proxy-read-timeout", State: StateAbsent}, StateAbsent},
-		{"PortsTask present", &PortsTask{App: "test", State: StatePresent}, StatePresent},
-		{"PortsTask absent", &PortsTask{App: "test", State: StateAbsent}, StateAbsent},
-		{"PsScaleTask present", &PsScaleTask{App: "test", Scale: map[string]int{"web": 1}, State: StatePresent}, StatePresent},
-		{"ResourceLimitTask present", &ResourceLimitTask{App: "test", Resources: map[string]string{"cpu": "100"}, State: StatePresent}, StatePresent},
-		{"ResourceLimitTask absent", &ResourceLimitTask{App: "test", State: StateAbsent}, StateAbsent},
-		{"ResourceReserveTask present", &ResourceReserveTask{App: "test", Resources: map[string]string{"cpu": "100"}, State: StatePresent}, StatePresent},
-		{"ResourceReserveTask absent", &ResourceReserveTask{App: "test", State: StateAbsent}, StateAbsent},
-		{"ServiceCreateTask present", &ServiceCreateTask{Service: "redis", Name: "test", State: StatePresent}, StatePresent},
-		{"ServiceCreateTask absent", &ServiceCreateTask{Service: "redis", Name: "test", State: StateAbsent}, StateAbsent},
-		{"ServiceLinkTask present", &ServiceLinkTask{App: "test", Service: "redis", Name: "test", State: StatePresent}, StatePresent},
-		{"ServiceLinkTask absent", &ServiceLinkTask{App: "test", Service: "redis", Name: "test", State: StateAbsent}, StateAbsent},
-		{"ProxyToggleTask present", &ProxyToggleTask{App: "test", State: StatePresent}, StatePresent},
-		{"ProxyToggleTask absent", &ProxyToggleTask{App: "test", State: StateAbsent}, StateAbsent},
-		{"StorageEnsureTask present", &StorageEnsureTask{App: "test", Chown: "heroku", State: StatePresent}, StatePresent},
-		{"StorageEnsureTask absent", &StorageEnsureTask{App: "test", Chown: "heroku", State: StateAbsent}, StateAbsent},
-		{"StorageMountTask present", &StorageMountTask{App: "test", HostDir: "/host", ContainerDir: "/container", State: StatePresent}, StatePresent},
-		{"StorageMountTask absent", &StorageMountTask{App: "test", HostDir: "/host", ContainerDir: "/container", State: StateAbsent}, StateAbsent},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.task.DesiredState(); got != tt.state {
-				t.Errorf("DesiredState() = %q, want %q", got, tt.state)
-			}
-		})
 	}
 }
 

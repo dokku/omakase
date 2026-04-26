@@ -26,11 +26,6 @@ func (e DomainsToggleTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the domains plugin
-func (t DomainsToggleTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the domains toggle task
 func (t DomainsToggleTask) Doc() string {
 	return "Enables or disables the domains plugin for a given dokku application"
