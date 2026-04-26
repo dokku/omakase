@@ -164,6 +164,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_http_auth",
 		"dokku_network",
 		"dokku_network_property",
+		"dokku_nginx_property",
 		"dokku_ports",
 		"dokku_proxy_toggle",
 		"dokku_ps_scale",
