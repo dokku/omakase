@@ -34,11 +34,6 @@ func (e ServiceLinkTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the service link
-func (t ServiceLinkTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the service link task
 func (t ServiceLinkTask) Doc() string {
 	return "Links or unlinks a dokku service to an app"

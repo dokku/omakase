@@ -35,11 +35,6 @@ func (e HttpAuthTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the HTTP auth
-func (t HttpAuthTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the HTTP auth task
 func (t HttpAuthTask) Doc() string {
 	return "Manages HTTP authentication for a given dokku application"

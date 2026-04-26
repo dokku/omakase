@@ -36,11 +36,6 @@ func (e ConfigTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the configuration
-func (t ConfigTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the config task
 func (t ConfigTask) Doc() string {
 	return "Manages the configuration for a given dokku application"

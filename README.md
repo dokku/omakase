@@ -133,12 +133,11 @@ type LollipopTask struct {
   State State `required:"true" yaml:"state" default:"present"`
 }
 
-func (t LollipopTask) DesiredState() State {
-  return t.State
-}
-
-func (t LollipopTask) Execute() (string, error) {
-  return "", nil
+func (t LollipopTask) Execute() TaskOutputState {
+  return DispatchState(t.State, map[State]func() TaskOutputState{
+    "present": func() TaskOutputState { /* ... */ },
+    "absent":  func() TaskOutputState { /* ... */ },
+  })
 }
 
 func init() {
@@ -148,13 +147,6 @@ func init() {
 
 The `LollipopTask` struct contains the fields necessary for the task. The only necessary field is `State`, which holds the desired state of the task. All other fields are completely custom for the task at hand.
 
-The `DesiredState()` function must return `t.State`.
-
-The `Execute()` function should actually execute the task. The return values:
-
-- `string`: a string holding the current state
-- `error`: Whether an error occurred during processing
-
-> Todo: How do we expose stdout? Should the Status object actually be more structured? Should it serialize to json directly for use by ansible?
+The `Execute()` function should use `DispatchState()` to route to the appropriate handler based on the task's state. `DispatchState` automatically sets `DesiredState` on the returned `TaskOutputState`.
 
 The `init()` function registers the task for usage within a recipe.

@@ -27,11 +27,6 @@ func (e NetworkTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the network
-func (t NetworkTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the network task
 func (t NetworkTask) Doc() string {
 	return "Creates or destroys a Docker network"

@@ -36,11 +36,6 @@ func (e PsScaleTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the process scale
-func (t PsScaleTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the ps scale task
 func (t PsScaleTask) Doc() string {
 	return "Manages the process scale for a given dokku application"

@@ -31,11 +31,6 @@ func (e ServiceCreateTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the service
-func (t ServiceCreateTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the service create task
 func (t ServiceCreateTask) Doc() string {
 	return "Creates or destroys a dokku service"

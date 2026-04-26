@@ -50,8 +50,8 @@ func main() {
 			log.Fatalf("execute error: %v", state.Error)
 		}
 
-		if state.State != task.DesiredState() {
-			log.Fatalf("error: Invalid state found, expected=%v actual=%v", task.DesiredState(), state.State)
+		if state.State != state.DesiredState {
+			log.Fatalf("error: Invalid state found, expected=%v actual=%v", state.DesiredState, state.State)
 		}
 	}
 }

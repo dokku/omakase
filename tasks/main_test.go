@@ -58,8 +58,12 @@ func TestGetTasksValidAppTask(t *testing.T) {
 		t.Fatal("task 'create test app' not found")
 	}
 
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", task.DesiredState())
+	appTask, ok := task.(*AppTask)
+	if !ok {
+		t.Fatalf("task is not an AppTask (type is %T)", task)
+	}
+	if appTask.State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", appTask.State)
 	}
 }
 
@@ -243,8 +247,12 @@ func TestGetTasksTaskWithDefaultState(t *testing.T) {
 		t.Fatal("task not found")
 	}
 
-	if task.DesiredState() != StatePresent {
-		t.Errorf("expected default state 'present', got %q", task.DesiredState())
+	appTask, ok := task.(*AppTask)
+	if !ok {
+		t.Fatalf("task is not an AppTask (type is %T)", task)
+	}
+	if appTask.State != StatePresent {
+		t.Errorf("expected default state 'present', got %q", appTask.State)
 	}
 }
 
@@ -670,8 +678,8 @@ func TestGetTasksServiceCreateTaskParsedCorrectly(t *testing.T) {
 	if scTask.Name != "my-redis" {
 		t.Errorf("Name = %q, want %q", scTask.Name, "my-redis")
 	}
-	if scTask.DesiredState() != StatePresent {
-		t.Errorf("expected default state 'present', got %q", scTask.DesiredState())
+	if scTask.State != StatePresent {
+		t.Errorf("expected default state 'present', got %q", scTask.State)
 	}
 }
 
@@ -754,8 +762,8 @@ func TestGetTasksServiceLinkTaskParsedCorrectly(t *testing.T) {
 	if slTask.Name != "my-redis" {
 		t.Errorf("Name = %q, want %q", slTask.Name, "my-redis")
 	}
-	if slTask.DesiredState() != StatePresent {
-		t.Errorf("expected default state 'present', got %q", slTask.DesiredState())
+	if slTask.State != StatePresent {
+		t.Errorf("expected default state 'present', got %q", slTask.State)
 	}
 }
 
@@ -884,8 +892,8 @@ func TestGetTasksNetworkTaskParsedCorrectly(t *testing.T) {
 	if netTask.Name != "test-network" {
 		t.Errorf("Name = %q, want %q", netTask.Name, "test-network")
 	}
-	if netTask.DesiredState() != StatePresent {
-		t.Errorf("expected default state 'present', got %q", netTask.DesiredState())
+	if netTask.State != StatePresent {
+		t.Errorf("expected default state 'present', got %q", netTask.State)
 	}
 }
 
@@ -933,8 +941,8 @@ func TestGetTasksDomainsTaskParsedCorrectly(t *testing.T) {
 	if dTask.Domains[1] != "www.example.com" {
 		t.Errorf("Domains[1] = %q, want %q", dTask.Domains[1], "www.example.com")
 	}
-	if dTask.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got %q", dTask.DesiredState())
+	if dTask.State != StatePresent {
+		t.Errorf("expected state 'present', got %q", dTask.State)
 	}
 }
 
@@ -978,8 +986,8 @@ func TestGetTasksDomainsTaskGlobalParsedCorrectly(t *testing.T) {
 	if dTask.Domains[0] != "global.example.com" {
 		t.Errorf("Domains[0] = %q, want %q", dTask.Domains[0], "global.example.com")
 	}
-	if dTask.DesiredState() != StateSet {
-		t.Errorf("expected state 'set', got %q", dTask.DesiredState())
+	if dTask.State != StateSet {
+		t.Errorf("expected state 'set', got %q", dTask.State)
 	}
 }
 
@@ -1022,7 +1030,7 @@ func TestGetTasksHttpAuthTaskParsedCorrectly(t *testing.T) {
 	if haTask.Password != "secret" {
 		t.Errorf("Password = %q, want %q", haTask.Password, "secret")
 	}
-	if haTask.DesiredState() != StatePresent {
-		t.Errorf("expected default state 'present', got %q", haTask.DesiredState())
+	if haTask.State != StatePresent {
+		t.Errorf("expected default state 'present', got %q", haTask.State)
 	}
 }

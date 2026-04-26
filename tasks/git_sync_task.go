@@ -43,11 +43,6 @@ func (e GitSyncTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the git sync
-func (t GitSyncTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the git sync task
 func (t GitSyncTask) Doc() string {
 	return "Syncs a git repository to a dokku application"

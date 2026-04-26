@@ -32,11 +32,6 @@ func (e NetworkPropertyTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the network property
-func (t NetworkPropertyTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the network property task
 func (t NetworkPropertyTask) Doc() string {
 	return "Manages the network property for a given dokku application"

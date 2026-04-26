@@ -35,11 +35,6 @@ func (e StorageMountTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the storage
-func (t StorageMountTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the storage mount task
 func (t StorageMountTask) Doc() string {
 	return "Mounts or unmounts the storage for a given dokku application"

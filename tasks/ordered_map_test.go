@@ -10,10 +10,9 @@ type mockTask struct {
 	state State
 }
 
-func (m mockTask) DesiredState() State              { return m.state }
-func (m mockTask) Doc() string                      { return "" }
-func (m mockTask) Examples() ([]Doc, error)         { return nil, nil }
-func (m mockTask) Execute() TaskOutputState         { return TaskOutputState{State: m.state} }
+func (m mockTask) Doc() string              { return "" }
+func (m mockTask) Examples() ([]Doc, error) { return nil, nil }
+func (m mockTask) Execute() TaskOutputState { return TaskOutputState{State: m.state} }
 
 func TestOrderedStringTaskMapSetAndGet(t *testing.T) {
 	m := OrderedStringTaskMap{}
@@ -26,8 +25,8 @@ func TestOrderedStringTaskMapSetAndGet(t *testing.T) {
 		t.Fatal("Get returned nil for existing key")
 	}
 
-	if got.DesiredState() != StatePresent {
-		t.Errorf("expected state 'present', got '%s'", got.DesiredState())
+	if got.Execute().State != StatePresent {
+		t.Errorf("expected state 'present', got '%s'", got.Execute().State)
 	}
 }
 
@@ -90,8 +89,8 @@ func TestOrderedStringTaskMapOverwriteValue(t *testing.T) {
 	if got == nil {
 		t.Fatal("Get returned nil for overwritten key")
 	}
-	if got.DesiredState() != StateAbsent {
-		t.Errorf("expected overwritten state 'absent', got '%s'", got.DesiredState())
+	if got.Execute().State != StateAbsent {
+		t.Errorf("expected overwritten state 'absent', got '%s'", got.Execute().State)
 	}
 
 	// Keys will contain the key twice (current implementation appends without dedup)

@@ -41,11 +41,6 @@ func (e GitFromImageTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the git repository
-func (t GitFromImageTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the git from image task
 func (t GitFromImageTask) Doc() string {
 	return "Deploys a git repository from a docker image"

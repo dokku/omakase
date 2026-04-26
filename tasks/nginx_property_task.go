@@ -32,11 +32,6 @@ func (e NginxPropertyTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the nginx configuration
-func (t NginxPropertyTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the nginx property task
 func (t NginxPropertyTask) Doc() string {
 	return "Manages the nginx configuration for a given dokku application"

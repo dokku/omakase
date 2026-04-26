@@ -31,11 +31,6 @@ func (e StorageEnsureTaskExample) GetName() string {
 	return e.Name
 }
 
-// DesiredState returns the desired state of the storage
-func (t StorageEnsureTask) DesiredState() State {
-	return t.State
-}
-
 // Doc returns the docblock for the storage ensure task
 func (t StorageEnsureTask) Doc() string {
 	return "Ensures the storage for a given dokku application"

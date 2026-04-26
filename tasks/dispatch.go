@@ -12,5 +12,7 @@ func DispatchState(state State, funcMap map[State]func() TaskOutputState) TaskOu
 		}
 	}
 
-	return fn()
+	result := fn()
+	result.DesiredState = state
+	return result
 }
