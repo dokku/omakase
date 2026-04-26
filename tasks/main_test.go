@@ -175,6 +175,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_ps_scale",
 		"dokku_resource_limit",
 		"dokku_resource_reserve",
+		"dokku_scheduler_property",
 		"dokku_service_create",
 		"dokku_service_link",
 		"dokku_storage_ensure",
