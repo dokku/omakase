@@ -2,13 +2,13 @@
 
 Manages the cron configuration for a given dokku application
 
-## Setting the mailto address for an app
+## Enabling maintenance mode for an app
 
 ```yaml
 dokku_cron_property:
     app: node-js-app
-    property: mailto
-    value: ops@example.com
+    property: maintenance
+    value: "true"
 ```
 
 ## Setting the mailto address globally
@@ -21,10 +21,10 @@ dokku_cron_property:
     value: ops@example.com
 ```
 
-## Clearing the mailto address for an app
+## Clearing the maintenance mode for an app
 
 ```yaml
 dokku_cron_property:
     app: node-js-app
-    property: mailto
+    property: maintenance
 ```

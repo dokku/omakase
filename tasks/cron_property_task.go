@@ -41,11 +41,11 @@ func (t CronPropertyTask) Doc() string {
 func (t CronPropertyTask) Examples() ([]Doc, error) {
 	return MarshalExamples([]CronPropertyTaskExample{
 		{
-			Name: "Setting the mailto address for an app",
+			Name: "Enabling maintenance mode for an app",
 			CronPropertyTask: CronPropertyTask{
 				App:      "node-js-app",
-				Property: "mailto",
-				Value:    "ops@example.com",
+				Property: "maintenance",
+				Value:    "true",
 			},
 		},
 		{
@@ -57,10 +57,10 @@ func (t CronPropertyTask) Examples() ([]Doc, error) {
 			},
 		},
 		{
-			Name: "Clearing the mailto address for an app",
+			Name: "Clearing the maintenance mode for an app",
 			CronPropertyTask: CronPropertyTask{
 				App:      "node-js-app",
-				Property: "mailto",
+				Property: "maintenance",
 			},
 		},
 	})

@@ -16,8 +16,8 @@ func TestIntegrationCronProperty(t *testing.T) {
 	// set cron property
 	setTask := CronPropertyTask{
 		App:      appName,
-		Property: "mailto",
-		Value:    "ops@example.com",
+		Property: "maintenance",
+		Value:    "true",
 		State:    StatePresent,
 	}
 	result := setTask.Execute()
@@ -31,7 +31,7 @@ func TestIntegrationCronProperty(t *testing.T) {
 	// unset cron property
 	unsetTask := CronPropertyTask{
 		App:      appName,
-		Property: "mailto",
+		Property: "maintenance",
 		State:    StateAbsent,
 	}
 	result = unsetTask.Execute()
