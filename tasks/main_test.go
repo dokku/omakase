@@ -176,6 +176,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_network",
 		"dokku_network_property",
 		"dokku_nginx_property",
+		"dokku_openresty_property",
 		"dokku_ports",
 		"dokku_proxy_toggle",
 		"dokku_ps_property",
@@ -455,7 +456,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 31
+	expected := 32
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -486,6 +487,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&NetworkTask{}, "Creates or destroys a Docker network"},
 		{&NetworkPropertyTask{}, "Manages the network property for a given dokku application"},
 		{&NginxPropertyTask{}, "Manages the nginx configuration for a given dokku application"},
+		{&OpenrestyPropertyTask{}, "Manages the openresty configuration for a given dokku application"},
 		{&PortsTask{}, "Manages the ports for a given dokku application"},
 		{&PsScaleTask{}, "Manages the process scale for a given dokku application"},
 		{&ResourceLimitTask{}, "Manages the resource limits for a given dokku application"},
