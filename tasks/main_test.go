@@ -185,6 +185,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_git_sync",
 		"dokku_haproxy_property",
 		"dokku_http_auth",
+		"dokku_letsencrypt_property",
 		"dokku_logs_property",
 		"dokku_network",
 		"dokku_network_property",
@@ -474,7 +475,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 50
+	expected := 51
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -514,6 +515,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&GitSyncTask{}, "Syncs a git repository to a dokku application"},
 		{&HaproxyPropertyTask{}, "Manages the haproxy configuration for a given dokku application"},
 		{&HttpAuthTask{}, "Manages HTTP authentication for a given dokku application"},
+		{&LetsencryptPropertyTask{}, "Manages the letsencrypt configuration for a given dokku application"},
 		{&LogsPropertyTask{}, "Manages the logs configuration for a given dokku application"},
 		{&NetworkTask{}, "Creates or destroys a Docker network"},
 		{&NetworkPropertyTask{}, "Manages the network property for a given dokku application"},

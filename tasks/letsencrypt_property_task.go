@@ -1,0 +1,85 @@
+package tasks
+
+// LetsencryptPropertyTask manages the letsencrypt configuration for a given dokku application
+type LetsencryptPropertyTask struct {
+	// App is the name of the app. Required if Global is false.
+	App string `required:"false" yaml:"app"`
+
+	// Global is a flag indicating if the letsencrypt configuration should be applied globally
+	Global bool `required:"false" yaml:"global,omitempty"`
+
+	// Property is the name of the letsencrypt property to set
+	Property string `required:"true" yaml:"property"`
+
+	// Value is the value to set for the letsencrypt property
+	Value string `required:"false" yaml:"value,omitempty"`
+
+	// State is the desired state of the letsencrypt configuration
+	State State `required:"true" yaml:"state,omitempty" default:"present" options:"present,absent"`
+}
+
+// LetsencryptPropertyTaskExample contains an example of a LetsencryptPropertyTask
+type LetsencryptPropertyTaskExample struct {
+	// Name is the task name holding the LetsencryptPropertyTask description
+	Name string `yaml:"-"`
+
+	// LetsencryptPropertyTask is the LetsencryptPropertyTask configuration
+	LetsencryptPropertyTask LetsencryptPropertyTask `yaml:"dokku_letsencrypt_property"`
+}
+
+// GetName returns the name of the example
+func (e LetsencryptPropertyTaskExample) GetName() string {
+	return e.Name
+}
+
+// Doc returns the docblock for the letsencrypt property task
+func (t LetsencryptPropertyTask) Doc() string {
+	return "Manages the letsencrypt configuration for a given dokku application"
+}
+
+// Examples returns the examples for the letsencrypt property task
+func (t LetsencryptPropertyTask) Examples() ([]Doc, error) {
+	return MarshalExamples([]LetsencryptPropertyTaskExample{
+		{
+			Name: "Setting the letsencrypt email for an app",
+			LetsencryptPropertyTask: LetsencryptPropertyTask{
+				App:      "node-js-app",
+				Property: "email",
+				Value:    "admin@example.com",
+			},
+		},
+		{
+			Name: "Setting the dns provider for an app",
+			LetsencryptPropertyTask: LetsencryptPropertyTask{
+				App:      "node-js-app",
+				Property: "dns-provider",
+				Value:    "namecheap",
+			},
+		},
+		{
+			Name: "Setting a dns-provider-* env var globally",
+			LetsencryptPropertyTask: LetsencryptPropertyTask{
+				Global:   true,
+				Property: "dns-provider-NAMECHEAP_API_USER",
+				Value:    "deploy-bot",
+			},
+		},
+		{
+			Name: "Clearing the letsencrypt email for an app",
+			LetsencryptPropertyTask: LetsencryptPropertyTask{
+				App:      "node-js-app",
+				Property: "email",
+			},
+		},
+	})
+}
+
+// Execute sets or unsets the letsencrypt property
+func (t LetsencryptPropertyTask) Execute() TaskOutputState {
+	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "letsencrypt:set")
+}
+
+// init registers the LetsencryptPropertyTask with the task registry
+func init() {
+	RegisterTask(&LetsencryptPropertyTask{})
+}
