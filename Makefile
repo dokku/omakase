@@ -81,17 +81,23 @@ build/linux/$(NAME)-amd64:
 										-ldflags "-s -w -X main.Version=$(VERSION)" \
 										-o build/linux/$(NAME)-amd64
 
-build/linux/$(NAME)-amd64:
-	mkdir -p build/linux
-	CGO_ENABLED=0 GOOS=linux go build -a -asmflags=-trimpath=/src -gcflags=-trimpath=/src \
-										-ldflags "-s -w -X main.Version=$(VERSION)" \
-										-o build/linux/$(NAME)-amd64
-
 build/linux/$(NAME)-arm64:
 	mkdir -p build/linux
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -asmflags=-trimpath=/src -gcflags=-trimpath=/src \
 										-ldflags "-s -w -X main.Version=$(VERSION)" \
 										-o build/linux/$(NAME)-arm64
+
+build/windows/$(NAME)-amd64.exe:
+	mkdir -p build/windows
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -a -asmflags=-trimpath=/src -gcflags=-trimpath=/src \
+										-ldflags "-s -w -X main.Version=$(VERSION)" \
+										-o build/windows/$(NAME)-amd64.exe
+
+build/windows/$(NAME)-arm64.exe:
+	mkdir -p build/windows
+	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -a -asmflags=-trimpath=/src -gcflags=-trimpath=/src \
+										-ldflags "-s -w -X main.Version=$(VERSION)" \
+										-o build/windows/$(NAME)-arm64.exe
 
 build/deb/$(NAME)_$(VERSION)_amd64.deb: build/linux/$(NAME)-amd64
 	export SOURCE_DATE_EPOCH=$(shell git log -1 --format=%ct) \

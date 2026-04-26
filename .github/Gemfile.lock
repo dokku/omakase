@@ -1,0 +1,70 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    abbrev (0.1.2)
+    arr-pm (0.0.12)
+    backports (3.25.3)
+    cabin (0.9.1)
+    clamp (1.5.2)
+    domain_name (0.6.20240107)
+    dotenv (2.8.1)
+    fpm (1.17.0)
+      arr-pm (~> 0.0.11)
+      backports (>= 2.6.2)
+      cabin (>= 0.9.1)
+      clamp (>= 1.0.0)
+      pleaserun (~> 0.0.29)
+      rexml
+      stud
+    highline (2.1.0)
+    http-accept (1.7.0)
+    http-cookie (1.1.6)
+      domain_name (~> 0.5)
+    insist (1.0.0)
+    json (2.19.4)
+    logger (1.7.0)
+    mime-types (3.7.0)
+      logger
+      mime-types-data (~> 3.2025, >= 3.2025.0507)
+    mime-types-data (3.2026.0414)
+    mustache (0.99.8)
+    netrc (0.11.0)
+    package_cloud (0.3.15)
+      abbrev (~> 0.1)
+      highline (~> 2.0)
+      json (~> 2.9)
+      rainbow (~> 2.2)
+      rest-client (~> 2.0)
+      thor (~> 1.2)
+    pleaserun (0.0.33)
+      cabin (> 0)
+      clamp
+      dotenv (~> 2)
+      insist
+      mustache (= 0.99.8)
+      stud
+    rainbow (2.2.2)
+      rake
+    rake (13.4.2)
+    rest-client (2.1.0)
+      http-accept (>= 1.7.0, < 2.0)
+      http-cookie (>= 1.0.2, < 2.0)
+      mime-types (>= 1.16, < 4.0)
+      netrc (~> 0.8)
+    rexml (3.4.4)
+    stud (0.0.23)
+    thor (1.5.0)
+
+PLATFORMS
+  arm64-darwin-25
+  ruby
+
+DEPENDENCIES
+  fpm
+  package_cloud
+
+RUBY VERSION
+   ruby 3.4.7p58
+
+BUNDLED WITH
+   2.6.9
