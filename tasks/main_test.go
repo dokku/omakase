@@ -451,7 +451,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 26
+	expected := 27
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -464,6 +464,7 @@ func TestTaskDocStrings(t *testing.T) {
 	}{
 		{&AppTask{}, "Creates or destroys an app"},
 		{&BuilderPropertyTask{}, "Manages the builder configuration for a given dokku application"},
+		{&BuildpacksPropertyTask{}, "Manages the buildpacks configuration for a given dokku application"},
 		{&ChecksPropertyTask{}, "Manages the checks configuration for a given dokku application"},
 		{&ChecksToggleTask{}, "Enables or disables the checks plugin for a given dokku application"},
 		{&ConfigTask{}, "Manages the configuration for a given dokku application"},

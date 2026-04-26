@@ -1,0 +1,77 @@
+package tasks
+
+// BuildpacksPropertyTask manages the buildpacks configuration for a given dokku application
+type BuildpacksPropertyTask struct {
+	// App is the name of the app. Required if Global is false.
+	App string `required:"false" yaml:"app"`
+
+	// Global is a flag indicating if the buildpacks configuration should be applied globally
+	Global bool `required:"false" yaml:"global,omitempty"`
+
+	// Property is the name of the buildpacks property to set
+	Property string `required:"true" yaml:"property"`
+
+	// Value is the value to set for the buildpacks property
+	Value string `required:"false" yaml:"value,omitempty"`
+
+	// State is the desired state of the buildpacks configuration
+	State State `required:"true" yaml:"state,omitempty" default:"present" options:"present,absent"`
+}
+
+// BuildpacksPropertyTaskExample contains an example of a BuildpacksPropertyTask
+type BuildpacksPropertyTaskExample struct {
+	// Name is the task name holding the BuildpacksPropertyTask description
+	Name string `yaml:"-"`
+
+	// BuildpacksPropertyTask is the BuildpacksPropertyTask configuration
+	BuildpacksPropertyTask BuildpacksPropertyTask `yaml:"dokku_buildpacks_property"`
+}
+
+// GetName returns the name of the example
+func (e BuildpacksPropertyTaskExample) GetName() string {
+	return e.Name
+}
+
+// Doc returns the docblock for the buildpacks property task
+func (t BuildpacksPropertyTask) Doc() string {
+	return "Manages the buildpacks configuration for a given dokku application"
+}
+
+// Examples returns the examples for the buildpacks property task
+func (t BuildpacksPropertyTask) Examples() ([]Doc, error) {
+	return MarshalExamples([]BuildpacksPropertyTaskExample{
+		{
+			Name: "Setting the stack value for an app",
+			BuildpacksPropertyTask: BuildpacksPropertyTask{
+				App:      "node-js-app",
+				Property: "stack",
+				Value:    "gliderlabs/herokuish:latest",
+			},
+		},
+		{
+			Name: "Setting the stack value globally",
+			BuildpacksPropertyTask: BuildpacksPropertyTask{
+				Global:   true,
+				Property: "stack",
+				Value:    "gliderlabs/herokuish:latest",
+			},
+		},
+		{
+			Name: "Clearing the stack value for an app",
+			BuildpacksPropertyTask: BuildpacksPropertyTask{
+				App:      "node-js-app",
+				Property: "stack",
+			},
+		},
+	})
+}
+
+// Execute sets or unsets the buildpacks property
+func (t BuildpacksPropertyTask) Execute() TaskOutputState {
+	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "buildpacks:set-property")
+}
+
+// init registers the BuildpacksPropertyTask with the task registry
+func init() {
+	RegisterTask(&BuildpacksPropertyTask{})
+}
