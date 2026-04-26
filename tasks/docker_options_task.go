@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // DockerOptionsTask manages docker-options for a given dokku application

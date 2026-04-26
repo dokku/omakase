@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // RegistryAuthTask manages docker registry authentication for a dokku application or globally

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // BuildpacksTask manages the buildpacks for a given dokku application

@@ -34,17 +34,19 @@ Run it:
 
 ```shell
 # from the same directory as the tasks.yml
-docket
+docket apply
 ```
+
+Running `docket` with no subcommand prints the available commands. Use `docket apply` to execute a task file, or `docket version` to print the binary's version.
 
 A task file can also be specified via flag, and may be a file retrieved via http:
 
 ```shell
 # alternate path
-docket --tasks path/to/task.yml
+docket apply --tasks path/to/task.yml
 
 # html file
-docket --tasks http://dokku.com/docket/example.yml
+docket apply --tasks http://dokku.com/docket/example.yml
 ```
 
 Some other ideas:
@@ -76,7 +78,7 @@ With the above, the following method is used to override the `name` variable. Om
 
 ```shell
 # from the same directory as the tasks.yml
-docket --name lollipop
+docket apply --name lollipop
 ```
 
 Any inputs for a given task file will also show up in the `--help` output.

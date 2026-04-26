@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // CertsTask manages SSL certificates for a dokku app or globally

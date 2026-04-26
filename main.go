@@ -1,57 +1,48 @@
 package main
 
 import (
-	"log"
-	"docket/tasks"
+	"context"
+	"fmt"
 	"os"
-	"strings"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/dokku/docket/commands"
+
 	_ "github.com/gliderlabs/sigil/builtin"
+	"github.com/josegonzalez/cli-skeleton/command"
+	"github.com/mitchellh/cli"
 )
 
-func getTaskYamlFilename(s []string) string {
-	for i, arg := range s {
-		if arg == "--tasks" {
-			if len(s) > i+1 {
-				return s[i+1]
-			}
-		}
-		if taskFile, found := strings.CutPrefix(arg, "--tasks="); found {
-			return taskFile
-		}
-	}
-	return "tasks.yml"
-}
+var AppName = "docket"
+
+var Version string
 
 func main() {
-	taskFile := getTaskYamlFilename(os.Args)
-	data, err := os.ReadFile(taskFile)
+	os.Exit(Run(os.Args[1:]))
+}
+
+func Run(args []string) int {
+	ctx := context.Background()
+	commandMeta := command.SetupRun(ctx, AppName, Version, args)
+	commandMeta.Ui = command.HumanZerologUiWithFields(commandMeta.Ui, make(map[string]interface{}, 0))
+	c := cli.NewCLI(AppName, Version)
+	c.Args = os.Args[1:]
+	c.Commands = command.Commands(ctx, commandMeta, Commands)
+	exitCode, err := c.Run()
 	if err != nil {
-		log.Fatalf("read error: %v", err)
+		fmt.Fprintf(os.Stderr, "Error executing CLI: %s\n", err.Error())
+		return 1
 	}
 
-	context, err := parseArgs(data)
-	if err != nil {
-		log.Fatalf("arg error: %v", err)
-	}
+	return exitCode
+}
 
-	tasks, err := tasks.GetTasks(data, context)
-	if err != nil {
-		log.Fatalf("task error: %v", err)
-	}
-
-	spew.Dump(tasks)
-	for _, name := range tasks.Keys() {
-		task := tasks.Get(name)
-		log.Printf("executing %s", name)
-		state := task.Execute()
-		if state.Error != nil {
-			log.Fatalf("execute error: %v", state.Error)
-		}
-
-		if state.State != state.DesiredState {
-			log.Fatalf("error: Invalid state found, expected=%v actual=%v", state.DesiredState, state.State)
-		}
+func Commands(ctx context.Context, meta command.Meta) map[string]cli.CommandFactory {
+	return map[string]cli.CommandFactory{
+		"apply": func() (cli.Command, error) {
+			return &commands.ApplyCommand{Meta: meta}, nil
+		},
+		"version": func() (cli.Command, error) {
+			return &command.VersionCommand{Meta: meta}, nil
+		},
 	}
 }

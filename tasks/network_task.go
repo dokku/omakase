@@ -1,7 +1,7 @@
 package tasks
 
 import (
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // NetworkTask creates or destroys a Docker network

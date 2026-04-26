@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"encoding/json"
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // AppDeploySource contains deploy source information from apps:report

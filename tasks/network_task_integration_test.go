@@ -1,7 +1,7 @@
 package tasks
 
 import (
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 	"strings"
 	"testing"
 )

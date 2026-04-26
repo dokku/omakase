@@ -1,9 +1,10 @@
-package main
+package commands
 
 import (
-	"docket/tasks"
 	"strings"
 	"testing"
+
+	"github.com/dokku/docket/tasks"
 )
 
 func TestIsTrueString(t *testing.T) {

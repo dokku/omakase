@@ -1,7 +1,7 @@
 package tasks
 
 import (
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // git:from-image [--build-dir DIRECTORY] <app> <docker-image> [<git-username> <git-email>]

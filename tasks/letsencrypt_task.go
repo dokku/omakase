@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // LetsencryptTask enables or disables the dokku-letsencrypt plugin for a dokku app

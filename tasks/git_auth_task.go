@@ -3,7 +3,7 @@ package tasks
 import (
 	"fmt"
 
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // GitAuthTask manages netrc credentials for a git host via dokku git:auth.

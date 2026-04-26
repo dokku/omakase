@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"docket/subprocess"
+	"github.com/dokku/docket/subprocess"
 )
 
 // ToggleContext represents the context for a toggle operation

@@ -205,7 +205,7 @@ docs:
 
 .PHONY: test
 test:
-	go test -v -count=1 . ./tasks/ ./subprocess/
+	go test -v -count=1 . ./commands/ ./tasks/ ./subprocess/
 
 .PHONY: test-integration
 test-integration:

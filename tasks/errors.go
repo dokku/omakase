@@ -1,6 +1,6 @@
 package tasks
 
-import "docket/subprocess"
+import "github.com/dokku/docket/subprocess"
 
 // TaskOutputErrorFromExec sets Error and Message on the given state from an exec result.
 // Returns the modified state for convenient use with early returns.
