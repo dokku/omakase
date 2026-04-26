@@ -71,6 +71,11 @@ func (t ChecksPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "checks:set")
 }
 
+// Plan reports the drift the ChecksPropertyTask would produce.
+func (t ChecksPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "checks:set")
+}
+
 // init registers the ChecksPropertyTask with the task registry
 func init() {
 	RegisterTask(&ChecksPropertyTask{})

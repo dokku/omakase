@@ -68,6 +68,11 @@ func (t SchedulerDockerLocalPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, false, t.Property, t.Value, "scheduler-docker-local:set")
 }
 
+// Plan reports the drift the SchedulerDockerLocalPropertyTask would produce.
+func (t SchedulerDockerLocalPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, false, t.Property, t.Value, "scheduler-docker-local:set")
+}
+
 // init registers the SchedulerDockerLocalPropertyTask with the task registry
 func init() {
 	RegisterTask(&SchedulerDockerLocalPropertyTask{})

@@ -41,6 +41,11 @@ func (t DomainsToggleTask) Execute() TaskOutputState {
 	return executeToggle(t.State, t.App, t.Global, false, "domains:enable", "domains:disable")
 }
 
+// Plan reports the drift the DomainsToggleTask would produce.
+func (t DomainsToggleTask) Plan() PlanResult {
+	return planToggle(t.State, t.App, t.Global, false, "domains:enable", "domains:disable")
+}
+
 // init registers the DomainsToggleTask with the task registry
 func init() {
 	RegisterTask(&DomainsToggleTask{})

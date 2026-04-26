@@ -59,6 +59,34 @@ func (t AppTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the AppTask would produce.
+func (t AppTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			if appExists(t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    "app missing",
+				Mutations: []string{"create app " + t.App},
+			}
+		},
+		"absent": func() PlanResult {
+			if !appExists(t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    "app present",
+				Mutations: []string{"destroy app " + t.App},
+			}
+		},
+	})
+}
+
 // appExists checks if an app exists
 func appExists(appName string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{

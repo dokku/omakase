@@ -81,6 +81,52 @@ type TaskOutputState struct {
 	State State
 }
 
+// PlanStatus is the short marker that summarizes a planned change.
+type PlanStatus string
+
+const (
+	// PlanStatusOK indicates the task is in sync; no change would be made.
+	PlanStatusOK PlanStatus = "ok"
+	// PlanStatusModify indicates the task would modify existing state.
+	PlanStatusModify PlanStatus = "~"
+	// PlanStatusCreate indicates the task would create new state.
+	PlanStatusCreate PlanStatus = "+"
+	// PlanStatusDestroy indicates the task would remove existing state.
+	PlanStatusDestroy PlanStatus = "-"
+	// PlanStatusError indicates the read-state probe itself failed.
+	PlanStatusError PlanStatus = "error"
+)
+
+// PlanResult is the read-only drift report for a task.
+//
+// Plan() never mutates server state. Tasks that probe live state populate
+// InSync, Status, and (for multi-mutation tasks) Mutations. Tasks that today
+// mutate without probing return a conservative result indicating that the
+// run would mutate but cannot itemize the change without executing.
+type PlanResult struct {
+	// InSync is true when the task would not change anything.
+	InSync bool
+
+	// Status is the short marker for the drift kind.
+	Status PlanStatus
+
+	// Reason is human-readable detail (e.g. "ref drift", "2 keys to set").
+	Reason string
+
+	// Mutations optionally itemizes per-mutation drift for tasks that perform
+	// multiple operations (e.g. config_task setting and unsetting individual
+	// keys). One entry per atomic change.
+	Mutations []string
+
+	// DesiredState is the state the task was asked to converge to. Mirrors
+	// TaskOutputState.DesiredState so plan output can render the same context.
+	DesiredState State
+
+	// Error is non-nil when the read-state probe itself failed. A non-nil
+	// Error implies Status == PlanStatusError.
+	Error error
+}
+
 // Task represents a task
 type Task interface {
 	// Doc returns the docblock for the task
@@ -88,6 +134,10 @@ type Task interface {
 
 	// Examples returns the examples for the task
 	Examples() ([]Doc, error)
+
+	// Plan reports the drift the task would produce against the live server,
+	// without mutating it. Plan must never call mutating dokku commands.
+	Plan() PlanResult
 
 	// Execute executes the task
 	Execute() TaskOutputState

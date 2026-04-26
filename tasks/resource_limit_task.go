@@ -75,6 +75,11 @@ func (t ResourceLimitTask) Execute() TaskOutputState {
 	return executeResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:limit")
 }
 
+// Plan reports the drift the ResourceLimitTask would produce.
+func (t ResourceLimitTask) Plan() PlanResult {
+	return planResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:limit")
+}
+
 // init registers the ResourceLimitTask with the task registry
 func init() {
 	RegisterTask(&ResourceLimitTask{})

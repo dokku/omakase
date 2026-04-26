@@ -78,6 +78,39 @@ func (t GitFromArchiveTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the GitFromArchiveTask would produce.
+func (t GitFromArchiveTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"deployed": func() PlanResult {
+			if t.App == "" {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'app' is required")}
+			}
+			if t.ArchiveURL == "" {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'archive_url' is required")}
+			}
+			archiveType := t.ArchiveType
+			if archiveType == "" {
+				archiveType = "tar"
+			}
+			if !validGitFromArchiveTypes[archiveType] {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'archive_type' must be one of tar, tar.gz, zip")}
+			}
+			if (t.GitUsername == "") != (t.GitEmail == "") {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'git_username' and 'git_email' must be set together")}
+			}
+			if checkAppSourceArchive(t.App, archiveType, t.ArchiveURL) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "archive source drift",
+				Mutations: []string{fmt.Sprintf("git:from-archive %s %s (%s)", t.App, t.ArchiveURL, archiveType)},
+			}
+		},
+	})
+}
+
 // checkAppSourceArchive returns true if the app is already deployed from the
 // expected archive URL with the expected archive type. The archive type is
 // stored as the deploy source value, so a tar.gz deploy reports source "tar.gz".

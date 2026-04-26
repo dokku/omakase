@@ -79,6 +79,11 @@ func (t SchedulerK3sPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "scheduler-k3s:set")
 }
 
+// Plan reports the drift the SchedulerK3sPropertyTask would produce.
+func (t SchedulerK3sPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "scheduler-k3s:set")
+}
+
 // init registers the SchedulerK3sPropertyTask with the task registry
 func init() {
 	RegisterTask(&SchedulerK3sPropertyTask{})

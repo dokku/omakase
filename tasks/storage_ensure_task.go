@@ -49,6 +49,32 @@ func (t StorageEnsureTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the StorageEnsureTask would produce.
+//
+// storage:ensure-directory does not expose a probe for whether the directory
+// already exists; the plan is conservative and reports drift unconditionally.
+func (t StorageEnsureTask) Plan() PlanResult {
+	chownValues := map[string]bool{
+		"heroku": true, "herokuish": true, "paketo": true, "root": true, "false": true,
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			if !chownValues[t.Chown] {
+				return PlanResult{Status: PlanStatusError, Error: errors.New("invalid chown value specified")}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "directory presence not probed",
+				Mutations: []string{"storage:ensure-directory --chown " + t.Chown + " " + t.App},
+			}
+		},
+		"absent": func() PlanResult {
+			return PlanResult{Status: PlanStatusError, Error: errors.New("the absent state is not supported for storage:ensure")}
+		},
+	})
+}
+
 // ensureStorage ensures the storage for a given app
 func ensureStorage(app, chown string) TaskOutputState {
 	state := TaskOutputState{

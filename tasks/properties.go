@@ -41,6 +41,64 @@ func executeProperty(state State, app string, global bool, property, value, subc
 	})
 }
 
+// planProperty is a shared Plan implementation for property tasks.
+//
+// Property tasks today do not probe live state before mutating (see the TODOs
+// in setProperty/unsetProperty), so the plan result is conservative: it
+// reports drift unconditionally and notes the limitation in Reason. A
+// follow-up that adds <subcommand>:report probes can replace this with a
+// precise comparison.
+func planProperty(state State, app string, global bool, property, value, subcommand string) PlanResult {
+	if !global && app == "" {
+		return PlanResult{
+			Status: PlanStatusError,
+			Error:  errors.New("app is required when global is false"),
+		}
+	}
+	if global && app != "" {
+		return PlanResult{
+			Status: PlanStatusError,
+			Error:  fmt.Errorf("'app' must not be set when 'global' is set to true"),
+		}
+	}
+
+	target := app
+	if global {
+		target = "--global"
+	}
+
+	return DispatchPlan(state, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			if value == "" {
+				return PlanResult{
+					Status: PlanStatusError,
+					Error:  fmt.Errorf("setting a state of 'present' is invalid without a value for 'value'"),
+				}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    fmt.Sprintf("would set %s on %s (current value not probed)", property, target),
+				Mutations: []string{fmt.Sprintf("set %s=%s", property, value)},
+			}
+		},
+		"absent": func() PlanResult {
+			if value != "" {
+				return PlanResult{
+					Status: PlanStatusError,
+					Error:  fmt.Errorf("setting a state of 'absent' is invalid with a value for 'value'"),
+				}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    fmt.Sprintf("would unset %s on %s (current value not probed)", property, target),
+				Mutations: []string{fmt.Sprintf("unset %s", property)},
+			}
+		},
+	})
+}
+
 // setProperty sets a property for a given app
 func setProperty(subcommand string, pctx PropertyContext) TaskOutputState {
 	state := TaskOutputState{

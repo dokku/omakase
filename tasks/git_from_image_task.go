@@ -1,6 +1,8 @@
 package tasks
 
 import (
+	"fmt"
+
 	"github.com/dokku/docket/subprocess"
 )
 
@@ -55,6 +57,23 @@ func (t GitFromImageTask) Examples() ([]Doc, error) {
 func (t GitFromImageTask) Execute() TaskOutputState {
 	return DispatchState(t.State, map[State]func() TaskOutputState{
 		"deployed": func() TaskOutputState { return deployGitFromImage(t) },
+	})
+}
+
+// Plan reports the drift the GitFromImageTask would produce.
+func (t GitFromImageTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"deployed": func() PlanResult {
+			if checkAppSourceImage(t.App, t.Image) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "image source drift",
+				Mutations: []string{fmt.Sprintf("git:from-image %s %s", t.App, t.Image)},
+			}
+		},
 	})
 }
 

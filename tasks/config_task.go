@@ -75,6 +75,14 @@ func (t ConfigTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the ConfigTask would produce.
+func (t ConfigTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult { return planSetConfig(t) },
+		"absent":  func() PlanResult { return planUnsetConfig(t) },
+	})
+}
+
 // getConfig retrieves the current configuration for a given dokku application
 func getConfig(t ConfigTask) (map[string]string, error) {
 	var config map[string]string
@@ -98,6 +106,86 @@ func getConfig(t ConfigTask) (map[string]string, error) {
 		return config, err
 	}
 	return config, nil
+}
+
+// configKeysToSet returns keys whose desired value differs from the current value.
+func configKeysToSet(current, desired map[string]string) []string {
+	keys := []string{}
+	for k, v := range desired {
+		if cur, ok := current[k]; !ok || cur != v {
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
+// configKeysToUnset returns keys present in desired that exist in current.
+func configKeysToUnset(current, desired map[string]string) []string {
+	keys := []string{}
+	for k := range desired {
+		if _, ok := current[k]; ok {
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
+// planSetConfig reports drift for a present-state config set.
+func planSetConfig(t ConfigTask) PlanResult {
+	currentConfig, err := getConfig(t)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+
+	keys := configKeysToSet(currentConfig, t.Config)
+	if len(keys) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+
+	mutations := make([]string, 0, len(keys))
+	status := PlanStatusModify
+	allNew := true
+	for _, k := range keys {
+		if _, ok := currentConfig[k]; ok {
+			mutations = append(mutations, fmt.Sprintf("set %s (was set)", k))
+			allNew = false
+		} else {
+			mutations = append(mutations, fmt.Sprintf("set %s (new)", k))
+		}
+	}
+	if allNew {
+		status = PlanStatusCreate
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    status,
+		Reason:    fmt.Sprintf("%d key(s) to set", len(keys)),
+		Mutations: mutations,
+	}
+}
+
+// planUnsetConfig reports drift for an absent-state config unset.
+func planUnsetConfig(t ConfigTask) PlanResult {
+	currentConfig, err := getConfig(t)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+
+	keys := configKeysToUnset(currentConfig, t.Config)
+	if len(keys) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+
+	mutations := make([]string, 0, len(keys))
+	for _, k := range keys {
+		mutations = append(mutations, fmt.Sprintf("unset %s", k))
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusDestroy,
+		Reason:    fmt.Sprintf("%d key(s) to unset", len(keys)),
+		Mutations: mutations,
+	}
 }
 
 // setConfig sets the configuration for a given dokku application

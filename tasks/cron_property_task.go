@@ -71,6 +71,11 @@ func (t CronPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "cron:set")
 }
 
+// Plan reports the drift the CronPropertyTask would produce.
+func (t CronPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "cron:set")
+}
+
 // init registers the CronPropertyTask with the task registry
 func init() {
 	RegisterTask(&CronPropertyTask{})

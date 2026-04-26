@@ -62,6 +62,45 @@ func (t LetsencryptTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the LetsencryptTask would produce.
+func (t LetsencryptTask) Plan() PlanResult {
+	if t.App == "" {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'app' is required")}
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			active, err := letsencryptActive(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if active {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    "letsencrypt not active",
+				Mutations: []string{"letsencrypt:enable " + t.App},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			active, err := letsencryptActive(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !active {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    "letsencrypt active",
+				Mutations: []string{"letsencrypt:disable " + t.App},
+			}
+		},
+	})
+}
+
 // letsencryptActive reports whether letsencrypt is currently active for an app.
 // Mirrors the upstream `dokku letsencrypt:active <app>` output ("true"/"false").
 func letsencryptActive(app string) (bool, error) {

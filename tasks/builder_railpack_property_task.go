@@ -71,6 +71,11 @@ func (t BuilderRailpackPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-railpack:set")
 }
 
+// Plan reports the drift the BuilderRailpackPropertyTask would produce.
+func (t BuilderRailpackPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-railpack:set")
+}
+
 // init registers the BuilderRailpackPropertyTask with the task registry
 func init() {
 	RegisterTask(&BuilderRailpackPropertyTask{})

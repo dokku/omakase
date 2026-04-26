@@ -71,6 +71,11 @@ func (t TraefikPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "traefik:set")
 }
 
+// Plan reports the drift the TraefikPropertyTask would produce.
+func (t TraefikPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "traefik:set")
+}
+
 // init registers the TraefikPropertyTask with the task registry
 func init() {
 	RegisterTask(&TraefikPropertyTask{})

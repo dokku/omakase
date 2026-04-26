@@ -77,6 +77,27 @@ func (t GitSyncTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the GitSyncTask would produce.
+func (t GitSyncTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			if checkAppSyncState(t.App, t.Remote, t.GitRef) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			ref := t.GitRef
+			if ref == "" {
+				ref = "(default branch)"
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "remote/ref drift",
+				Mutations: []string{fmt.Sprintf("git:sync %s %s %s", t.App, t.Remote, ref)},
+			}
+		},
+	})
+}
+
 // checkAppSyncState checks if the app is already synced from the expected remote and ref
 func checkAppSyncState(app, expectedRemote, expectedRef string) bool {
 	source, err := getAppDeploySource(app)

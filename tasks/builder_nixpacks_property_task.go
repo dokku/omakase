@@ -71,6 +71,11 @@ func (t BuilderNixpacksPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-nixpacks:set")
 }
 
+// Plan reports the drift the BuilderNixpacksPropertyTask would produce.
+func (t BuilderNixpacksPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-nixpacks:set")
+}
+
 // init registers the BuilderNixpacksPropertyTask with the task registry
 func init() {
 	RegisterTask(&BuilderNixpacksPropertyTask{})

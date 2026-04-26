@@ -71,6 +71,11 @@ func (t LogsPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "logs:set")
 }
 
+// Plan reports the drift the LogsPropertyTask would produce.
+func (t LogsPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "logs:set")
+}
+
 // init registers the LogsPropertyTask with the task registry
 func init() {
 	RegisterTask(&LogsPropertyTask{})

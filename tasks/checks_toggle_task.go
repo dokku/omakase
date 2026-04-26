@@ -56,6 +56,11 @@ func (t ChecksToggleTask) Execute() TaskOutputState {
 	return executeToggle(t.State, t.App, t.Global, false, "checks:enable", "checks:disable")
 }
 
+// Plan reports the drift the ChecksToggleTask would produce.
+func (t ChecksToggleTask) Plan() PlanResult {
+	return planToggle(t.State, t.App, t.Global, false, "checks:enable", "checks:disable")
+}
+
 // init registers the ChecksToggleTask with the task registry
 func init() {
 	RegisterTask(&ChecksToggleTask{})

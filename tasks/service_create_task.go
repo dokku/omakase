@@ -72,6 +72,34 @@ func (t ServiceCreateTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the ServiceCreateTask would produce.
+func (t ServiceCreateTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			if serviceExists(t.Service, t.Name) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    fmt.Sprintf("%s service %s missing", t.Service, t.Name),
+				Mutations: []string{fmt.Sprintf("%s:create %s", t.Service, t.Name)},
+			}
+		},
+		"absent": func() PlanResult {
+			if !serviceExists(t.Service, t.Name) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    fmt.Sprintf("%s service %s present", t.Service, t.Name),
+				Mutations: []string{fmt.Sprintf("%s:destroy %s", t.Service, t.Name)},
+			}
+		},
+	})
+}
+
 // serviceExists checks if a dokku service exists
 func serviceExists(service, name string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{

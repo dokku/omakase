@@ -61,6 +61,37 @@ func (t AppLockTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the AppLockTask would produce.
+func (t AppLockTask) Plan() PlanResult {
+	if t.App == "" {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'app' is required")}
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if appLocked(t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "app unlocked",
+				Mutations: []string{"lock " + t.App},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			if !appLocked(t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "app locked",
+				Mutations: []string{"unlock " + t.App},
+			}
+		},
+	})
+}
+
 // appLocked checks if a dokku app is locked
 func appLocked(app string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{

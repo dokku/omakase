@@ -79,6 +79,11 @@ func (t NetworkPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "network:set")
 }
 
+// Plan reports the drift the NetworkPropertyTask would produce.
+func (t NetworkPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "network:set")
+}
+
 // init registers the NetworkPropertyTask with the task registry
 func init() {
 	RegisterTask(&NetworkPropertyTask{})

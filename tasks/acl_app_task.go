@@ -74,6 +74,66 @@ func (t AclAppTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the AclAppTask would produce.
+func (t AclAppTask) Plan() PlanResult {
+	if t.App == "" {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'app' is required")}
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if len(t.Users) == 0 {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'users' must not be empty for state 'present'")}
+			}
+			current, err := getAclAppUsers(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			mutations := []string{}
+			for _, u := range t.Users {
+				if !current[u] {
+					mutations = append(mutations, "add "+u)
+				}
+			}
+			if len(mutations) == 0 {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    fmt.Sprintf("%d user(s) to add", len(mutations)),
+				Mutations: mutations,
+			}
+		},
+		StateAbsent: func() PlanResult {
+			current, err := getAclAppUsers(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			mutations := []string{}
+			if len(t.Users) == 0 {
+				for u := range current {
+					mutations = append(mutations, "remove "+u)
+				}
+			} else {
+				for _, u := range t.Users {
+					if current[u] {
+						mutations = append(mutations, "remove "+u)
+					}
+				}
+			}
+			if len(mutations) == 0 {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    fmt.Sprintf("%d user(s) to remove", len(mutations)),
+				Mutations: mutations,
+			}
+		},
+	})
+}
+
 // getAclAppUsers reads the current ACL for an app via `acl:list APP`. The
 // plugin emits one username per line; an empty ACL produces no output.
 func getAclAppUsers(app string) (map[string]bool, error) {

@@ -79,6 +79,86 @@ func (t BuildpacksTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the BuildpacksTask would produce.
+func (t BuildpacksTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult { return planAddBuildpacks(t) },
+		StateAbsent:  func() PlanResult { return planRemoveBuildpacks(t) },
+	})
+}
+
+func planAddBuildpacks(t BuildpacksTask) PlanResult {
+	if t.App == "" {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'app' is required")}
+	}
+	if len(t.Buildpacks) == 0 {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'buildpacks' must not be empty for state 'present'")}
+	}
+	current, err := getBuildpacks(t.App)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	mutations := []string{}
+	for _, bp := range t.Buildpacks {
+		if !current[bp] {
+			mutations = append(mutations, "add "+bp)
+		}
+	}
+	if len(mutations) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	status := PlanStatusModify
+	if len(current) == 0 {
+		status = PlanStatusCreate
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    status,
+		Reason:    fmt.Sprintf("%d buildpack(s) to add", len(mutations)),
+		Mutations: mutations,
+	}
+}
+
+func planRemoveBuildpacks(t BuildpacksTask) PlanResult {
+	if t.App == "" {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'app' is required")}
+	}
+	current, err := getBuildpacks(t.App)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	if len(t.Buildpacks) == 0 {
+		if len(current) == 0 {
+			return PlanResult{InSync: true, Status: PlanStatusOK}
+		}
+		mutations := make([]string, 0, len(current))
+		for bp := range current {
+			mutations = append(mutations, "remove "+bp)
+		}
+		return PlanResult{
+			InSync:    false,
+			Status:    PlanStatusDestroy,
+			Reason:    fmt.Sprintf("clear %d buildpack(s)", len(current)),
+			Mutations: mutations,
+		}
+	}
+	mutations := []string{}
+	for _, bp := range t.Buildpacks {
+		if current[bp] {
+			mutations = append(mutations, "remove "+bp)
+		}
+	}
+	if len(mutations) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusDestroy,
+		Reason:    fmt.Sprintf("%d buildpack(s) to remove", len(mutations)),
+		Mutations: mutations,
+	}
+}
+
 // getBuildpacks fetches the current buildpacks list for an app
 func getBuildpacks(app string) (map[string]bool, error) {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{

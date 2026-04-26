@@ -89,6 +89,59 @@ func (t CertsTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the CertsTask would produce.
+func (t CertsTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if err := validateCertsTask(t); err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if t.Cert == "" || t.Key == "" {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'cert' and 'key' are required when state is 'present'")}
+			}
+			enabled, err := certsEnabled(t)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if enabled {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			target := t.App
+			if t.Global {
+				target = "(global)"
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    "certificate not installed",
+				Mutations: []string{fmt.Sprintf("install certificate for %s", target)},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			if err := validateCertsTask(t); err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			enabled, err := certsEnabled(t)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !enabled {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			target := t.App
+			if t.Global {
+				target = "(global)"
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    "certificate present",
+				Mutations: []string{fmt.Sprintf("remove certificate for %s", target)},
+			}
+		},
+	})
+}
+
 // validateCertsTask validates the certs task parameters
 func validateCertsTask(t CertsTask) error {
 	if t.Global && t.App != "" {

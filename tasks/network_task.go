@@ -59,6 +59,34 @@ func (t NetworkTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the NetworkTask would produce.
+func (t NetworkTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			if networkExists(t.Name) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    "network missing",
+				Mutations: []string{"create network " + t.Name},
+			}
+		},
+		"absent": func() PlanResult {
+			if !networkExists(t.Name) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    "network present",
+				Mutations: []string{"destroy network " + t.Name},
+			}
+		},
+	})
+}
+
 // networkExists checks if a Docker network exists
 func networkExists(name string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{

@@ -53,6 +53,35 @@ func (t StorageMountTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the StorageMountTask would produce.
+func (t StorageMountTask) Plan() PlanResult {
+	mountSpec := fmt.Sprintf("%s:%s", t.HostDir, t.ContainerDir)
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			if mountExists(t.App, t.HostDir, t.ContainerDir) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    "mount missing",
+				Mutations: []string{fmt.Sprintf("mount %s on %s", mountSpec, t.App)},
+			}
+		},
+		"absent": func() PlanResult {
+			if !mountExists(t.App, t.HostDir, t.ContainerDir) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    "mount present",
+				Mutations: []string{fmt.Sprintf("unmount %s on %s", mountSpec, t.App)},
+			}
+		},
+	})
+}
+
 // mountExists checks if the storage mount exists
 func mountExists(app, hostDir, containerDir string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{

@@ -86,6 +86,131 @@ func (t DomainsTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the DomainsTask would produce.
+func (t DomainsTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult { return planAddDomains(t) },
+		StateAbsent:  func() PlanResult { return planRemoveDomains(t) },
+		StateSet:     func() PlanResult { return planSetDomains(t) },
+		StateClear:   func() PlanResult { return planClearDomains(t) },
+	})
+}
+
+// planAddDomains reports drift for present-state domain add.
+func planAddDomains(t DomainsTask) PlanResult {
+	if err := validateDomainsTask(t, true); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	currentDomains, err := getDomains(t.App, t.Global)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	mutations := []string{}
+	for _, d := range t.Domains {
+		if !currentDomains[d] {
+			mutations = append(mutations, fmt.Sprintf("add %s", d))
+		}
+	}
+	if len(mutations) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	status := PlanStatusModify
+	if len(currentDomains) == 0 {
+		status = PlanStatusCreate
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    status,
+		Reason:    fmt.Sprintf("%d domain(s) to add", len(mutations)),
+		Mutations: mutations,
+	}
+}
+
+// planRemoveDomains reports drift for absent-state domain remove.
+func planRemoveDomains(t DomainsTask) PlanResult {
+	if err := validateDomainsTask(t, true); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	currentDomains, err := getDomains(t.App, t.Global)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	mutations := []string{}
+	for _, d := range t.Domains {
+		if currentDomains[d] {
+			mutations = append(mutations, fmt.Sprintf("remove %s", d))
+		}
+	}
+	if len(mutations) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusDestroy,
+		Reason:    fmt.Sprintf("%d domain(s) to remove", len(mutations)),
+		Mutations: mutations,
+	}
+}
+
+// planSetDomains reports drift for set-state replace operation.
+func planSetDomains(t DomainsTask) PlanResult {
+	if err := validateDomainsTask(t, true); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	currentDomains, err := getDomains(t.App, t.Global)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	desired := map[string]bool{}
+	for _, d := range t.Domains {
+		desired[d] = true
+	}
+	mutations := []string{}
+	for d := range desired {
+		if !currentDomains[d] {
+			mutations = append(mutations, fmt.Sprintf("add %s", d))
+		}
+	}
+	for d := range currentDomains {
+		if !desired[d] {
+			mutations = append(mutations, fmt.Sprintf("remove %s", d))
+		}
+	}
+	if len(mutations) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusModify,
+		Reason:    fmt.Sprintf("%d domain change(s)", len(mutations)),
+		Mutations: mutations,
+	}
+}
+
+// planClearDomains reports drift for clear-state operation.
+func planClearDomains(t DomainsTask) PlanResult {
+	if err := validateDomainsTask(t, false); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	currentDomains, err := getDomains(t.App, t.Global)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	if len(currentDomains) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	mutations := make([]string, 0, len(currentDomains))
+	for d := range currentDomains {
+		mutations = append(mutations, fmt.Sprintf("remove %s", d))
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusDestroy,
+		Reason:    fmt.Sprintf("clear %d domain(s)", len(currentDomains)),
+		Mutations: mutations,
+	}
+}
+
 // validateDomainsTask validates the domains task parameters
 func validateDomainsTask(t DomainsTask, requireDomains bool) error {
 	if t.Global && t.App != "" {

@@ -71,6 +71,11 @@ func (t BuilderHerokuishPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-herokuish:set")
 }
 
+// Plan reports the drift the BuilderHerokuishPropertyTask would produce.
+func (t BuilderHerokuishPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-herokuish:set")
+}
+
 // init registers the BuilderHerokuishPropertyTask with the task registry
 func init() {
 	RegisterTask(&BuilderHerokuishPropertyTask{})

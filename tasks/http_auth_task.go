@@ -80,6 +80,45 @@ func (t HttpAuthTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the HttpAuthTask would produce.
+//
+// http-auth:report does not expose the configured username/password, so a
+// state="present" plan that detects an already-enabled app reports in-sync.
+// A username/password mismatch against an enabled app is not detected here;
+// users who want to rotate credentials should toggle off then on.
+func (t HttpAuthTask) Plan() PlanResult {
+	if t.State == StatePresent && t.Username == "" {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("username is required when state is present")}
+	}
+	if t.State == StatePresent && t.Password == "" {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("password is required when state is present")}
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			if httpAuthEnabled(t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    "http-auth disabled",
+				Mutations: []string{"http-auth:on " + t.App},
+			}
+		},
+		"absent": func() PlanResult {
+			if !httpAuthEnabled(t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    "http-auth enabled",
+				Mutations: []string{"http-auth:off " + t.App},
+			}
+		},
+	})
+}
+
 // httpAuthEnabled checks if HTTP authentication is enabled for an app
 func httpAuthEnabled(appName string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{

@@ -75,6 +75,38 @@ func (t GitAuthTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the GitAuthTask would produce.
+//
+// dokku has no public way to query netrc state (see the package-level note
+// on GitAuthTask), so the plan reports drift unconditionally with the netrc
+// limitation called out in Reason.
+func (t GitAuthTask) Plan() PlanResult {
+	if t.Host == "" {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'host' is required")}
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if t.Username == "" || t.Password == "" {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'username' and 'password' are required when state is 'present'")}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "netrc state not probed",
+				Mutations: []string{"git:auth " + t.Host + " " + t.Username + " ***"},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    "netrc state not probed",
+				Mutations: []string{"git:auth " + t.Host + " (clear)"},
+			}
+		},
+	})
+}
+
 // setGitAuth runs `dokku git:auth HOST USERNAME PASSWORD`.
 func setGitAuth(t GitAuthTask) TaskOutputState {
 	state := TaskOutputState{

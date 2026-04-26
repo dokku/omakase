@@ -71,6 +71,11 @@ func (t SchedulerPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "scheduler:set")
 }
 
+// Plan reports the drift the SchedulerPropertyTask would produce.
+func (t SchedulerPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "scheduler:set")
+}
+
 // init registers the SchedulerPropertyTask with the task registry
 func init() {
 	RegisterTask(&SchedulerPropertyTask{})

@@ -73,6 +73,52 @@ func (t DockerOptionsTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the DockerOptionsTask would produce.
+func (t DockerOptionsTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult { return planAddDockerOption(t) },
+		StateAbsent:  func() PlanResult { return planRemoveDockerOption(t) },
+	})
+}
+
+func planAddDockerOption(t DockerOptionsTask) PlanResult {
+	if err := validateDockerOptionsTask(t); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	current, err := getDockerOptions(t.App)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	if optionPresent(current[t.Phase], t.Option) {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusCreate,
+		Reason:    fmt.Sprintf("missing on %s phase", t.Phase),
+		Mutations: []string{fmt.Sprintf("add %s option %q", t.Phase, t.Option)},
+	}
+}
+
+func planRemoveDockerOption(t DockerOptionsTask) PlanResult {
+	if err := validateDockerOptionsTask(t); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	current, err := getDockerOptions(t.App)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	if !optionPresent(current[t.Phase], t.Option) {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusDestroy,
+		Reason:    fmt.Sprintf("present on %s phase", t.Phase),
+		Mutations: []string{fmt.Sprintf("remove %s option %q", t.Phase, t.Option)},
+	}
+}
+
 var dockerOptionPhases = map[string]bool{"build": true, "deploy": true, "run": true}
 
 // validateDockerOptionsTask validates the docker options task parameters

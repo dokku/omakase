@@ -71,6 +71,11 @@ func (t BuilderLambdaPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-lambda:set")
 }
 
+// Plan reports the drift the BuilderLambdaPropertyTask would produce.
+func (t BuilderLambdaPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-lambda:set")
+}
+
 // init registers the BuilderLambdaPropertyTask with the task registry
 func init() {
 	RegisterTask(&BuilderLambdaPropertyTask{})

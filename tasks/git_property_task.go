@@ -79,6 +79,11 @@ func (t GitPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "git:set")
 }
 
+// Plan reports the drift the GitPropertyTask would produce.
+func (t GitPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "git:set")
+}
+
 // init registers the GitPropertyTask with the task registry
 func init() {
 	RegisterTask(&GitPropertyTask{})

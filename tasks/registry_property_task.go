@@ -79,6 +79,11 @@ func (t RegistryPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "registry:set")
 }
 
+// Plan reports the drift the RegistryPropertyTask would produce.
+func (t RegistryPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "registry:set")
+}
+
 // init registers the RegistryPropertyTask with the task registry
 func init() {
 	RegisterTask(&RegistryPropertyTask{})

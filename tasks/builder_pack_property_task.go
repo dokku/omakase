@@ -71,6 +71,11 @@ func (t BuilderPackPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-pack:set")
 }
 
+// Plan reports the drift the BuilderPackPropertyTask would produce.
+func (t BuilderPackPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-pack:set")
+}
+
 // init registers the BuilderPackPropertyTask with the task registry
 func init() {
 	RegisterTask(&BuilderPackPropertyTask{})

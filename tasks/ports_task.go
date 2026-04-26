@@ -79,6 +79,65 @@ func (t PortsTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the PortsTask would produce.
+func (t PortsTask) Plan() PlanResult {
+	if len(t.PortMappings) == 0 {
+		return PlanResult{
+			Status: PlanStatusError,
+			Error:  errors.New("no port mappings provided"),
+		}
+	}
+
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult { return planSetPorts(t.App, t.PortMappings) },
+		"absent":  func() PlanResult { return planUnsetPorts(t.App, t.PortMappings) },
+	})
+}
+
+// planSetPorts reports drift for a present-state port set.
+func planSetPorts(appName string, portMappings []PortMapping) PlanResult {
+	currentPorts := getPorts(appName)
+	mutations := []string{}
+	for _, pm := range portMappings {
+		if _, ok := currentPorts[pm.String()]; !ok {
+			mutations = append(mutations, fmt.Sprintf("add %s", pm.String()))
+		}
+	}
+	if len(mutations) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	status := PlanStatusModify
+	if len(currentPorts) == 0 {
+		status = PlanStatusCreate
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    status,
+		Reason:    fmt.Sprintf("%d port mapping(s) to add", len(mutations)),
+		Mutations: mutations,
+	}
+}
+
+// planUnsetPorts reports drift for an absent-state port unset.
+func planUnsetPorts(appName string, portMappings []PortMapping) PlanResult {
+	currentPorts := getPorts(appName)
+	mutations := []string{}
+	for _, pm := range portMappings {
+		if _, ok := currentPorts[pm.String()]; ok {
+			mutations = append(mutations, fmt.Sprintf("remove %s", pm.String()))
+		}
+	}
+	if len(mutations) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusDestroy,
+		Reason:    fmt.Sprintf("%d port mapping(s) to remove", len(mutations)),
+		Mutations: mutations,
+	}
+}
+
 // getPorts gets the ports for a given app
 func getPorts(appName string) map[string]PortMapping {
 	// todo: update dokku to add proper json output for this

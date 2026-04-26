@@ -71,6 +71,11 @@ func (t PsPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "ps:set")
 }
 
+// Plan reports the drift the PsPropertyTask would produce.
+func (t PsPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "ps:set")
+}
+
 // init registers the PsPropertyTask with the task registry
 func init() {
 	RegisterTask(&PsPropertyTask{})

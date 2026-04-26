@@ -68,6 +68,29 @@ func (t AppCloneTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the AppCloneTask would produce.
+func (t AppCloneTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if t.App == "" {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'app' is required")}
+			}
+			if t.SourceApp == "" {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'source_app' is required")}
+			}
+			if appExists(t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    fmt.Sprintf("target app %s missing", t.App),
+				Mutations: []string{fmt.Sprintf("clone %s -> %s", t.SourceApp, t.App)},
+			}
+		},
+	})
+}
+
 // cloneApp clones an existing dokku app to a new app
 func cloneApp(t AppCloneTask) TaskOutputState {
 	state := TaskOutputState{

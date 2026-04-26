@@ -79,6 +79,11 @@ func (t NginxPropertyTask) Execute() TaskOutputState {
 	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "nginx:set")
 }
 
+// Plan reports the drift the NginxPropertyTask would produce.
+func (t NginxPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "nginx:set")
+}
+
 // init registers the NginxPropertyTask with the task registry
 func init() {
 	RegisterTask(&NginxPropertyTask{})

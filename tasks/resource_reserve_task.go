@@ -75,6 +75,11 @@ func (t ResourceReserveTask) Execute() TaskOutputState {
 	return executeResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:reserve")
 }
 
+// Plan reports the drift the ResourceReserveTask would produce.
+func (t ResourceReserveTask) Plan() PlanResult {
+	return planResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:reserve")
+}
+
 // init registers the ResourceReserveTask with the task registry
 func init() {
 	RegisterTask(&ResourceReserveTask{})

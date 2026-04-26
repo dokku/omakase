@@ -66,6 +66,45 @@ func executeToggle(state State, app string, global bool, allowGlobal bool, enabl
 	})
 }
 
+// planToggle is a shared Plan implementation for toggle tasks.
+//
+// Toggle tasks today do not probe whether a plugin is already enabled or
+// disabled, so the plan result is conservative: it reports drift
+// unconditionally and notes the limitation in Reason. A follow-up that adds
+// the appropriate report probes can replace this with a precise comparison.
+func planToggle(state State, app string, global bool, allowGlobal bool, enableCmd, disableCmd string) PlanResult {
+	if allowGlobal && global && app != "" {
+		return PlanResult{
+			Status: PlanStatusError,
+			Error:  fmt.Errorf("'app' must not be set when 'global' is set to true"),
+		}
+	}
+
+	target := app
+	if allowGlobal && global {
+		target = "--global"
+	}
+
+	return DispatchPlan(state, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    fmt.Sprintf("would run %s on %s (current state not probed)", enableCmd, target),
+				Mutations: []string{fmt.Sprintf("%s %s", enableCmd, target)},
+			}
+		},
+		"absent": func() PlanResult {
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    fmt.Sprintf("would run %s on %s (current state not probed)", disableCmd, target),
+				Mutations: []string{fmt.Sprintf("%s %s", disableCmd, target)},
+			}
+		},
+	})
+}
+
 // disablePlugin executes the disable state for a plugin
 func disablePlugin(subcommand string, pctx ToggleContext) TaskOutputState {
 	state := TaskOutputState{

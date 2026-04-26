@@ -78,6 +78,46 @@ func (t ServiceLinkTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the ServiceLinkTask would produce.
+func (t ServiceLinkTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			if !serviceExists(t.Service, t.Name) {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("service %s %s does not exist", t.Service, t.Name)}
+			}
+			if !appExists(t.App) {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("app %s does not exist", t.App)}
+			}
+			if serviceLinked(t.Service, t.Name, t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    fmt.Sprintf("%s service %s not linked to %s", t.Service, t.Name, t.App),
+				Mutations: []string{fmt.Sprintf("%s:link %s %s", t.Service, t.Name, t.App)},
+			}
+		},
+		"absent": func() PlanResult {
+			if !serviceExists(t.Service, t.Name) {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("service %s %s does not exist", t.Service, t.Name)}
+			}
+			if !appExists(t.App) {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("app %s does not exist", t.App)}
+			}
+			if !serviceLinked(t.Service, t.Name, t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    fmt.Sprintf("%s service %s linked to %s", t.Service, t.Name, t.App),
+				Mutations: []string{fmt.Sprintf("%s:unlink %s %s", t.Service, t.Name, t.App)},
+			}
+		},
+	})
+}
+
 // serviceLinked checks if a dokku service is linked to an app
 func serviceLinked(service, name, app string) bool {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{

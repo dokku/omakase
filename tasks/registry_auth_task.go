@@ -96,6 +96,41 @@ func (t RegistryAuthTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the RegistryAuthTask would produce.
+//
+// dokku registry plugins do not expose a probe for current login state, so
+// the plan reports drift unconditionally.
+func (t RegistryAuthTask) Plan() PlanResult {
+	if err := validateRegistryAuthTask(t); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	target := t.App
+	if t.Global {
+		target = "(global)"
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if t.Username == "" || t.Password == "" {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'username' and 'password' are required when state is 'present'")}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "registry login state not probed",
+				Mutations: []string{fmt.Sprintf("registry:login %s %s as %s", target, t.Server, t.Username)},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    "registry login state not probed",
+				Mutations: []string{fmt.Sprintf("registry:logout %s %s", target, t.Server)},
+			}
+		},
+	})
+}
+
 // validateRegistryAuthTask validates the registry auth task parameters
 func validateRegistryAuthTask(t RegistryAuthTask) error {
 	if t.Global && t.App != "" {

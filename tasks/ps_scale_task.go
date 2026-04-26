@@ -81,6 +81,42 @@ func (t PsScaleTask) Execute() TaskOutputState {
 	})
 }
 
+// Plan reports the drift the PsScaleTask would produce.
+func (t PsScaleTask) Plan() PlanResult {
+	if t.State == StatePresent && len(t.Scale) == 0 {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("scale must be specified when state is present")}
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		"present": func() PlanResult {
+			existing, err := getPsScale(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			mutations := []string{}
+			for proctype, qty := range t.Scale {
+				if curQty, ok := existing[proctype]; ok && curQty == qty {
+					continue
+				}
+				cur, ok := existing[proctype]
+				if ok {
+					mutations = append(mutations, fmt.Sprintf("scale %s=%d (was %d)", proctype, qty, cur))
+				} else {
+					mutations = append(mutations, fmt.Sprintf("scale %s=%d (new)", proctype, qty))
+				}
+			}
+			if len(mutations) == 0 {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    fmt.Sprintf("%d process scale change(s)", len(mutations)),
+				Mutations: mutations,
+			}
+		},
+	})
+}
+
 // getPsScale retrieves the current process scale for a given dokku application
 func getPsScale(app string) (map[string]int, error) {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
