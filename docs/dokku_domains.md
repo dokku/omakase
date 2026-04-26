@@ -10,6 +10,7 @@ dokku_domains:
     domains:
         - example.com
         - www.example.com
+    state: ""
 ```
 
 ## Remove domains from an app
@@ -26,6 +27,7 @@ dokku_domains:
 
 ```yaml
 dokku_domains:
+    app: ""
     global: true
     domains:
         - global.example.com
@@ -37,5 +39,6 @@ dokku_domains:
 ```yaml
 dokku_domains:
     app: example-app
+    domains: []
     state: clear
 ```
