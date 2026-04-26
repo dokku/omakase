@@ -166,6 +166,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_builder_pack_property",
 		"dokku_builder_property",
 		"dokku_builder_railpack_property",
+		"dokku_buildpacks",
 		"dokku_caddy_property",
 		"dokku_checks_property",
 		"dokku_checks_toggle",
@@ -466,7 +467,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 42
+	expected := 43
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
@@ -487,6 +488,7 @@ func TestTaskDocStrings(t *testing.T) {
 		{&BuilderPropertyTask{}, "Manages the builder configuration for a given dokku application"},
 		{&BuilderRailpackPropertyTask{}, "Manages the builder-railpack configuration for a given dokku application"},
 		{&BuildpacksPropertyTask{}, "Manages the buildpacks configuration for a given dokku application"},
+		{&BuildpacksTask{}, "Manages the buildpacks for a given dokku application"},
 		{&CaddyPropertyTask{}, "Manages the caddy configuration for a given dokku application"},
 		{&ChecksPropertyTask{}, "Manages the checks configuration for a given dokku application"},
 		{&ChecksToggleTask{}, "Enables or disables the checks plugin for a given dokku application"},
