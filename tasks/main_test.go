@@ -168,6 +168,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_git_property",
 		"dokku_git_sync",
 		"dokku_http_auth",
+		"dokku_logs_property",
 		"dokku_network",
 		"dokku_network_property",
 		"dokku_nginx_property",
