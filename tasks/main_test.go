@@ -174,6 +174,7 @@ func TestRegisteredTasksExist(t *testing.T) {
 		"dokku_nginx_property",
 		"dokku_ports",
 		"dokku_proxy_toggle",
+		"dokku_ps_property",
 		"dokku_ps_scale",
 		"dokku_resource_limit",
 		"dokku_resource_reserve",
@@ -450,7 +451,7 @@ func TestAllTasksExamplesReturnNoError(t *testing.T) {
 }
 
 func TestRegisteredTaskCount(t *testing.T) {
-	expected := 25
+	expected := 26
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
 	}
