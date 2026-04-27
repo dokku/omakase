@@ -37,7 +37,30 @@ Run it:
 docket apply
 ```
 
-Running `docket` with no subcommand prints the available commands. Use `docket apply` to execute a task file, `docket plan` to preview the changes a task file would make without mutating any state, `docket validate` to check a task file's schema and templates without contacting the server, or `docket version` to print the binary's version.
+Running `docket` with no subcommand prints the available commands. Use `docket init` to scaffold a starter `tasks.yml`, `docket apply` to execute a task file, `docket plan` to preview the changes a task file would make without mutating any state, `docket validate` to check a task file's schema and templates without contacting the server, or `docket version` to print the binary's version.
+
+### Scaffolding with `init`
+
+`docket init` writes a starter `tasks.yml` from an embedded template. It is offline only: no Dokku server contact, no `git` subprocess. The default scaffold ships four tasks (`dokku_app`, `dokku_config`, `dokku_domains`, `dokku_git_sync`) wrapped in a single play with `app` and `repo` inputs, and round-trips cleanly through `docket validate`.
+
+```shell
+# Use cwd basename as the app and remote.origin.url from ./.git/config as the repo
+docket init
+
+# Stream the rendered YAML to stdout for piping
+docket init --output -
+```
+
+The flags are:
+
+| Flag | Effect |
+|------|--------|
+| (default) | Write `./tasks.yml`; refuse if the file exists |
+| `--output <path>` | Write to a specific path; `-` writes to stdout |
+| `--force` | Overwrite an existing file |
+| `--name <name>` | Override the play and `app` input default (defaults to the cwd basename) |
+| `--repo <url>` | Override the `repo` input default (defaults to `remote.origin.url` in `./.git/config`, if present) |
+| `--minimal` | One-task example with no `inputs:` block |
 
 ### Previewing changes with `plan`
 
