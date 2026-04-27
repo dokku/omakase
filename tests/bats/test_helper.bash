@@ -81,3 +81,19 @@ require_dokku() {
     skip "dokku not available"
   fi
 }
+
+# require_remote_dokku skips the current test when SSH transport tests
+# cannot run. The localhost-ssh-to-dokku fixture is only wired up on
+# Linux CI; macOS dev boxes typically lack a local dokku and the
+# install/plumbing differs.
+require_remote_dokku() {
+  if [ "$(uname -s)" != "Linux" ]; then
+    skip "ssh transport tests run on Linux only"
+  fi
+  if [ -z "${DOCKET_TEST_REMOTE_HOST:-}" ]; then
+    skip "DOCKET_TEST_REMOTE_HOST not set"
+  fi
+  if ! command -v ssh >/dev/null 2>&1; then
+    skip "ssh client not available"
+  fi
+}

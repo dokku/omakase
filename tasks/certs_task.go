@@ -42,7 +42,10 @@ func (e CertsTaskExample) GetName() string {
 
 // Doc returns the docblock for the certs task
 func (t CertsTask) Doc() string {
-	return "Manages SSL certificates for a dokku app or globally"
+	return "Manages SSL certificates for a dokku app or globally. The `cert` " +
+		"and `key` fields are paths on the dokku server, so when running with " +
+		"`DOKKU_HOST` set the referenced files must already exist on the " +
+		"remote host - docket does not upload them."
 }
 
 // Examples returns the examples for the certs task

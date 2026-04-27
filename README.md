@@ -132,6 +132,42 @@ For example, a multi-command task renders one continuation per invocation:
 
 Color output respects [`NO_COLOR`](https://no-color.org/): set `NO_COLOR=1` to disable ANSI escapes, or pipe to a non-TTY (output is plain in that case automatically).
 
+### Remote execution over SSH
+
+Set `DOKKU_HOST=[user@]host[:port]` (or pass `--host`) to route every dokku invocation through an `ssh` subprocess so docket can manage a remote dokku server from a developer laptop or CI runner without installing the binary on the server. All invocations in one run share a single TCP+SSH connection via OpenSSH ControlMaster multiplexing.
+
+```shell
+# Apply against a remote dokku server.
+DOKKU_HOST=deploy@dokku.example.com docket apply
+
+# Same, via the CLI flag (overrides the env var).
+docket apply --host deploy@dokku.example.com:2222
+```
+
+Because docket shells out to your `ssh` binary, the user's `~/.ssh/config`, `ProxyJump`, ssh-agent, and `known_hosts` work natively - you do not need to teach docket about them.
+
+The flags are:
+
+| Flag | Effect |
+|------|--------|
+| `--host <user@host:port>` | Remote host to ssh into. Overrides `DOKKU_HOST`. |
+| `--sudo` | Wrap the remote `dokku` invocation in `sudo -n` (passwordless sudo only). Equivalent to `DOKKU_SUDO=1`. |
+| `--accept-new-host-keys` | Pass `-o StrictHostKeyChecking=accept-new` so SSH adds an unknown host's key on first connect. Convenient for CI where pre-seeding `known_hosts` is impractical, but loses MITM protection on the first connection. Equivalent to `DOKKU_SSH_ACCEPT_NEW_HOST_KEYS=1`. Prefer pre-seeding via `ssh-keyscan host >> ~/.ssh/known_hosts` when you can. |
+
+Errors are categorised so it is clear which side failed: SSH-level failures (connect refused, auth, host-key mismatch) render with an `ssh:` prefix, and remote dokku command failures render with a `dokku:` prefix.
+
+```text
+[error]   create app
+          ! ssh: ssh deploy@dokku.example.com: Permission denied (publickey).
+```
+
+```text
+[error]   add buildpack
+          ! dokku: app foo does not exist
+```
+
+When a task references file paths (e.g. the `cert` and `key` fields on `dokku_certs`), those paths are interpreted on the *remote* host. Local file uploads are not implemented in this release; pre-place referenced files on the remote server.
+
 ### Previewing changes with `plan`
 
 `docket plan` reads each task's current state from the live dokku server and reports what `apply` would change, without invoking any mutating dokku command. The output uses the same play header and column layout as `apply`, with a different marker set:

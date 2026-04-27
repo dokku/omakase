@@ -1,6 +1,6 @@
 # dokku_certs
 
-Manages SSL certificates for a dokku app or globally
+Manages SSL certificates for a dokku app or globally. The `cert` and `key` fields are paths on the dokku server, so when running with `DOKKU_HOST` set the referenced files must already exist on the remote host - docket does not upload them.
 
 ## Add an SSL certificate to an app
 

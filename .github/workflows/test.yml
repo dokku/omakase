@@ -87,5 +87,26 @@ jobs:
         run: sudo apt-get install -qq -y bats bats-support bats-assert
       - name: build docket
         run: go build -o docket .
+      - name: setup ssh to localhost for ssh transport tests
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519
+          cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
+          chmod 600 ~/.ssh/authorized_keys
+          ssh-keyscan -H localhost >> ~/.ssh/known_hosts
+          ssh-keyscan -H 127.0.0.1 >> ~/.ssh/known_hosts
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$USER@localhost" 'echo ssh-ok'
+          # Mirror the developer's SSH setup into the root user that bats
+          # runs as via sudo, so DOKKU_HOST=$USER@localhost works under
+          # `sudo --preserve-env=PATH`.
+          sudo mkdir -p /root/.ssh
+          sudo chmod 700 /root/.ssh
+          sudo cp ~/.ssh/id_ed25519 /root/.ssh/id_ed25519
+          sudo cp ~/.ssh/id_ed25519.pub /root/.ssh/id_ed25519.pub
+          sudo cp ~/.ssh/known_hosts /root/.ssh/known_hosts
+          sudo chmod 600 /root/.ssh/id_ed25519
+      - name: export remote host fixture
+        run: echo "DOCKET_TEST_REMOTE_HOST=$USER@localhost" >> $GITHUB_ENV
       - name: run bats tests
-        run: sudo --preserve-env=PATH bats tests/bats/
+        run: sudo --preserve-env=PATH,DOCKET_TEST_REMOTE_HOST bats tests/bats/
