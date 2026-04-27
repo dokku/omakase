@@ -76,7 +76,12 @@ func (t BuilderPropertyTask) Examples() ([]Doc, error) {
 
 // Execute executes the builder configuration task
 func (t BuilderPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the BuilderPropertyTask would produce.
+func (t BuilderPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder:set")
 }
 
 // init registers the BuilderTask with the task registry

@@ -68,7 +68,12 @@ func (t BuilderHerokuishPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the builder-herokuish property
 func (t BuilderHerokuishPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-herokuish:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the BuilderHerokuishPropertyTask would produce.
+func (t BuilderHerokuishPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-herokuish:set")
 }
 
 // init registers the BuilderHerokuishPropertyTask with the task registry

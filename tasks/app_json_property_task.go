@@ -68,7 +68,12 @@ func (t AppJsonPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the app.json property
 func (t AppJsonPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "app-json:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the AppJsonPropertyTask would produce.
+func (t AppJsonPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "app-json:set")
 }
 
 // init registers the AppJsonPropertyTask with the task registry

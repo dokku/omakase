@@ -72,7 +72,12 @@ func (t ResourceReserveTask) Examples() ([]Doc, error) {
 
 // Execute sets or clears the resource reservations for a given dokku application
 func (t ResourceReserveTask) Execute() TaskOutputState {
-	return executeResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:reserve")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the ResourceReserveTask would produce.
+func (t ResourceReserveTask) Plan() PlanResult {
+	return planResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:reserve")
 }
 
 // init registers the ResourceReserveTask with the task registry

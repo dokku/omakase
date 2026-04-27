@@ -72,8 +72,54 @@ func (t GitSyncTask) Examples() ([]Doc, error) {
 
 // Execute syncs a git repository to a dokku application
 func (t GitSyncTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return syncGitRepository(t) },
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the GitSyncTask would produce.
+func (t GitSyncTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if checkAppSyncState(t.App, t.Remote, t.GitRef) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			ref := t.GitRef
+			if ref == "" {
+				ref = "(default branch)"
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "remote/ref drift",
+				Mutations: []string{fmt.Sprintf("git:sync %s %s %s", t.App, t.Remote, ref)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					args := []string{"git:sync"}
+					if t.Build {
+						args = append(args, "--build")
+					}
+					if t.BuildIfChanges {
+						args = append(args, "--build-if-changes")
+					}
+					if t.SkipDeployBranch {
+						args = append(args, "--skip-deploy-branch")
+					}
+					args = append(args, t.App, t.Remote)
+					if t.GitRef != "" {
+						args = append(args, t.GitRef)
+					}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
+			}
+		},
 	})
 }
 
@@ -86,51 +132,6 @@ func checkAppSyncState(app, expectedRemote, expectedRef string) bool {
 
 	expectedMetadata := fmt.Sprintf("%s#%s", expectedRemote, expectedRef)
 	return source.Source == "git-sync" && source.SourceMetadata == expectedMetadata
-}
-
-// syncGitRepository syncs a git repository to a dokku application
-func syncGitRepository(t GitSyncTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "absent",
-	}
-
-	if checkAppSyncState(t.App, t.Remote, t.GitRef) {
-		state.State = "present"
-		return state
-	}
-
-	args := []string{
-		"git:sync",
-	}
-
-	if t.Build {
-		args = append(args, "--build")
-	}
-	if t.BuildIfChanges {
-		args = append(args, "--build-if-changes")
-	}
-	if t.SkipDeployBranch {
-		args = append(args, "--skip-deploy-branch")
-	}
-
-	args = append(args, t.App, t.Remote)
-
-	if t.GitRef != "" {
-		args = append(args, t.GitRef)
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "present"
-	return state
 }
 
 // init registers the GitSyncTask with the task registry

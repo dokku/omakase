@@ -69,10 +69,133 @@ func (t ConfigTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the configuration for a given dokku application
 func (t ConfigTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return setConfig(t) },
-		"absent":  func() TaskOutputState { return unsetConfig(t) },
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the ConfigTask would produce.
+func (t ConfigTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult { return planConfigSet(t) },
+		StateAbsent:  func() PlanResult { return planConfigUnset(t) },
 	})
+}
+
+// configKeysToSet returns keys whose desired value differs from the current value.
+func configKeysToSet(current, desired map[string]string) []string {
+	keys := []string{}
+	for k, v := range desired {
+		if cur, ok := current[k]; !ok || cur != v {
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
+// configKeysToUnset returns keys present in desired that exist in current.
+func configKeysToUnset(current, desired map[string]string) []string {
+	keys := []string{}
+	for k := range desired {
+		if _, ok := current[k]; ok {
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
+// planConfigSet probes current config once, computes the diff, and embeds
+// an apply closure that runs `dokku config:set` with only the changed keys.
+func planConfigSet(t ConfigTask) PlanResult {
+	currentConfig, err := getConfig(t)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	keys := configKeysToSet(currentConfig, t.Config)
+	if len(keys) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	mutations := make([]string, 0, len(keys))
+	status := PlanStatusModify
+	allNew := true
+	for _, k := range keys {
+		if _, ok := currentConfig[k]; ok {
+			mutations = append(mutations, fmt.Sprintf("set %s (was set)", k))
+			allNew = false
+		} else {
+			mutations = append(mutations, fmt.Sprintf("set %s (new)", k))
+		}
+	}
+	if allNew {
+		status = PlanStatusCreate
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    status,
+		Reason:    fmt.Sprintf("%d key(s) to set", len(keys)),
+		Mutations: mutations,
+		apply: func() TaskOutputState {
+			state := TaskOutputState{Changed: false, State: StateAbsent}
+			args := []string{"--quiet", "config:set", "--encoded"}
+			if !t.Restart {
+				args = append(args, "--no-restart")
+			}
+			args = append(args, t.App)
+			for _, k := range keys {
+				args = append(args, fmt.Sprintf("%s=%s", k, base64.StdEncoding.EncodeToString([]byte(t.Config[k]))))
+			}
+			result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+				Command: "dokku",
+				Args:    args,
+			})
+			if err != nil {
+				return TaskOutputErrorFromExec(state, err, result)
+			}
+			state.Changed = true
+			state.State = StatePresent
+			return state
+		},
+	}
+}
+
+// planConfigUnset probes current config once, computes the diff, and embeds
+// an apply closure that runs `dokku config:unset` with only existing keys.
+func planConfigUnset(t ConfigTask) PlanResult {
+	currentConfig, err := getConfig(t)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	keys := configKeysToUnset(currentConfig, t.Config)
+	if len(keys) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	mutations := make([]string, 0, len(keys))
+	for _, k := range keys {
+		mutations = append(mutations, fmt.Sprintf("unset %s", k))
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusDestroy,
+		Reason:    fmt.Sprintf("%d key(s) to unset", len(keys)),
+		Mutations: mutations,
+		apply: func() TaskOutputState {
+			state := TaskOutputState{Changed: false, State: StatePresent}
+			args := []string{"--quiet", "config:unset"}
+			if !t.Restart {
+				args = append(args, "--no-restart")
+			}
+			args = append(args, t.App)
+			args = append(args, keys...)
+			result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+				Command: "dokku",
+				Args:    args,
+			})
+			if err != nil {
+				return TaskOutputErrorFromExec(state, err, result)
+			}
+			state.Changed = true
+			state.State = StateAbsent
+			return state
+		},
+	}
 }
 
 // getConfig retrieves the current configuration for a given dokku application
@@ -98,120 +221,6 @@ func getConfig(t ConfigTask) (map[string]string, error) {
 		return config, err
 	}
 	return config, nil
-}
-
-// setConfig sets the configuration for a given dokku application
-func setConfig(t ConfigTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "absent",
-	}
-
-	currentConfig, err := getConfig(t)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-
-	desiredConfig := make(map[string]string)
-	for key, value := range t.Config {
-		if _, ok := currentConfig[key]; !ok {
-			desiredConfig[key] = value
-			continue
-		}
-		if currentConfig[key] != value {
-			desiredConfig[key] = value
-		}
-	}
-
-	if len(desiredConfig) == 0 {
-		state.State = "present"
-		return state
-	}
-
-	args := []string{
-		"--quiet",
-		"config:set",
-		"--encoded",
-	}
-
-	if !t.Restart {
-		// todo: rename no-restart to skip-deploy in dokku
-		args = append(args, "--no-restart")
-	}
-
-	args = append(args, t.App)
-
-	for key, value := range desiredConfig {
-		args = append(args, fmt.Sprintf("%s=%s", key, base64.StdEncoding.EncodeToString([]byte(value))))
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "present"
-	return state
-}
-
-// unsetConfig unsets the configuration for a given dokku application
-func unsetConfig(t ConfigTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "present",
-	}
-	currentConfig, err := getConfig(t)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-
-	desiredConfig := make(map[string]bool)
-	for key := range t.Config {
-		if _, ok := currentConfig[key]; ok {
-			desiredConfig[key] = true
-		}
-	}
-
-	if len(desiredConfig) == 0 {
-		state.State = "absent"
-		return state
-	}
-
-	args := []string{
-		"--quiet",
-		"config:unset",
-	}
-
-	if !t.Restart {
-		// todo: rename no-restart to skip-deploy in dokku
-		args = append(args, "--no-restart")
-	}
-
-	args = append(args, t.App)
-
-	for key := range desiredConfig {
-		args = append(args, key)
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "absent"
-	return state
 }
 
 // init registers the ConfigTask with the task registry

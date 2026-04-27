@@ -76,7 +76,12 @@ func (t LetsencryptPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the letsencrypt property
 func (t LetsencryptPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "letsencrypt:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the LetsencryptPropertyTask would produce.
+func (t LetsencryptPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "letsencrypt:set")
 }
 
 // init registers the LetsencryptPropertyTask with the task registry

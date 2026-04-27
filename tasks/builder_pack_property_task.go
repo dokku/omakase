@@ -68,7 +68,12 @@ func (t BuilderPackPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the builder-pack property
 func (t BuilderPackPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-pack:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the BuilderPackPropertyTask would produce.
+func (t BuilderPackPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-pack:set")
 }
 
 // init registers the BuilderPackPropertyTask with the task registry

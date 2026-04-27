@@ -68,7 +68,12 @@ func (t BuilderDockerfilePropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the builder-dockerfile property
 func (t BuilderDockerfilePropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-dockerfile:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the BuilderDockerfilePropertyTask would produce.
+func (t BuilderDockerfilePropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-dockerfile:set")
 }
 
 // init registers the BuilderDockerfilePropertyTask with the task registry

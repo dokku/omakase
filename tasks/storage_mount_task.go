@@ -47,9 +47,61 @@ func (t StorageMountTask) Examples() ([]Doc, error) {
 
 // Execute mounts or unmounts the storage for a given app
 func (t StorageMountTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return mountStorage(t.App, t.HostDir, t.ContainerDir) },
-		"absent":  func() TaskOutputState { return unmountStorage(t.App, t.HostDir, t.ContainerDir) },
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the StorageMountTask would produce.
+func (t StorageMountTask) Plan() PlanResult {
+	mountSpec := fmt.Sprintf("%s:%s", t.HostDir, t.ContainerDir)
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if mountExists(t.App, t.HostDir, t.ContainerDir) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    "mount missing",
+				Mutations: []string{fmt.Sprintf("mount %s on %s", mountSpec, t.App)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "storage:mount", t.App, mountSpec},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			if !mountExists(t.App, t.HostDir, t.ContainerDir) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    "mount present",
+				Mutations: []string{fmt.Sprintf("unmount %s on %s", mountSpec, t.App)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "storage:unmount", t.App, mountSpec},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
+			}
+		},
 	})
 }
 
@@ -85,68 +137,6 @@ func mountExists(app, hostDir, containerDir string) bool {
 		}
 	}
 	return false
-}
-
-// mountStorage mounts the storage for a given app
-func mountStorage(app, hostDir, containerDir string) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "present",
-	}
-
-	// check if the mount already exists
-	if mountExists(app, hostDir, containerDir) {
-		state.Changed = false
-		state.State = "present"
-		return state
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			"storage:mount",
-			app,
-			fmt.Sprintf("%s:%s", hostDir, containerDir),
-		},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "present"
-	return state
-}
-
-// unmountStorage unmounts the storage for a given app
-func unmountStorage(app, hostDir, containerDir string) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "present",
-	}
-	if !mountExists(app, hostDir, containerDir) {
-		state.Changed = false
-		state.State = "absent"
-		return state
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			"storage:unmount",
-			app,
-			fmt.Sprintf("%s:%s", hostDir, containerDir),
-		},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "absent"
-	return state
 }
 
 // init registers the StorageMountTask with the task registry

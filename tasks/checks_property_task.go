@@ -68,7 +68,12 @@ func (t ChecksPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the checks property
 func (t ChecksPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "checks:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the ChecksPropertyTask would produce.
+func (t ChecksPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "checks:set")
 }
 
 // init registers the ChecksPropertyTask with the task registry

@@ -76,7 +76,12 @@ func (t GitPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the git property
 func (t GitPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "git:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the GitPropertyTask would produce.
+func (t GitPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "git:set")
 }
 
 // init registers the GitPropertyTask with the task registry
