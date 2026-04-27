@@ -41,6 +41,9 @@ func Commands(ctx context.Context, meta command.Meta) map[string]cli.CommandFact
 		"apply": func() (cli.Command, error) {
 			return &commands.ApplyCommand{Meta: meta}, nil
 		},
+		"fmt": func() (cli.Command, error) {
+			return &commands.FmtCommand{Meta: meta}, nil
+		},
 		"init": func() (cli.Command, error) {
 			return &commands.InitCommand{Meta: meta}, nil
 		},
