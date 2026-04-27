@@ -128,7 +128,7 @@ func (t RegistryAuthTask) Plan() PlanResult {
 						Args:    args,
 						Stdin:   strings.NewReader(t.Password),
 					})
-					state.Command = result.Command
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -157,7 +157,7 @@ func (t RegistryAuthTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    args,
 					})
-					state.Command = result.Command
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -214,7 +214,7 @@ func registryLogin(t RegistryAuthTask) TaskOutputState {
 		Args:    args,
 		Stdin:   strings.NewReader(t.Password),
 	})
-	state.Command = result.Command
+	state.Commands = append(state.Commands, result.Command)
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}
@@ -248,7 +248,7 @@ func registryLogout(t RegistryAuthTask) TaskOutputState {
 		Command: "dokku",
 		Args:    args,
 	})
-	state.Command = result.Command
+	state.Commands = append(state.Commands, result.Command)
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}

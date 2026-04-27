@@ -79,7 +79,7 @@ func (t AppLockTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "apps:lock", t.App},
 					})
-					state.Command = result.Command
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -104,7 +104,7 @@ func (t AppLockTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "apps:unlock", t.App},
 					})
-					state.Command = result.Command
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}

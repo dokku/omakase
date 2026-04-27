@@ -69,7 +69,7 @@ func (t StorageMountTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "storage:mount", t.App, mountSpec},
 					})
-					state.Command = result.Command
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -94,7 +94,7 @@ func (t StorageMountTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "storage:unmount", t.App, mountSpec},
 					})
-					state.Command = result.Command
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}

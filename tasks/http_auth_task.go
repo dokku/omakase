@@ -90,7 +90,7 @@ func (t HttpAuthTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "http-auth:on", t.App, t.Username, t.Password},
 					})
-					state.Command = result.Command
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -115,7 +115,7 @@ func (t HttpAuthTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "http-auth:off", t.App},
 					})
-					state.Command = result.Command
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -176,7 +176,7 @@ func enableHttpAuth(app, username, password string) TaskOutputState {
 			password,
 		},
 	})
-	state.Command = result.Command
+	state.Commands = append(state.Commands, result.Command)
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}
@@ -205,7 +205,7 @@ func disableHttpAuth(app string) TaskOutputState {
 			app,
 		},
 	})
-	state.Command = result.Command
+	state.Commands = append(state.Commands, result.Command)
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}

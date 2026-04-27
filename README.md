@@ -120,7 +120,15 @@ The flags are:
 | Flag | Effect |
 |------|--------|
 | `--tasks <path>` | Use a specific task file (default `./tasks.yml`) |
-| `--verbose` | After each task line, echo the resolved Dokku command on a `→`-prefixed continuation line. Commands are not masked - avoid on recipes that pass secrets via task arguments. |
+| `--verbose` | After each task line, echo every resolved Dokku command the task ran on a `→`-prefixed continuation line, in invocation order. Tasks that loop over inputs (e.g. `dokku_buildpacks` adding several URLs) emit one continuation per call. Commands are not masked - avoid on recipes that pass secrets via task arguments. |
+
+For example, a multi-command task renders one continuation per invocation:
+
+```text
+[changed] add buildpacks
+          → dokku --quiet buildpacks:add app https://github.com/heroku/heroku-buildpack-nodejs.git
+          → dokku --quiet buildpacks:add app https://github.com/heroku/heroku-buildpack-nginx.git
+```
 
 Color output respects [`NO_COLOR`](https://no-color.org/): set `NO_COLOR=1` to disable ANSI escapes, or pipe to a non-TTY (output is plain in that case automatically).
 

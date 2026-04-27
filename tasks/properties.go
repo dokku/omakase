@@ -158,7 +158,7 @@ func applyPropertySet(subcommand, target, property, value string) func() TaskOut
 			Command: "dokku",
 			Args:    []string{"--quiet", subcommand, target, property, value},
 		})
-		state.Command = result.Command
+		state.Commands = append(state.Commands, result.Command)
 		if err != nil {
 			return TaskOutputErrorFromExec(state, err, result)
 		}
@@ -178,7 +178,7 @@ func applyPropertyUnset(subcommand, target, property string) func() TaskOutputSt
 			Command: "dokku",
 			Args:    []string{"--quiet", subcommand, target, property},
 		})
-		state.Command = result.Command
+		state.Commands = append(state.Commands, result.Command)
 		if err != nil {
 			return TaskOutputErrorFromExec(state, err, result)
 		}

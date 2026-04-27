@@ -130,8 +130,10 @@ func (c *ApplyCommand) Run(args []string) int {
 			counts.Errors++
 			formatter.TaskLine(MarkerError, name, "")
 			formatter.Continuation('!', state.Error.Error())
-			if c.verbose && state.Command != "" {
-				formatter.Continuation('\u2192', state.Command)
+			if c.verbose {
+				for _, cmd := range state.Commands {
+					formatter.Continuation('\u2192', cmd)
+				}
 			}
 			formatter.ApplySummary(counts, time.Since(start))
 			return 1
@@ -143,8 +145,10 @@ func (c *ApplyCommand) Run(args []string) int {
 			formatter.TaskLine(MarkerOK, name, "")
 		}
 
-		if c.verbose && state.Command != "" {
-			formatter.Continuation('\u2192', state.Command)
+		if c.verbose {
+			for _, cmd := range state.Commands {
+				formatter.Continuation('\u2192', cmd)
+			}
 		}
 
 		if state.State != state.DesiredState {

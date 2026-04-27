@@ -146,7 +146,7 @@ func planConfigSet(t ConfigTask) PlanResult {
 				Command: "dokku",
 				Args:    args,
 			})
-			state.Command = result.Command
+			state.Commands = append(state.Commands, result.Command)
 			if err != nil {
 				return TaskOutputErrorFromExec(state, err, result)
 			}
@@ -189,7 +189,7 @@ func planConfigUnset(t ConfigTask) PlanResult {
 				Command: "dokku",
 				Args:    args,
 			})
-			state.Command = result.Command
+			state.Commands = append(state.Commands, result.Command)
 			if err != nil {
 				return TaskOutputErrorFromExec(state, err, result)
 			}

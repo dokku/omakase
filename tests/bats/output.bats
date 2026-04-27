@@ -58,6 +58,38 @@ EOF
   assert_output --partial "apps:create"
 }
 
+@test "docket apply --verbose echoes every command for multi-command tasks" {
+  # dokku_buildpacks invokes `dokku buildpacks:add` once per buildpack URL,
+  # which exercises the per-task multi-command append path. The URLs are
+  # only recorded in the buildpacks file (no network fetch happens at
+  # add-time) so this stays a pure docket+dokku test.
+  write_tasks_file <<EOF
+---
+- tasks:
+    - name: ensure docket-test-output
+      dokku_app:
+        app: docket-test-output
+    - name: add buildpacks
+      dokku_buildpacks:
+        app: docket-test-output
+        buildpacks:
+          - https://github.com/heroku/heroku-buildpack-nodejs.git
+          - https://github.com/heroku/heroku-buildpack-nginx.git
+EOF
+  run "$(docket_bin)" apply --tasks "$TASKS_FILE" --verbose
+  assert_success
+  assert_output --partial "→ dokku"
+  assert_output --partial "buildpacks:add"
+  assert_output --partial "heroku-buildpack-nodejs"
+  assert_output --partial "heroku-buildpack-nginx"
+  # One -> line per buildpack add.
+  local arrow_count
+  arrow_count="$(printf '%s\n' "${output}" | grep -c "→ dokku.*buildpacks:add" || true)"
+  if [ "${arrow_count}" -lt 2 ]; then
+    fail "expected at least 2 '→ dokku ... buildpacks:add' continuation lines, got ${arrow_count} in:${output}"
+  fi
+}
+
 @test "docket apply on error surfaces the failure" {
   write_tasks_file <<EOF
 ---

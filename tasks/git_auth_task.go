@@ -94,7 +94,7 @@ func (t GitAuthTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "git:auth", t.Host, t.Username, t.Password},
 					})
-					state.Command = result.Command
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -116,7 +116,7 @@ func (t GitAuthTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "git:auth", t.Host},
 					})
-					state.Command = result.Command
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -149,7 +149,7 @@ func setGitAuth(t GitAuthTask) TaskOutputState {
 		Command: "dokku",
 		Args:    []string{"--quiet", "git:auth", t.Host, t.Username, t.Password},
 	})
-	state.Command = result.Command
+	state.Commands = append(state.Commands, result.Command)
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}
@@ -175,7 +175,7 @@ func unsetGitAuth(t GitAuthTask) TaskOutputState {
 		Command: "dokku",
 		Args:    []string{"--quiet", "git:auth", t.Host},
 	})
-	state.Command = result.Command
+	state.Commands = append(state.Commands, result.Command)
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}
