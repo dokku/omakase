@@ -1,7 +1,9 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
+
 	"github.com/dokku/docket/subprocess"
 )
 
@@ -79,7 +81,11 @@ func (t GitSyncTask) Execute() TaskOutputState {
 func (t GitSyncTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
 		StatePresent: func() PlanResult {
-			if checkAppSyncState(t.App, t.Remote, t.GitRef) {
+			match, err := checkAppSyncState(t.App, t.Remote, t.GitRef)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if match {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			ref := t.GitRef
@@ -124,15 +130,22 @@ func (t GitSyncTask) Plan() PlanResult {
 	})
 }
 
-// checkAppSyncState checks if the app is already synced from the expected remote and ref
-func checkAppSyncState(app, expectedRemote, expectedRef string) bool {
+// checkAppSyncState checks if the app is already synced from the
+// expected remote and ref. A transport-level failure
+// (`*subprocess.SSHError`) is propagated; any other error is treated
+// as "no match" so the planner proposes a re-sync.
+func checkAppSyncState(app, expectedRemote, expectedRef string) (bool, error) {
 	source, err := getAppDeploySource(app)
 	if err != nil {
-		return false
+		var sshErr *subprocess.SSHError
+		if errors.As(err, &sshErr) {
+			return false, err
+		}
+		return false, nil
 	}
 
 	expectedMetadata := fmt.Sprintf("%s#%s", expectedRemote, expectedRef)
-	return source.Source == "git-sync" && source.SourceMetadata == expectedMetadata
+	return source.Source == "git-sync" && source.SourceMetadata == expectedMetadata, nil
 }
 
 // init registers the GitSyncTask with the task registry

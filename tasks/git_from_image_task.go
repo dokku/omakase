@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/dokku/docket/subprocess"
@@ -63,7 +64,11 @@ func (t GitFromImageTask) Execute() TaskOutputState {
 func (t GitFromImageTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
 		StateDeployed: func() PlanResult {
-			if checkAppSourceImage(t.App, t.Image) {
+			match, err := checkAppSourceImage(t.App, t.Image)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if match {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -101,14 +106,21 @@ func (t GitFromImageTask) Plan() PlanResult {
 	})
 }
 
-// checkAppSourceImage checks if the app is already deployed from a docker image
-func checkAppSourceImage(app, expectedImage string) bool {
+// checkAppSourceImage checks if the app is already deployed from a
+// docker image. A transport-level failure (`*subprocess.SSHError`) is
+// propagated; any other error is treated as "no match" so the planner
+// proposes a re-deploy.
+func checkAppSourceImage(app, expectedImage string) (bool, error) {
 	source, err := getAppDeploySource(app)
 	if err != nil {
-		return false
+		var sshErr *subprocess.SSHError
+		if errors.As(err, &sshErr) {
+			return false, err
+		}
+		return false, nil
 	}
 
-	return source.Source == "docker-image" && source.SourceMetadata == expectedImage
+	return source.Source == "docker-image" && source.SourceMetadata == expectedImage, nil
 }
 
 // init registers the GitFromImageTask with the task registry

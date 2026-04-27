@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/dokku/docket/subprocess"
@@ -97,7 +98,11 @@ func (t GitFromArchiveTask) Plan() PlanResult {
 			if (t.GitUsername == "") != (t.GitEmail == "") {
 				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'git_username' and 'git_email' must be set together")}
 			}
-			if checkAppSourceArchive(t.App, archiveType, t.ArchiveURL) {
+			match, err := checkAppSourceArchive(t.App, archiveType, t.ArchiveURL)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if match {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -128,15 +133,22 @@ func (t GitFromArchiveTask) Plan() PlanResult {
 	})
 }
 
-// checkAppSourceArchive returns true if the app is already deployed from the
-// expected archive URL with the expected archive type. The archive type is
-// stored as the deploy source value, so a tar.gz deploy reports source "tar.gz".
-func checkAppSourceArchive(app, expectedType, expectedURL string) bool {
+// checkAppSourceArchive returns true if the app is already deployed
+// from the expected archive URL with the expected archive type. The
+// archive type is stored as the deploy source value, so a tar.gz
+// deploy reports source "tar.gz". A transport-level failure
+// (`*subprocess.SSHError`) is propagated; any other error is treated
+// as "no match" so the planner proposes a re-deploy.
+func checkAppSourceArchive(app, expectedType, expectedURL string) (bool, error) {
 	source, err := getAppDeploySource(app)
 	if err != nil {
-		return false
+		var sshErr *subprocess.SSHError
+		if errors.As(err, &sshErr) {
+			return false, err
+		}
+		return false, nil
 	}
-	return source.Source == expectedType && source.SourceMetadata == expectedURL
+	return source.Source == expectedType && source.SourceMetadata == expectedURL, nil
 }
 
 // init registers the GitFromArchiveTask with the task registry

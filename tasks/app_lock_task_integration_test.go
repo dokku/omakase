@@ -14,7 +14,7 @@ func TestIntegrationAppLock(t *testing.T) {
 	defer destroyApp(appName)
 
 	// initial state - not locked
-	if appLocked(appName) {
+	if locked, _ := appLocked(appName); locked {
 		t.Fatalf("expected newly-created app %q to be unlocked", appName)
 	}
 
@@ -30,7 +30,7 @@ func TestIntegrationAppLock(t *testing.T) {
 	if result.State != StatePresent {
 		t.Errorf("expected state 'present', got '%s'", result.State)
 	}
-	if !appLocked(appName) {
+	if locked, _ := appLocked(appName); !locked {
 		t.Errorf("expected app %q to be locked after lock task", appName)
 	}
 
@@ -42,7 +42,7 @@ func TestIntegrationAppLock(t *testing.T) {
 	if result.Changed {
 		t.Errorf("expected Changed=false on idempotent lock")
 	}
-	if !appLocked(appName) {
+	if locked, _ := appLocked(appName); !locked {
 		t.Errorf("expected app %q to remain locked", appName)
 	}
 
@@ -58,7 +58,7 @@ func TestIntegrationAppLock(t *testing.T) {
 	if result.State != StateAbsent {
 		t.Errorf("expected state 'absent', got '%s'", result.State)
 	}
-	if appLocked(appName) {
+	if locked, _ := appLocked(appName); locked {
 		t.Errorf("expected app %q to be unlocked after unlock task", appName)
 	}
 
@@ -70,7 +70,7 @@ func TestIntegrationAppLock(t *testing.T) {
 	if result.Changed {
 		t.Errorf("expected Changed=false on idempotent unlock")
 	}
-	if appLocked(appName) {
+	if locked, _ := appLocked(appName); locked {
 		t.Errorf("expected app %q to remain unlocked", appName)
 	}
 }

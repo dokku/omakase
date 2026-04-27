@@ -60,7 +60,11 @@ func (t NetworkTask) Execute() TaskOutputState {
 func (t NetworkTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
 		StatePresent: func() PlanResult {
-			if networkExists(t.Name) {
+			exists, err := networkExists(t.Name)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if exists {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -85,7 +89,11 @@ func (t NetworkTask) Plan() PlanResult {
 			}
 		},
 		StateAbsent: func() PlanResult {
-			if !networkExists(t.Name) {
+			exists, err := networkExists(t.Name)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !exists {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -112,9 +120,11 @@ func (t NetworkTask) Plan() PlanResult {
 	})
 }
 
-// networkExists checks if a Docker network exists
-func networkExists(name string) bool {
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+// networkExists checks if a Docker network exists. Returns (false,
+// *subprocess.SSHError) on transport failure; (false, nil) when dokku
+// reports the network absent; (true, nil) when present.
+func networkExists(name string) (bool, error) {
+	return subprocess.Probe(subprocess.ExecCommandInput{
 		Command: "dokku",
 		Args: []string{
 			"--quiet",
@@ -122,18 +132,14 @@ func networkExists(name string) bool {
 			name,
 		},
 	})
-	if err != nil {
-		return false
-	}
-
-	return result.ExitCode == 0
 }
 
 // destroyNetwork is retained as an integration-test helper. It runs the
 // destroy-network apply path synchronously.
 func destroyNetwork(name string) TaskOutputState {
 	state := TaskOutputState{Changed: false, State: StatePresent}
-	if !networkExists(name) {
+	exists, _ := networkExists(name)
+	if !exists {
 		state.State = StateAbsent
 		return state
 	}

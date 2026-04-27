@@ -204,6 +204,30 @@ var (
 	defaultHost   string
 )
 
+// Probe runs input as a state probe and reports whether it matched
+// (exit 0). A dokku-level non-zero exit is reported as `(false, nil)`,
+// i.e. "the probed state is absent," so callers can write idempotent
+// probes without unwrapping errors themselves. A transport-level
+// failure (`*SSHError`) is propagated as `(false, err)` so the caller
+// can short-circuit `Plan()` with `PlanResult{Error: err}` and let the
+// formatter render `! ssh: ...`.
+//
+// Use this for any plan-time probe that today reads exit code only
+// (`apps:exists`, `network:exists`, `<service>:linked`, etc.). Probes
+// that need stdout should call CallExecCommand directly and use
+// `errors.As(err, &*SSHError)` to discriminate.
+func Probe(input ExecCommandInput) (bool, error) {
+	result, err := CallExecCommand(input)
+	if err != nil {
+		var sshErr *SSHError
+		if errors.As(err, &sshErr) {
+			return false, err
+		}
+		return false, nil
+	}
+	return result.ExitCode == 0, nil
+}
+
 // SetDefaultHost registers the host that CallExecCommandWithContext
 // should use when ExecCommandInput.Host is empty. Pass an empty string
 // to clear the default. Mirrors the SetGlobalSensitive pattern.

@@ -63,7 +63,8 @@ func TestIntegrationPlanDoesNotMutate(t *testing.T) {
 	task := AppTask{App: appName, State: StatePresent}
 	_ = task.Plan()
 
-	if appExists(appName) {
+	exists, _ := appExists(appName)
+	if exists {
 		t.Errorf("Plan() unexpectedly created %s", appName)
 	}
 }

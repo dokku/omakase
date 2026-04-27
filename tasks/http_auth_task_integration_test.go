@@ -33,7 +33,7 @@ func TestIntegrationHttpAuth(t *testing.T) {
 	}
 
 	// verify auth is enabled via http-auth:report
-	if !httpAuthEnabled(appName) {
+	if enabled, _ := httpAuthEnabled(appName); !enabled {
 		t.Error("expected http auth to be enabled after enable")
 	}
 
@@ -66,7 +66,7 @@ func TestIntegrationHttpAuth(t *testing.T) {
 	}
 
 	// verify auth is disabled via http-auth:report
-	if httpAuthEnabled(appName) {
+	if enabled, _ := httpAuthEnabled(appName); enabled {
 		t.Error("expected http auth to be disabled after disable")
 	}
 

@@ -60,7 +60,11 @@ func (t AppTask) Execute() TaskOutputState {
 func (t AppTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
 		StatePresent: func() PlanResult {
-			if appExists(t.App) {
+			exists, err := appExists(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if exists {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -72,7 +76,11 @@ func (t AppTask) Plan() PlanResult {
 			}
 		},
 		StateAbsent: func() PlanResult {
-			if !appExists(t.App) {
+			exists, err := appExists(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !exists {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -86,21 +94,15 @@ func (t AppTask) Plan() PlanResult {
 	})
 }
 
-// appExists checks if an app exists
-func appExists(appName string) bool {
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+// appExists checks if an app exists. Returns (true, nil) when the app
+// is present, (false, nil) when dokku reports it absent, and
+// (false, *subprocess.SSHError) when the probe could not reach the
+// server. Plan() callers must short-circuit on the error.
+func appExists(appName string) (bool, error) {
+	return subprocess.Probe(subprocess.ExecCommandInput{
 		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			"apps:exists",
-			appName,
-		},
+		Args:    []string{"--quiet", "apps:exists", appName},
 	})
-	if err != nil {
-		return false
-	}
-
-	return result.ExitCode == 0
 }
 
 // applyCreateApp returns a closure that runs `dokku apps:create <app>`.
@@ -142,7 +144,8 @@ func applyDestroyApp(app string) func() TaskOutputState {
 // destroyApp is retained as an integration-test helper. It runs the
 // destroy-app apply path synchronously.
 func destroyApp(app string) TaskOutputState {
-	if !appExists(app) {
+	exists, _ := appExists(app)
+	if !exists {
 		return TaskOutputState{Changed: false, State: StateAbsent}
 	}
 	return applyDestroyApp(app)()
@@ -151,7 +154,8 @@ func destroyApp(app string) TaskOutputState {
 // createApp is retained as an integration-test helper. It runs the
 // create-app apply path synchronously.
 func createApp(app string) TaskOutputState {
-	if appExists(app) {
+	exists, _ := appExists(app)
+	if exists {
 		return TaskOutputState{Changed: false, State: StatePresent}
 	}
 	return applyCreateApp(app)()

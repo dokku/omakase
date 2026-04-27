@@ -304,6 +304,49 @@ func TestCallSshCommandReturnsSshErrorOnEmptyHost(t *testing.T) {
 	}
 }
 
+func TestProbeSuccess(t *testing.T) {
+	matched, err := Probe(ExecCommandInput{Command: "true"})
+	if err != nil {
+		t.Fatalf("Probe(true) returned error: %v", err)
+	}
+	if !matched {
+		t.Error("Probe(true) should report matched=true")
+	}
+}
+
+func TestProbeDokkuLevelFailure(t *testing.T) {
+	matched, err := Probe(ExecCommandInput{Command: "false"})
+	if err != nil {
+		t.Errorf("Probe(false) returned non-nil error %v - dokku-level exit should be normalised", err)
+	}
+	if matched {
+		t.Error("Probe(false) should report matched=false")
+	}
+}
+
+func TestProbeSshTransportErrorPropagates(t *testing.T) {
+	// Inject a default host that points at a closed port so the SSH
+	// dispatcher routes the probe and OpenSSH exits 255 (transport
+	// failure). Dispatch only triggers for input.Command=="dokku".
+	t.Cleanup(func() { SetDefaultHost("") })
+	SetDefaultHost("docket-test@127.0.0.1:1")
+
+	matched, err := Probe(ExecCommandInput{
+		Command: "dokku",
+		Args:    []string{"--quiet", "apps:exists", "anything"},
+	})
+	if matched {
+		t.Error("Probe should report matched=false on transport failure")
+	}
+	if err == nil {
+		t.Fatal("Probe should propagate the SSH transport error")
+	}
+	var sshErr *SSHError
+	if !errors.As(err, &sshErr) {
+		t.Fatalf("Probe error should be *SSHError, got %T (%v)", err, err)
+	}
+}
+
 func TestSetAndGetDefaultHost(t *testing.T) {
 	t.Cleanup(func() { SetDefaultHost("") })
 	SetDefaultHost("alice@host:2222")
