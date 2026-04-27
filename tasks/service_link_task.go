@@ -99,6 +99,7 @@ func (t ServiceLinkTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", fmt.Sprintf("%s:link", t.Service), t.Name, t.App},
 					})
+					state.Command = result.Command
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -129,6 +130,7 @@ func (t ServiceLinkTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", fmt.Sprintf("%s:unlink", t.Service), t.Name, t.App},
 					})
+					state.Command = result.Command
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -190,6 +192,7 @@ func linkService(service, name, app string) TaskOutputState {
 			app,
 		},
 	})
+	state.Command = result.Command
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}
@@ -230,6 +233,7 @@ func unlinkService(service, name, app string) TaskOutputState {
 			app,
 		},
 	})
+	state.Command = result.Command
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}

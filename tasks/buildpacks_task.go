@@ -122,6 +122,7 @@ func planBuildpacksAdd(t BuildpacksTask) PlanResult {
 					Command: "dokku",
 					Args:    []string{"--quiet", "buildpacks:add", t.App, bp},
 				})
+				state.Command = result.Command
 				if err != nil {
 					return TaskOutputErrorFromExec(state, err, result)
 				}
@@ -161,6 +162,7 @@ func planBuildpacksRemove(t BuildpacksTask) PlanResult {
 					Command: "dokku",
 					Args:    []string{"--quiet", "buildpacks:clear", app},
 				})
+				state.Command = result.Command
 				if err != nil {
 					return TaskOutputErrorFromExec(state, err, result)
 				}
@@ -193,6 +195,7 @@ func planBuildpacksRemove(t BuildpacksTask) PlanResult {
 					Command: "dokku",
 					Args:    []string{"--quiet", "buildpacks:remove", t.App, bp},
 				})
+				state.Command = result.Command
 				if err != nil {
 					return TaskOutputErrorFromExec(state, err, result)
 				}

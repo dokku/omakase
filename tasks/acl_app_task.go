@@ -108,6 +108,7 @@ func (t AclAppTask) Plan() PlanResult {
 							Command: "dokku",
 							Args:    []string{"--quiet", "acl:add", t.App, u},
 						})
+						state.Command = result.Command
 						if err != nil {
 							return TaskOutputErrorFromExec(state, err, result)
 						}
@@ -153,6 +154,7 @@ func (t AclAppTask) Plan() PlanResult {
 							Command: "dokku",
 							Args:    []string{"--quiet", "acl:remove", t.App, u},
 						})
+						state.Command = result.Command
 						if err != nil {
 							return TaskOutputErrorFromExec(state, err, result)
 						}

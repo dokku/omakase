@@ -65,6 +65,12 @@ type TaskOutputState struct {
 	// Changed is a flag indicating if the task was changed
 	Changed bool
 
+	// Command is the resolved Dokku subprocess command line that the
+	// task's apply path executed, used by `docket apply --verbose`. When
+	// a task runs multiple subprocess commands, this records the last
+	// command executed.
+	Command string
+
 	// DesiredState is the desired state of the task
 	DesiredState State
 

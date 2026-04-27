@@ -92,9 +92,41 @@ The diff output is GNU unified diff with `--- <path>` / `+++ <path>` / `@@` head
 
 Before writing, `fmt` re-parses its canonical output and aborts if the round-tripped AST does not match the input AST - a guard against `yaml.v3` emitter edge cases (notably anchors and complex flow scalars). On a parse error or round-trip mismatch the file is not touched and `fmt` exits 1.
 
+### Applying recipes with `apply`
+
+`docket apply` runs every task in the recipe, mutating the live dokku server as needed. Each task line is prefixed with a status marker padded to a fixed column:
+
+| Marker | Meaning |
+|--------|---------|
+| `[ok]` | Task ran, no change |
+| `[changed]` | Task ran, mutated state |
+| `[skipped]` | Task was filtered out (tags, `when:`, `--start-at-task`) |
+| `[error]` | Task errored; the run aborts |
+
+A play header (`==> Play: tasks`) precedes the per-task lines, and an end-of-run summary line follows them:
+
+```text
+==> Play: tasks
+[changed] dokku apps:create api
+[ok]      dokku config:set api KEY=value
+
+Summary: 2 tasks · 1 changed · 1 ok · 0 skipped · 0 errors  (took 0.8s)
+```
+
+On error, the failing task's error message is printed as a `!`-prefixed continuation line and the run aborts with exit 1. The summary still prints with the partial counts before exit.
+
+The flags are:
+
+| Flag | Effect |
+|------|--------|
+| `--tasks <path>` | Use a specific task file (default `./tasks.yml`) |
+| `--verbose` | After each task line, echo the resolved Dokku command on a `→`-prefixed continuation line. Commands are not masked - avoid on recipes that pass secrets via task arguments. |
+
+Color output respects [`NO_COLOR`](https://no-color.org/): set `NO_COLOR=1` to disable ANSI escapes, or pipe to a non-TTY (output is plain in that case automatically).
+
 ### Previewing changes with `plan`
 
-`docket plan` reads each task's current state from the live dokku server and reports what `apply` would change, without invoking any mutating dokku command. Each task line is prefixed with a marker:
+`docket plan` reads each task's current state from the live dokku server and reports what `apply` would change, without invoking any mutating dokku command. The output uses the same play header and column layout as `apply`, with a different marker set:
 
 | Marker | Meaning |
 |--------|---------|
@@ -107,6 +139,7 @@ Before writing, `fmt` re-parses its canonical output and aborts if the round-tri
 Tasks that perform multiple operations (e.g. `dokku_config` setting several keys) report each individual mutation under the task line:
 
 ```text
+==> Play: tasks
 [~]       configure  (2 key(s) to set)
           - set KEY_ONE (new)
           - set KEY_TWO (was set)

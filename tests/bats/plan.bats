@@ -22,6 +22,7 @@ teardown() {
 EOF
   run "$(docket_bin)" plan --tasks "$TASKS_FILE"
   assert_success
+  assert_output --partial "==> Play: tasks"
   assert_output --partial "[+]"
   assert_output --partial "Plan:"
   assert_output --partial "1 would change"

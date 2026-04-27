@@ -69,6 +69,7 @@ func (t StorageEnsureTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "storage:ensure-directory", "--chown", t.Chown, t.App},
 					})
+					state.Command = result.Command
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}

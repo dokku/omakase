@@ -74,6 +74,7 @@ func (t NetworkTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "network:create", t.Name},
 					})
+					state.Command = result.Command
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -98,6 +99,7 @@ func (t NetworkTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "--force", "network:destroy", t.Name},
 					})
+					state.Command = result.Command
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -139,6 +141,7 @@ func destroyNetwork(name string) TaskOutputState {
 		Command: "dokku",
 		Args:    []string{"--quiet", "--force", "network:destroy", name},
 	})
+	state.Command = result.Command
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}

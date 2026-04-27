@@ -111,6 +111,7 @@ func (t GitSyncTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    args,
 					})
+					state.Command = result.Command
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
