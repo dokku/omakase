@@ -12,8 +12,8 @@ import (
 )
 
 // PlanCommand reports the drift each task in a docket recipe would produce
-// against the live server, without mutating it. Plan never invokes any
-// mutating dokku command.
+// against the live server, without mutating it. Plan is fully driven by the
+// per-task Plan() method; the apply path is never invoked.
 type PlanCommand struct {
 	command.Meta
 
@@ -83,9 +83,9 @@ func (c *PlanCommand) AutocompleteFlags() complete.Flags {
 	)
 }
 
-// Run executes the plan command. It iterates every task in the parsed recipe,
-// invokes Plan() (which is contractually read-only), and prints a one-line
-// summary per task plus a final summary line.
+// Run iterates every task in the parsed recipe, invokes Plan() (read-only
+// by contract), and prints a one-line summary per task plus a final
+// summary line.
 //
 // Exit codes:
 //

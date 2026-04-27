@@ -53,16 +53,13 @@ func (t NetworkTask) Examples() ([]Doc, error) {
 
 // Execute creates or destroys a Docker network
 func (t NetworkTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return createNetwork(t.Name) },
-		"absent":  func() TaskOutputState { return destroyNetwork(t.Name) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the NetworkTask would produce.
 func (t NetworkTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
-		"present": func() PlanResult {
+		StatePresent: func() PlanResult {
 			if networkExists(t.Name) {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
@@ -71,9 +68,22 @@ func (t NetworkTask) Plan() PlanResult {
 				Status:    PlanStatusCreate,
 				Reason:    "network missing",
 				Mutations: []string{"create network " + t.Name},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "network:create", t.Name},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
 			}
 		},
-		"absent": func() PlanResult {
+		StateAbsent: func() PlanResult {
 			if !networkExists(t.Name) {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
@@ -82,6 +92,19 @@ func (t NetworkTask) Plan() PlanResult {
 				Status:    PlanStatusDestroy,
 				Reason:    "network present",
 				Mutations: []string{"destroy network " + t.Name},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "--force", "network:destroy", t.Name},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
 			}
 		},
 	})
@@ -104,60 +127,23 @@ func networkExists(name string) bool {
 	return result.ExitCode == 0
 }
 
-// createNetwork creates a Docker network
-func createNetwork(name string) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "absent",
-	}
-	if networkExists(name) {
-		state.State = "present"
-		return state
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			"network:create",
-			name,
-		},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "present"
-	return state
-}
-
-// destroyNetwork destroys a Docker network
+// destroyNetwork is retained as an integration-test helper. It runs the
+// destroy-network apply path synchronously.
 func destroyNetwork(name string) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "present",
-	}
+	state := TaskOutputState{Changed: false, State: StatePresent}
 	if !networkExists(name) {
-		state.State = "absent"
+		state.State = StateAbsent
 		return state
 	}
-
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			"--force",
-			"network:destroy",
-			name,
-		},
+		Args:    []string{"--quiet", "--force", "network:destroy", name},
 	})
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}
-
 	state.Changed = true
-	state.State = "absent"
+	state.State = StateAbsent
 	return state
 }
 

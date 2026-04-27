@@ -76,7 +76,7 @@ func (t SchedulerK3sPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the scheduler-k3s property
 func (t SchedulerK3sPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "scheduler-k3s:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the SchedulerK3sPropertyTask would produce.

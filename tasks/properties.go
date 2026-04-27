@@ -23,114 +23,6 @@ type PropertyContext struct {
 	Value string `required:"false" yaml:"value"`
 }
 
-// executeProperty is a shared Execute implementation for property tasks.
-func executeProperty(state State, app string, global bool, property, value, subcommand string) TaskOutputState {
-	if !global && app == "" {
-		return TaskOutputState{
-			Error: errors.New("app is required when global is false"),
-		}
-	}
-
-	ctx := PropertyContext{
-		App:      app,
-		Global:   global,
-		Property: property,
-		Value:    value,
-	}
-	return DispatchState(state, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return setProperty(subcommand, ctx) },
-		"absent":  func() TaskOutputState { return unsetProperty(subcommand, ctx) },
-	})
-}
-
-// planProperty is a shared Plan implementation for property tasks. It probes
-// the current value via `dokku <plugin>:report <target> --<plugin>-<property>`
-// and compares against the desired value. When the probe fails (plugin
-// without :report support or unknown property flag), falls back to reporting
-// drift conservatively rather than erroring, so users still see a usable plan.
-func planProperty(state State, app string, global bool, property, value, subcommand string) PlanResult {
-	if !global && app == "" {
-		return PlanResult{
-			Status: PlanStatusError,
-			Error:  errors.New("app is required when global is false"),
-		}
-	}
-	if global && app != "" {
-		return PlanResult{
-			Status: PlanStatusError,
-			Error:  fmt.Errorf("'app' must not be set when 'global' is set to true"),
-		}
-	}
-
-	target := app
-	if global {
-		target = "--global"
-	}
-
-	return DispatchPlan(state, map[State]func() PlanResult{
-		"present": func() PlanResult {
-			if value == "" {
-				return PlanResult{
-					Status: PlanStatusError,
-					Error:  fmt.Errorf("setting a state of 'present' is invalid without a value for 'value'"),
-				}
-			}
-			current, err := getProperty(subcommand, app, global, property)
-			if err != nil {
-				return PlanResult{
-					InSync:    false,
-					Status:    PlanStatusModify,
-					Reason:    fmt.Sprintf("would set %s on %s (probe failed: %v)", property, target, err),
-					Mutations: []string{fmt.Sprintf("set %s=%s", property, value)},
-				}
-			}
-			if current == value {
-				return PlanResult{InSync: true, Status: PlanStatusOK}
-			}
-			status := PlanStatusModify
-			if current == "" {
-				status = PlanStatusCreate
-			}
-			reason := fmt.Sprintf("%s drift on %s", property, target)
-			if current != "" {
-				reason = fmt.Sprintf("%s drift on %s (was %q)", property, target, current)
-			}
-			return PlanResult{
-				InSync:    false,
-				Status:    status,
-				Reason:    reason,
-				Mutations: []string{fmt.Sprintf("set %s=%s", property, value)},
-			}
-		},
-		"absent": func() PlanResult {
-			if value != "" {
-				return PlanResult{
-					Status: PlanStatusError,
-					Error:  fmt.Errorf("setting a state of 'absent' is invalid with a value for 'value'"),
-				}
-			}
-			current, err := getProperty(subcommand, app, global, property)
-			if err != nil {
-				return PlanResult{
-					InSync:    false,
-					Status:    PlanStatusModify,
-					Reason:    fmt.Sprintf("would unset %s on %s (probe failed: %v)", property, target, err),
-					Mutations: []string{fmt.Sprintf("unset %s", property)},
-				}
-			}
-			if current == "" {
-				return PlanResult{InSync: true, Status: PlanStatusOK}
-			}
-			return PlanResult{
-				InSync:    false,
-				Status:    PlanStatusDestroy,
-				Reason:    fmt.Sprintf("would unset %s on %s (was %q)", property, target, current),
-				Mutations: []string{fmt.Sprintf("unset %s", property)},
-			}
-		},
-	})
-}
-
 // pluginFromSubcommand returns the plugin component of a colon-separated
 // subcommand. For example, "nginx:set" -> "nginx", "buildpacks:set-property" ->
 // "buildpacks", "app-json:set" -> "app-json".
@@ -142,8 +34,7 @@ func pluginFromSubcommand(subcommand string) string {
 // `dokku <plugin>:report <target> --<plugin>-<property>`. Returns the
 // trimmed string value on success. When the report subcommand or property
 // flag is not supported by the plugin, returns a non-nil error and callers
-// fall back to a conservative path (Plan reports drift; Execute proceeds
-// to set/unset unconditionally).
+// fall back to an unconditional set/unset (matches the pre-probe behavior).
 func getProperty(subcommand, app string, global bool, property string) (string, error) {
 	plugin := pluginFromSubcommand(subcommand)
 	reportSubcommand := plugin + ":report"
@@ -166,98 +57,131 @@ func getProperty(subcommand, app string, global bool, property string) (string, 
 	return strings.TrimSpace(result.StdoutContents()), nil
 }
 
-// setProperty sets a property for a given app, short-circuiting when the
-// current value already matches the desired value.
-func setProperty(subcommand string, pctx PropertyContext) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "absent",
+// planProperty is the shared Plan() implementation for property tasks. It
+// probes the current value via getProperty, returns InSync when current
+// matches desired, and otherwise embeds an apply closure that runs the
+// underlying `dokku <subcommand>` call. ExecutePlan is the only invoker.
+//
+// When the report subcommand or property flag is missing, the probe error
+// is swallowed and the apply closure runs the set/unset unconditionally,
+// matching the pre-probe behavior of property tasks.
+func planProperty(state State, app string, global bool, property, value, subcommand string) PlanResult {
+	if !global && app == "" {
+		return PlanResult{
+			Status: PlanStatusError,
+			Error:  errors.New("app is required when global is false"),
+		}
+	}
+	if global && app != "" {
+		return PlanResult{
+			Status: PlanStatusError,
+			Error:  fmt.Errorf("'app' must not be set when 'global' is set to true"),
+		}
 	}
 
-	if pctx.Global && pctx.App != "" {
-		state.Error = fmt.Errorf("'app' must not be set when 'global' is set to true")
-		return state
+	target := app
+	if global {
+		target = "--global"
 	}
 
-	appName := "--global"
-	if pctx.App != "" {
-		appName = pctx.App
-	}
+	return DispatchPlan(state, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if value == "" {
+				return PlanResult{
+					Status: PlanStatusError,
+					Error:  fmt.Errorf("setting a state of 'present' is invalid without a value for 'value'"),
+				}
+			}
 
-	if pctx.Value == "" {
-		state.Error = fmt.Errorf("setting a state of 'present' is invalid without a value for 'value'")
-		return state
-	}
+			// Probe; treat probe failure as "drift, must mutate".
+			current, probeErr := getProperty(subcommand, app, global, property)
+			if probeErr == nil && current == value {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
 
-	// Probe current value; if it matches desired, no-op (Changed=false).
-	// A failed probe (plugin without :report or unsupported property flag)
-	// falls through to the unconditional set, matching pre-probe behavior.
-	if current, err := getProperty(subcommand, pctx.App, pctx.Global, pctx.Property); err == nil && current == pctx.Value {
-		state.State = "present"
-		return state
-	}
+			status := PlanStatusModify
+			reason := fmt.Sprintf("would set %s on %s", property, target)
+			if probeErr != nil {
+				reason = fmt.Sprintf("would set %s on %s (probe failed: %v)", property, target, probeErr)
+			} else if current == "" {
+				status = PlanStatusCreate
+				reason = fmt.Sprintf("%s missing on %s", property, target)
+			} else {
+				reason = fmt.Sprintf("%s drift on %s (was %q)", property, target, current)
+			}
 
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			subcommand,
-			appName,
-			pctx.Property,
-			pctx.Value,
+			return PlanResult{
+				InSync:    false,
+				Status:    status,
+				Reason:    reason,
+				Mutations: []string{fmt.Sprintf("set %s=%s", property, value)},
+				apply:     applyPropertySet(subcommand, target, property, value),
+			}
+		},
+		StateAbsent: func() PlanResult {
+			if value != "" {
+				return PlanResult{
+					Status: PlanStatusError,
+					Error:  fmt.Errorf("setting a state of 'absent' is invalid with a value for 'value'"),
+				}
+			}
+
+			current, probeErr := getProperty(subcommand, app, global, property)
+			if probeErr == nil && current == "" {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+
+			reason := fmt.Sprintf("would unset %s on %s", property, target)
+			if probeErr != nil {
+				reason = fmt.Sprintf("would unset %s on %s (probe failed: %v)", property, target, probeErr)
+			} else {
+				reason = fmt.Sprintf("would unset %s on %s (was %q)", property, target, current)
+			}
+
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    reason,
+				Mutations: []string{fmt.Sprintf("unset %s", property)},
+				apply:     applyPropertyUnset(subcommand, target, property),
+			}
 		},
 	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "present"
-	return state
 }
 
-// unsetProperty unsets a property for a given app, short-circuiting when the
-// current value is already empty.
-func unsetProperty(subcommand string, pctx PropertyContext) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "present",
-	}
-
-	if pctx.Global && pctx.App != "" {
-		state.Error = fmt.Errorf("'app' must not be set when 'global' is set to true")
+// applyPropertySet returns a closure that runs `dokku <subcommand> <target>
+// <property> <value>` and converts the result into a TaskOutputState.
+func applyPropertySet(subcommand, target, property, value string) func() TaskOutputState {
+	return func() TaskOutputState {
+		state := TaskOutputState{Changed: false, State: StateAbsent}
+		result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+			Command: "dokku",
+			Args:    []string{"--quiet", subcommand, target, property, value},
+		})
+		if err != nil {
+			return TaskOutputErrorFromExec(state, err, result)
+		}
+		state.Changed = true
+		state.State = StatePresent
 		return state
 	}
+}
 
-	appName := "--global"
-	if pctx.App != "" {
-		appName = pctx.App
-	}
-
-	if pctx.Value != "" {
-		state.Error = fmt.Errorf("setting a state of 'absent' is invalid with a value for 'value'")
+// applyPropertyUnset returns a closure that runs `dokku <subcommand> <target>
+// <property>` (no value, which dokku interprets as unset) and converts the
+// result into a TaskOutputState.
+func applyPropertyUnset(subcommand, target, property string) func() TaskOutputState {
+	return func() TaskOutputState {
+		state := TaskOutputState{Changed: false, State: StatePresent}
+		result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+			Command: "dokku",
+			Args:    []string{"--quiet", subcommand, target, property},
+		})
+		if err != nil {
+			return TaskOutputErrorFromExec(state, err, result)
+		}
+		state.Changed = true
+		state.State = StateAbsent
 		return state
 	}
-
-	if current, err := getProperty(subcommand, pctx.App, pctx.Global, pctx.Property); err == nil && current == "" {
-		state.State = "absent"
-		return state
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			subcommand,
-			appName,
-			pctx.Property,
-		},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "absent"
-	return state
 }

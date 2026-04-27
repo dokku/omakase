@@ -10,7 +10,7 @@ Dokku).
 
 - `test_helper.bash` - shared helpers for building the binary, writing
   per-test `tasks.yml` fixtures, and cleaning up apps in setup/teardown.
-- `*.bats` - one file per CLI subcommand.
+- `*.bats` - one file per CLI subcommand or feature.
 
 ## Running locally
 
@@ -27,23 +27,16 @@ On Debian / Ubuntu:
 sudo apt-get install -y bats bats-support bats-assert
 ```
 
-Or via npm:
-
-```bash
-sudo npm install -g bats
-# bats-support / bats-assert have no npm distribution; install via apt or from source
-```
-
-Run the suite from the repo root:
+Run from the repo root:
 
 ```bash
 bats tests/bats/
 ```
 
-Tests skip themselves when `dokku` is not available, so the suite is safe to
-run on a developer laptop without a local Dokku.
+Tests skip themselves when `dokku` is not available, so the suite is safe
+to run on a developer laptop without a local Dokku.
 
 ## CI
 
 `.github/workflows/test.yml` defines a `bats-test` job that installs Dokku
-and the bats helper packages, builds the docket binary, and runs the suite.
+and the bats helpers, builds the docket binary, and runs the suite.

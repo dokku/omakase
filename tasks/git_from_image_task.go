@@ -55,15 +55,13 @@ func (t GitFromImageTask) Examples() ([]Doc, error) {
 
 // Execute deploys a git repository from a docker image
 func (t GitFromImageTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"deployed": func() TaskOutputState { return deployGitFromImage(t) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the GitFromImageTask would produce.
 func (t GitFromImageTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
-		"deployed": func() PlanResult {
+		StateDeployed: func() PlanResult {
 			if checkAppSourceImage(t.App, t.Image) {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
@@ -72,6 +70,30 @@ func (t GitFromImageTask) Plan() PlanResult {
 				Status:    PlanStatusModify,
 				Reason:    "image source drift",
 				Mutations: []string{fmt.Sprintf("git:from-image %s %s", t.App, t.Image)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: "undeployed"}
+					args := []string{"git:from-image"}
+					if t.BuildDir != "" {
+						args = append(args, "--build-dir", t.BuildDir)
+					}
+					args = append(args, t.App, t.Image)
+					if t.GitUsername != "" {
+						args = append(args, t.GitUsername)
+					}
+					if t.GitEmail != "" {
+						args = append(args, t.GitEmail)
+					}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateDeployed
+					return state
+				},
 			}
 		},
 	})
@@ -85,48 +107,6 @@ func checkAppSourceImage(app, expectedImage string) bool {
 	}
 
 	return source.Source == "docker-image" && source.SourceMetadata == expectedImage
-}
-
-// deployGitFromImage deploys a git repository from a docker image
-func deployGitFromImage(t GitFromImageTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "undeployed",
-	}
-
-	if checkAppSourceImage(t.App, t.Image) {
-		state.Changed = false
-		state.State = "deployed"
-		return state
-	}
-
-	args := []string{
-		"git:from-image",
-	}
-	if t.BuildDir != "" {
-		args = append(args, "--build-dir", t.BuildDir)
-	}
-	args = append(args, t.App, t.Image)
-
-	// todo: ensure both the username and email are provided
-	if t.GitUsername != "" {
-		args = append(args, t.GitUsername)
-	}
-	if t.GitEmail != "" {
-		args = append(args, t.GitEmail)
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "deployed"
-	return state
 }
 
 // init registers the GitFromImageTask with the task registry

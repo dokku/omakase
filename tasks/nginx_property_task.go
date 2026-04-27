@@ -76,7 +76,7 @@ func (t NginxPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the nginx property
 func (t NginxPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "nginx:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the NginxPropertyTask would produce.

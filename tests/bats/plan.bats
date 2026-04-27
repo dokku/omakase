@@ -85,7 +85,7 @@ EOF
   assert_output --partial "set KEY_TWO"
 }
 
-@test "docket apply continues to behave as before" {
+@test "docket apply is idempotent on second run" {
   write_tasks_file <<EOF
 ---
 - tasks:
@@ -93,6 +93,12 @@ EOF
       dokku_app:
         app: docket-test-plan
 EOF
+  run "$(docket_bin)" apply --tasks "$TASKS_FILE"
+  assert_success
+  run dokku apps:exists docket-test-plan
+  assert_success
+
+  # Second apply must not report any error and must not destroy the app.
   run "$(docket_bin)" apply --tasks "$TASKS_FILE"
   assert_success
   run dokku apps:exists docket-test-plan

@@ -76,7 +76,7 @@ func (t RegistryPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the registry property
 func (t RegistryPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "registry:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the RegistryPropertyTask would produce.

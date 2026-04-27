@@ -43,22 +43,18 @@ func (t StorageEnsureTask) Examples() ([]Doc, error) {
 
 // Execute ensures the storage for a given app
 func (t StorageEnsureTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return ensureStorage(t.App, t.Chown) },
-		"absent":  func() TaskOutputState { return removeStorage(t.App, t.Chown) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
-// Plan reports the drift the StorageEnsureTask would produce.
-//
-// storage:ensure-directory does not expose a probe for whether the directory
-// already exists; the plan is conservative and reports drift unconditionally.
+// Plan reports the drift the StorageEnsureTask would produce. dokku does
+// not expose a probe for storage:ensure-directory, so the plan reports
+// drift unconditionally.
 func (t StorageEnsureTask) Plan() PlanResult {
 	chownValues := map[string]bool{
 		"heroku": true, "herokuish": true, "paketo": true, "root": true, "false": true,
 	}
 	return DispatchPlan(t.State, map[State]func() PlanResult{
-		"present": func() PlanResult {
+		StatePresent: func() PlanResult {
 			if !chownValues[t.Chown] {
 				return PlanResult{Status: PlanStatusError, Error: errors.New("invalid chown value specified")}
 			}
@@ -67,63 +63,25 @@ func (t StorageEnsureTask) Plan() PlanResult {
 				Status:    PlanStatusModify,
 				Reason:    "directory presence not probed",
 				Mutations: []string{"storage:ensure-directory --chown " + t.Chown + " " + t.App},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "storage:ensure-directory", "--chown", t.Chown, t.App},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
 			}
 		},
-		"absent": func() PlanResult {
+		StateAbsent: func() PlanResult {
 			return PlanResult{Status: PlanStatusError, Error: errors.New("the absent state is not supported for storage:ensure")}
 		},
 	})
-}
-
-// ensureStorage ensures the storage for a given app
-func ensureStorage(app, chown string) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "absent",
-	}
-
-	// ensure chown is a valid value
-	chownValues := map[string]bool{
-		"heroku":    true,
-		"herokuish": true,
-		"paketo":    true,
-		"root":      true,
-		"false":     true,
-	}
-	if !chownValues[chown] {
-		state.Error = errors.New("invalid chown value specified")
-		return state
-	}
-
-	// todo: implement a check to see if the folder exists?
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			"storage:ensure-directory",
-			"--chown",
-			chown,
-			app,
-		},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "present"
-	return state
-}
-
-// removeStorage removes the storage for a given app
-func removeStorage(app, chown string) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "absent",
-	}
-
-	state.Error = errors.New("the absent state is not supported for storage:ensure")
-	return state
 }
 
 // init registers the StorageEnsureTask with the task registry

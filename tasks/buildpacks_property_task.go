@@ -68,7 +68,7 @@ func (t BuildpacksPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the buildpacks property
 func (t BuildpacksPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "buildpacks:set-property")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the BuildpacksPropertyTask would produce.

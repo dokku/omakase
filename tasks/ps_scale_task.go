@@ -70,15 +70,7 @@ func (t PsScaleTask) Examples() ([]Doc, error) {
 
 // Execute sets the process scale for a given dokku application
 func (t PsScaleTask) Execute() TaskOutputState {
-	if t.State == StatePresent && len(t.Scale) == 0 {
-		return TaskOutputState{
-			Error: fmt.Errorf("scale must be specified when state is present"),
-		}
-	}
-
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return setPsScale(t) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the PsScaleTask would produce.
@@ -87,24 +79,25 @@ func (t PsScaleTask) Plan() PlanResult {
 		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("scale must be specified when state is present")}
 	}
 	return DispatchPlan(t.State, map[State]func() PlanResult{
-		"present": func() PlanResult {
+		StatePresent: func() PlanResult {
 			existing, err := getPsScale(t.App)
 			if err != nil {
 				return PlanResult{Status: PlanStatusError, Error: err}
 			}
+			toScale := []string{}
 			mutations := []string{}
 			for proctype, qty := range t.Scale {
-				if curQty, ok := existing[proctype]; ok && curQty == qty {
+				if cur, ok := existing[proctype]; ok && cur == qty {
 					continue
 				}
-				cur, ok := existing[proctype]
-				if ok {
+				toScale = append(toScale, fmt.Sprintf("%s=%d", proctype, qty))
+				if cur, ok := existing[proctype]; ok {
 					mutations = append(mutations, fmt.Sprintf("scale %s=%d (was %d)", proctype, qty, cur))
 				} else {
 					mutations = append(mutations, fmt.Sprintf("scale %s=%d (new)", proctype, qty))
 				}
 			}
-			if len(mutations) == 0 {
+			if len(toScale) == 0 {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -112,6 +105,25 @@ func (t PsScaleTask) Plan() PlanResult {
 				Status:    PlanStatusModify,
 				Reason:    fmt.Sprintf("%d process scale change(s)", len(mutations)),
 				Mutations: mutations,
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					args := []string{"ps:scale"}
+					if t.SkipDeploy {
+						args = append(args, "--skip-deploy")
+					}
+					args = append(args, t.App)
+					args = append(args, toScale...)
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
 			}
 		},
 	})
@@ -145,57 +157,6 @@ func getPsScale(app string) (map[string]int, error) {
 		scale[parts[0]] = qty
 	}
 	return scale, nil
-}
-
-// setPsScale sets the process scale for a given dokku application
-func setPsScale(t PsScaleTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "absent",
-	}
-
-	existing, err := getPsScale(t.App)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-
-	var proctypesToScale []string
-	for proctype, qty := range t.Scale {
-		if existingQty, ok := existing[proctype]; ok && existingQty == qty {
-			continue
-		}
-		proctypesToScale = append(proctypesToScale, fmt.Sprintf("%s=%d", proctype, qty))
-	}
-
-	if len(proctypesToScale) == 0 {
-		state.State = "present"
-		return state
-	}
-
-	args := []string{
-		"ps:scale",
-	}
-
-	if t.SkipDeploy {
-		args = append(args, "--skip-deploy")
-	}
-
-	args = append(args, t.App)
-	args = append(args, proctypesToScale...)
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "present"
-	return state
 }
 
 // init registers the PsScaleTask with the task registry

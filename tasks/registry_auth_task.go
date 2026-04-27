@@ -90,16 +90,12 @@ func (t RegistryAuthTask) Examples() ([]Doc, error) {
 
 // Execute manages the registry authentication
 func (t RegistryAuthTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		StatePresent: func() TaskOutputState { return registryLogin(t) },
-		StateAbsent:  func() TaskOutputState { return registryLogout(t) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
-// Plan reports the drift the RegistryAuthTask would produce.
-//
-// dokku registry plugins do not expose a probe for current login state, so
-// the plan reports drift unconditionally.
+// Plan reports the drift the RegistryAuthTask would produce. dokku registry
+// plugins do not expose a probe for current login state, so the plan
+// reports drift unconditionally.
 func (t RegistryAuthTask) Plan() PlanResult {
 	if err := validateRegistryAuthTask(t); err != nil {
 		return PlanResult{Status: PlanStatusError, Error: err}
@@ -118,6 +114,27 @@ func (t RegistryAuthTask) Plan() PlanResult {
 				Status:    PlanStatusModify,
 				Reason:    "registry login state not probed",
 				Mutations: []string{fmt.Sprintf("registry:login %s %s as %s", target, t.Server, t.Username)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					args := []string{"--quiet", "registry:login", "--password-stdin"}
+					if t.Global {
+						args = append(args, "--global")
+					} else {
+						args = append(args, t.App)
+					}
+					args = append(args, t.Server, t.Username)
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+						Stdin:   strings.NewReader(t.Password),
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
 			}
 		},
 		StateAbsent: func() PlanResult {
@@ -126,6 +143,26 @@ func (t RegistryAuthTask) Plan() PlanResult {
 				Status:    PlanStatusDestroy,
 				Reason:    "registry login state not probed",
 				Mutations: []string{fmt.Sprintf("registry:logout %s %s", target, t.Server)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					args := []string{"--quiet", "registry:logout"}
+					if t.Global {
+						args = append(args, "--global")
+					} else {
+						args = append(args, t.App)
+					}
+					args = append(args, t.Server)
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
 			}
 		},
 	})

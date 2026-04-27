@@ -68,7 +68,7 @@ func (t PsPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the ps property
 func (t PsPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "ps:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the PsPropertyTask would produce.

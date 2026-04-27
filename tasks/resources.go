@@ -3,8 +3,9 @@ package tasks
 import (
 	"errors"
 	"fmt"
-	"github.com/dokku/docket/subprocess"
 	"strings"
+
+	"github.com/dokku/docket/subprocess"
 )
 
 // ResourceContext represents the context for a resource operation
@@ -20,111 +21,6 @@ type ResourceContext struct {
 
 	// ClearBefore clears all resources before applying new ones
 	ClearBefore bool
-}
-
-// executeResource is a shared Execute implementation for resource tasks.
-func executeResource(state State, app, processType string, resources map[string]string, clearBefore bool, subcommand string) TaskOutputState {
-	if state == StatePresent && len(resources) == 0 {
-		return TaskOutputState{
-			Error:   errors.New("resources are required when state is present"),
-			Message: "resources are required when state is present",
-		}
-	}
-
-	rctx := ResourceContext{
-		App:         app,
-		ProcessType: processType,
-		Resources:   resources,
-		ClearBefore: clearBefore,
-	}
-	return DispatchState(state, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return setResource(subcommand, rctx) },
-		"absent":  func() TaskOutputState { return clearResource(subcommand, rctx) },
-	})
-}
-
-// planResource is a shared Plan implementation for resource tasks.
-func planResource(state State, app, processType string, resources map[string]string, clearBefore bool, subcommand string) PlanResult {
-	if state == StatePresent && len(resources) == 0 {
-		return PlanResult{
-			Status: PlanStatusError,
-			Error:  errors.New("resources are required when state is present"),
-		}
-	}
-
-	rctx := ResourceContext{
-		App:         app,
-		ProcessType: processType,
-		Resources:   resources,
-		ClearBefore: clearBefore,
-	}
-	return DispatchPlan(state, map[State]func() PlanResult{
-		"present": func() PlanResult { return planSetResource(subcommand, rctx) },
-		"absent":  func() PlanResult { return planClearResource(subcommand, rctx) },
-	})
-}
-
-// planSetResource reports drift for a present-state resource set.
-func planSetResource(subcommand string, rctx ResourceContext) PlanResult {
-	currentResources, err := getResources(subcommand, rctx)
-	if err != nil {
-		return PlanResult{Status: PlanStatusError, Error: err}
-	}
-
-	for k := range rctx.Resources {
-		if _, ok := currentResources[k]; !ok {
-			return PlanResult{
-				Status: PlanStatusError,
-				Error:  fmt.Errorf("unknown resource %s, valid resources: %v", k, mapKeys(currentResources)),
-			}
-		}
-	}
-
-	mutations := []string{}
-	if rctx.ClearBefore {
-		mutations = append(mutations, "clear before set")
-	}
-	for k, v := range rctx.Resources {
-		if currentResources[k] != v {
-			mutations = append(mutations, fmt.Sprintf("set %s=%s (was %q)", k, v, currentResources[k]))
-		}
-	}
-
-	if len(mutations) == 0 {
-		return PlanResult{InSync: true, Status: PlanStatusOK}
-	}
-	return PlanResult{
-		InSync:    false,
-		Status:    PlanStatusModify,
-		Reason:    fmt.Sprintf("%d resource(s) to set", len(mutations)),
-		Mutations: mutations,
-	}
-}
-
-// planClearResource reports drift for an absent-state resource clear.
-func planClearResource(subcommand string, rctx ResourceContext) PlanResult {
-	currentResources, err := getResources(subcommand, rctx)
-	if err != nil {
-		return PlanResult{Status: PlanStatusError, Error: err}
-	}
-
-	hasResources := false
-	for _, v := range currentResources {
-		if v != "" && v != "0" {
-			hasResources = true
-			break
-		}
-	}
-
-	if !hasResources {
-		return PlanResult{InSync: true, Status: PlanStatusOK}
-	}
-	return PlanResult{
-		InSync:    false,
-		Status:    PlanStatusDestroy,
-		Reason:    "would clear all resources",
-		Mutations: []string{fmt.Sprintf("clear resources via %s-clear", subcommand)},
-	}
 }
 
 // getResources retrieves the current resources for a given dokku application
@@ -166,93 +62,72 @@ func getResources(subcommand string, rctx ResourceContext) (map[string]string, e
 	return resources, nil
 }
 
-// setResource sets the resources for a given dokku application
-func setResource(subcommand string, rctx ResourceContext) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "absent",
-	}
-
-	if rctx.ClearBefore {
-		err := execResourceClear(subcommand, rctx)
-		if err != nil {
-			state.Error = err
-			state.Message = err.Error()
-			return state
-		}
-		state.Changed = true
-	}
-
-	if !rctx.ClearBefore {
-		currentResources, err := getResources(subcommand, rctx)
-		if err != nil {
-			state.Error = err
-			state.Message = err.Error()
-			return state
-		}
-
-		// validate that all requested resources exist
-		for k := range rctx.Resources {
-			if _, ok := currentResources[k]; !ok {
-				state.Error = fmt.Errorf("unknown resource %s, valid resources: %v", k, mapKeys(currentResources))
-				state.Message = state.Error.Error()
-				return state
-			}
-		}
-
-		hasChanged := false
-		for k, v := range rctx.Resources {
-			if currentResources[k] != v {
-				hasChanged = true
-				break
-			}
-		}
-
-		if !hasChanged {
-			state.State = "present"
-			return state
+// planResource is the shared Plan() implementation for resource tasks. The
+// probe runs once; the apply closure consumes the diff.
+func planResource(state State, app, processType string, resources map[string]string, clearBefore bool, subcommand string) PlanResult {
+	if state == StatePresent && len(resources) == 0 {
+		return PlanResult{
+			Status: PlanStatusError,
+			Error:  errors.New("resources are required when state is present"),
 		}
 	}
 
-	args := []string{
-		subcommand,
+	rctx := ResourceContext{
+		App:         app,
+		ProcessType: processType,
+		Resources:   resources,
+		ClearBefore: clearBefore,
 	}
 
-	for key, value := range rctx.Resources {
-		args = append(args, fmt.Sprintf("--%s", key), value)
-	}
-
-	if rctx.ProcessType != "" {
-		args = append(args, "--process-type", rctx.ProcessType)
-	}
-
-	args = append(args, rctx.App)
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
+	return DispatchPlan(state, map[State]func() PlanResult{
+		StatePresent: func() PlanResult { return planSetResource(subcommand, rctx) },
+		StateAbsent:  func() PlanResult { return planClearResource(subcommand, rctx) },
 	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "present"
-	return state
 }
 
-// clearResource clears the resources for a given dokku application
-func clearResource(subcommand string, rctx ResourceContext) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "present",
-	}
-
+// planSetResource reports drift for a present-state resource set.
+func planSetResource(subcommand string, rctx ResourceContext) PlanResult {
 	currentResources, err := getResources(subcommand, rctx)
 	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+
+	for k := range rctx.Resources {
+		if _, ok := currentResources[k]; !ok {
+			return PlanResult{
+				Status: PlanStatusError,
+				Error:  fmt.Errorf("unknown resource %s, valid resources: %v", k, mapKeys(currentResources)),
+			}
+		}
+	}
+
+	mutations := []string{}
+	if rctx.ClearBefore {
+		mutations = append(mutations, "clear before set")
+	}
+	for k, v := range rctx.Resources {
+		if currentResources[k] != v {
+			mutations = append(mutations, fmt.Sprintf("set %s=%s (was %q)", k, v, currentResources[k]))
+		}
+	}
+
+	if len(mutations) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusModify,
+		Reason:    fmt.Sprintf("%d resource(s) to set", len(mutations)),
+		Mutations: mutations,
+		apply:     applyResourceSet(subcommand, rctx),
+	}
+}
+
+// planClearResource reports drift for an absent-state resource clear.
+func planClearResource(subcommand string, rctx ResourceContext) PlanResult {
+	currentResources, err := getResources(subcommand, rctx)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
 	}
 
 	hasResources := false
@@ -264,20 +139,67 @@ func clearResource(subcommand string, rctx ResourceContext) TaskOutputState {
 	}
 
 	if !hasResources {
-		state.State = "absent"
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusDestroy,
+		Reason:    "would clear all resources",
+		Mutations: []string{fmt.Sprintf("clear resources via %s-clear", subcommand)},
+		apply:     applyResourceClear(subcommand, rctx),
+	}
+}
+
+// applyResourceSet returns a closure that runs the underlying resource
+// set command. ClearBefore is honored by clearing before setting.
+func applyResourceSet(subcommand string, rctx ResourceContext) func() TaskOutputState {
+	return func() TaskOutputState {
+		state := TaskOutputState{Changed: false, State: StateAbsent}
+		if rctx.ClearBefore {
+			if err := execResourceClear(subcommand, rctx); err != nil {
+				state.Error = err
+				state.Message = err.Error()
+				return state
+			}
+			state.Changed = true
+		}
+
+		args := []string{subcommand}
+		for key, value := range rctx.Resources {
+			args = append(args, fmt.Sprintf("--%s", key), value)
+		}
+		if rctx.ProcessType != "" {
+			args = append(args, "--process-type", rctx.ProcessType)
+		}
+		args = append(args, rctx.App)
+
+		result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+			Command: "dokku",
+			Args:    args,
+		})
+		if err != nil {
+			return TaskOutputErrorFromExec(state, err, result)
+		}
+		state.Changed = true
+		state.State = StatePresent
 		return state
 	}
+}
 
-	err = execResourceClear(subcommand, rctx)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
+// applyResourceClear returns a closure that runs the underlying resource
+// clear command (subcommand + "-clear").
+func applyResourceClear(subcommand string, rctx ResourceContext) func() TaskOutputState {
+	return func() TaskOutputState {
+		state := TaskOutputState{Changed: false, State: StatePresent}
+		if err := execResourceClear(subcommand, rctx); err != nil {
+			state.Error = err
+			state.Message = err.Error()
+			return state
+		}
+		state.Changed = true
+		state.State = StateAbsent
 		return state
 	}
-
-	state.Changed = true
-	state.State = "absent"
-	return state
 }
 
 // execResourceClear executes the dokku resource clear command

@@ -68,7 +68,7 @@ func (t LogsPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the logs property
 func (t LogsPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "logs:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the LogsPropertyTask would produce.

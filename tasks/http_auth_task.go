@@ -63,29 +63,10 @@ func (t HttpAuthTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables HTTP authentication for an app
 func (t HttpAuthTask) Execute() TaskOutputState {
-	if t.State == StatePresent && t.Username == "" {
-		return TaskOutputState{
-			Error: fmt.Errorf("username is required when state is present"),
-		}
-	}
-	if t.State == StatePresent && t.Password == "" {
-		return TaskOutputState{
-			Error: fmt.Errorf("password is required when state is present"),
-		}
-	}
-
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return enableHttpAuth(t.App, t.Username, t.Password) },
-		"absent":  func() TaskOutputState { return disableHttpAuth(t.App) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the HttpAuthTask would produce.
-//
-// http-auth:report does not expose the configured username/password, so a
-// state="present" plan that detects an already-enabled app reports in-sync.
-// A username/password mismatch against an enabled app is not detected here;
-// users who want to rotate credentials should toggle off then on.
 func (t HttpAuthTask) Plan() PlanResult {
 	if t.State == StatePresent && t.Username == "" {
 		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("username is required when state is present")}
@@ -94,7 +75,7 @@ func (t HttpAuthTask) Plan() PlanResult {
 		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("password is required when state is present")}
 	}
 	return DispatchPlan(t.State, map[State]func() PlanResult{
-		"present": func() PlanResult {
+		StatePresent: func() PlanResult {
 			if httpAuthEnabled(t.App) {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
@@ -103,9 +84,22 @@ func (t HttpAuthTask) Plan() PlanResult {
 				Status:    PlanStatusCreate,
 				Reason:    "http-auth disabled",
 				Mutations: []string{"http-auth:on " + t.App},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "http-auth:on", t.App, t.Username, t.Password},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
 			}
 		},
-		"absent": func() PlanResult {
+		StateAbsent: func() PlanResult {
 			if !httpAuthEnabled(t.App) {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
@@ -114,6 +108,19 @@ func (t HttpAuthTask) Plan() PlanResult {
 				Status:    PlanStatusDestroy,
 				Reason:    "http-auth enabled",
 				Mutations: []string{"http-auth:off " + t.App},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "http-auth:off", t.App},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
 			}
 		},
 	})

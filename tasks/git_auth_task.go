@@ -69,17 +69,11 @@ func (t GitAuthTask) Examples() ([]Doc, error) {
 
 // Execute manages the netrc entry for a host
 func (t GitAuthTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		StatePresent: func() TaskOutputState { return setGitAuth(t) },
-		StateAbsent:  func() TaskOutputState { return unsetGitAuth(t) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
-// Plan reports the drift the GitAuthTask would produce.
-//
-// dokku has no public way to query netrc state (see the package-level note
-// on GitAuthTask), so the plan reports drift unconditionally with the netrc
-// limitation called out in Reason.
+// Plan reports the drift the GitAuthTask would produce. dokku has no public
+// way to query netrc state, so the plan reports drift unconditionally.
 func (t GitAuthTask) Plan() PlanResult {
 	if t.Host == "" {
 		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'host' is required")}
@@ -94,6 +88,19 @@ func (t GitAuthTask) Plan() PlanResult {
 				Status:    PlanStatusModify,
 				Reason:    "netrc state not probed",
 				Mutations: []string{"git:auth " + t.Host + " " + t.Username + " ***"},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "git:auth", t.Host, t.Username, t.Password},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
 			}
 		},
 		StateAbsent: func() PlanResult {
@@ -102,6 +109,19 @@ func (t GitAuthTask) Plan() PlanResult {
 				Status:    PlanStatusDestroy,
 				Reason:    "netrc state not probed",
 				Mutations: []string{"git:auth " + t.Host + " (clear)"},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "git:auth", t.Host},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
 			}
 		},
 	})

@@ -68,7 +68,7 @@ func (t BuilderLambdaPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the builder-lambda property
 func (t BuilderLambdaPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-lambda:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the BuilderLambdaPropertyTask would produce.

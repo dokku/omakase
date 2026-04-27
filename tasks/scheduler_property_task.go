@@ -68,7 +68,7 @@ func (t SchedulerPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the scheduler property
 func (t SchedulerPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "scheduler:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the SchedulerPropertyTask would produce.

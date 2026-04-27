@@ -63,9 +63,7 @@ func (t AppCloneTask) Examples() ([]Doc, error) {
 
 // Execute clones an existing dokku app to a new app
 func (t AppCloneTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		StatePresent: func() TaskOutputState { return cloneApp(t) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the AppCloneTask would produce.
@@ -86,49 +84,27 @@ func (t AppCloneTask) Plan() PlanResult {
 				Status:    PlanStatusCreate,
 				Reason:    fmt.Sprintf("target app %s missing", t.App),
 				Mutations: []string{fmt.Sprintf("clone %s -> %s", t.SourceApp, t.App)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					args := []string{"--quiet", "apps:clone"}
+					if t.SkipDeploy {
+						args = append(args, "--skip-deploy")
+					}
+					args = append(args, t.SourceApp, t.App)
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
 			}
 		},
 	})
-}
-
-// cloneApp clones an existing dokku app to a new app
-func cloneApp(t AppCloneTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StateAbsent,
-	}
-
-	if t.App == "" {
-		state.Error = fmt.Errorf("'app' is required")
-		return state
-	}
-	if t.SourceApp == "" {
-		state.Error = fmt.Errorf("'source_app' is required")
-		return state
-	}
-
-	if appExists(t.App) {
-		state.State = StatePresent
-		return state
-	}
-
-	args := []string{"--quiet", "apps:clone"}
-	if t.SkipDeploy {
-		args = append(args, "--skip-deploy")
-	}
-	args = append(args, t.SourceApp, t.App)
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StatePresent
-	return state
 }
 
 // init registers the AppCloneTask with the task registry

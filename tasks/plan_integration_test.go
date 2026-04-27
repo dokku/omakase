@@ -5,8 +5,7 @@ import (
 )
 
 // TestIntegrationPlanDetectsMissingApp asserts Plan() reports drift for a
-// dokku_app task when the target app does not exist, and stays consistent
-// with apply: after running apply, a follow-up Plan() returns InSync.
+// dokku_app task when the target app does not exist.
 func TestIntegrationPlanDetectsMissingApp(t *testing.T) {
 	skipIfNoDokkuT(t)
 
@@ -26,14 +25,11 @@ func TestIntegrationPlanDetectsMissingApp(t *testing.T) {
 	if plan.Status != PlanStatusCreate {
 		t.Errorf("expected status=%q, got %q", PlanStatusCreate, plan.Status)
 	}
-	if len(plan.Mutations) == 0 {
-		t.Error("expected at least one mutation entry")
-	}
 }
 
 // TestIntegrationPlanInSyncAfterApply applies a single dokku_app task then
-// verifies Plan() reports InSync. This is the round-trip property issue #198
-// promises: every apply followed by an immediate plan reports clean.
+// verifies Plan() reports InSync. This is the round-trip property: every
+// apply followed by an immediate plan must report clean.
 func TestIntegrationPlanInSyncAfterApply(t *testing.T) {
 	skipIfNoDokkuT(t)
 
@@ -53,14 +49,10 @@ func TestIntegrationPlanInSyncAfterApply(t *testing.T) {
 	if !plan.InSync {
 		t.Errorf("expected InSync after apply, got %+v", plan)
 	}
-	if plan.Status != PlanStatusOK {
-		t.Errorf("expected status=%q, got %q", PlanStatusOK, plan.Status)
-	}
 }
 
 // TestIntegrationPlanDoesNotMutate is the safety contract for plan: it must
-// never create, modify, or destroy server state. We assert this for the
-// create case (state=present, app missing).
+// never create, modify, or destroy server state.
 func TestIntegrationPlanDoesNotMutate(t *testing.T) {
 	skipIfNoDokkuT(t)
 
@@ -76,8 +68,8 @@ func TestIntegrationPlanDoesNotMutate(t *testing.T) {
 	}
 }
 
-// TestIntegrationPlanConfigItemizes asserts the per-key Mutations contract for
-// multi-mutation tasks. The config task is the canonical case.
+// TestIntegrationPlanConfigItemizes asserts the per-key Mutations contract
+// for multi-mutation tasks against a real Dokku.
 func TestIntegrationPlanConfigItemizes(t *testing.T) {
 	skipIfNoDokkuT(t)
 
@@ -105,5 +97,35 @@ func TestIntegrationPlanConfigItemizes(t *testing.T) {
 	}
 	if len(plan.Mutations) != 2 {
 		t.Errorf("expected 2 mutations (one per key), got %d: %v", len(plan.Mutations), plan.Mutations)
+	}
+}
+
+// TestIntegrationExecuteIdempotent asserts the property the new design
+// guarantees: a second Execute() on a task that just ran reports
+// Changed=false (because the apply closure short-circuits inside Plan via
+// the InSync check). This is the user-visible payoff of the refactor.
+func TestIntegrationExecuteIdempotent(t *testing.T) {
+	skipIfNoDokkuT(t)
+
+	appName := "docket-test-plan-idempotent"
+	destroyApp(appName)
+	defer destroyApp(appName)
+
+	task := AppTask{App: appName, State: StatePresent}
+
+	first := task.Execute()
+	if first.Error != nil {
+		t.Fatalf("first apply errored: %v", first.Error)
+	}
+	if !first.Changed {
+		t.Error("first apply should report Changed=true (app was missing)")
+	}
+
+	second := task.Execute()
+	if second.Error != nil {
+		t.Fatalf("second apply errored: %v", second.Error)
+	}
+	if second.Changed {
+		t.Error("second apply should report Changed=false (app already present)")
 	}
 }

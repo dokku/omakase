@@ -76,7 +76,7 @@ func (t NetworkPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the network property
 func (t NetworkPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "network:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the NetworkPropertyTask would produce.

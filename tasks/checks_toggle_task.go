@@ -6,10 +6,10 @@ import (
 	"github.com/dokku/docket/subprocess"
 )
 
-// checksEnabled reports whether checks are enabled for the given app via
+// checksEnabled probes whether checks are enabled for an app via
 // `dokku --quiet checks:report <app> --checks-disabled`. The dokku-checks
-// plugin lists disabled process types here (comma-separated). An empty
-// list or the literal "none" means all checks are enabled.
+// plugin lists disabled process types here; an empty list or "none" means
+// every process has checks enabled.
 func checksEnabled(ctx ToggleContext) (bool, error) {
 	args := []string{"--quiet", "checks:report"}
 	if ctx.AllowGlobal && ctx.Global {
@@ -25,10 +25,6 @@ func checksEnabled(ctx ToggleContext) (bool, error) {
 		return false, err
 	}
 	disabled := strings.TrimSpace(result.StdoutContents())
-	// dokku-checks reports "none" when no procs are disabled; an empty
-	// string also means fully enabled. Any other non-empty value (a
-	// comma-separated list of proc types, or "_all_") indicates at least
-	// one process has checks disabled.
 	return disabled == "" || disabled == "none", nil
 }
 
@@ -85,7 +81,7 @@ func (t ChecksToggleTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables the checks plugin
 func (t ChecksToggleTask) Execute() TaskOutputState {
-	return executeToggle(t.State, t.App, t.Global, false, "checks:enable", "checks:disable", checksEnabled)
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the ChecksToggleTask would produce.

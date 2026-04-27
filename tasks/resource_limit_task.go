@@ -72,7 +72,7 @@ func (t ResourceLimitTask) Examples() ([]Doc, error) {
 
 // Execute sets or clears the resource limits for a given dokku application
 func (t ResourceLimitTask) Execute() TaskOutputState {
-	return executeResource(t.State, t.App, t.ProcessType, t.Resources, t.ClearBefore, "resource:limit")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the ResourceLimitTask would produce.

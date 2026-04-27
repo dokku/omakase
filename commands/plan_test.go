@@ -6,10 +6,8 @@ import (
 	"github.com/dokku/docket/tasks"
 )
 
-// TestPlanCommandMetadata is a simple smoke check that the PlanCommand
-// satisfies the cli.Command interface and exposes sensible Name / Synopsis
-// strings. Keeping this test lightweight avoids coupling to the cli-skeleton
-// internals; full subcommand wiring is exercised by the bats suite.
+// TestPlanCommandMetadata is a smoke check that PlanCommand exposes a
+// reasonable Name and Synopsis, satisfying the cli.Command interface.
 func TestPlanCommandMetadata(t *testing.T) {
 	c := &PlanCommand{}
 	if c.Name() != "plan" {
@@ -20,9 +18,8 @@ func TestPlanCommandMetadata(t *testing.T) {
 	}
 }
 
-// TestPlanCommandExamples ensures every example string mentions the command
-// name. The cli-skeleton uses these in --help output; a misspelled subcommand
-// in an example would silently mislead users.
+// TestPlanCommandExamples ensures every example string is non-empty. The
+// cli-skeleton uses these in --help output.
 func TestPlanCommandExamples(t *testing.T) {
 	c := &PlanCommand{}
 	examples := c.Examples()
@@ -36,10 +33,8 @@ func TestPlanCommandExamples(t *testing.T) {
 	}
 }
 
-// TestPlanCommandHelpDoesNotPanic guards against a regression where adding a
-// flag whose declaration depends on a parsed tasks.yml caused FlagSet() to
-// panic at help time when the file did not exist. The current implementation
-// silently ignores read errors; this test pins that behavior.
+// TestPlanCommandHelpDoesNotPanic guards against a regression where
+// FlagSet panics at help time when no tasks.yml exists on disk.
 func TestPlanCommandHelpDoesNotPanic(t *testing.T) {
 	c := &PlanCommand{}
 	defer func() {
@@ -50,10 +45,10 @@ func TestPlanCommandHelpDoesNotPanic(t *testing.T) {
 	_ = c.FlagSet()
 }
 
-// TestPlanCommandUsesSamePlanInterface guards the contract between the
-// commands package and the tasks package: PlanCommand must consume tasks.Task,
-// which must expose Plan() returning tasks.PlanResult.
-func TestPlanCommandUsesSamePlanInterface(t *testing.T) {
+// TestPlanCommandUsesPlanInterface guards the contract between the commands
+// package and the tasks package: PlanCommand consumes tasks.Task, which
+// must expose Plan() returning tasks.PlanResult.
+func TestPlanCommandUsesPlanInterface(t *testing.T) {
 	var _ interface {
 		Plan() tasks.PlanResult
 	} = (tasks.Task)(nil)

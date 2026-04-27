@@ -72,16 +72,13 @@ func (t ServiceLinkTask) Examples() ([]Doc, error) {
 
 // Execute links or unlinks a dokku service to an app
 func (t ServiceLinkTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return linkService(t.Service, t.Name, t.App) },
-		"absent":  func() TaskOutputState { return unlinkService(t.Service, t.Name, t.App) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the ServiceLinkTask would produce.
 func (t ServiceLinkTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
-		"present": func() PlanResult {
+		StatePresent: func() PlanResult {
 			if !serviceExists(t.Service, t.Name) {
 				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("service %s %s does not exist", t.Service, t.Name)}
 			}
@@ -96,9 +93,22 @@ func (t ServiceLinkTask) Plan() PlanResult {
 				Status:    PlanStatusCreate,
 				Reason:    fmt.Sprintf("%s service %s not linked to %s", t.Service, t.Name, t.App),
 				Mutations: []string{fmt.Sprintf("%s:link %s %s", t.Service, t.Name, t.App)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", fmt.Sprintf("%s:link", t.Service), t.Name, t.App},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
 			}
 		},
-		"absent": func() PlanResult {
+		StateAbsent: func() PlanResult {
 			if !serviceExists(t.Service, t.Name) {
 				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("service %s %s does not exist", t.Service, t.Name)}
 			}
@@ -113,6 +123,19 @@ func (t ServiceLinkTask) Plan() PlanResult {
 				Status:    PlanStatusDestroy,
 				Reason:    fmt.Sprintf("%s service %s linked to %s", t.Service, t.Name, t.App),
 				Mutations: []string{fmt.Sprintf("%s:unlink %s %s", t.Service, t.Name, t.App)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", fmt.Sprintf("%s:unlink", t.Service), t.Name, t.App},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
 			}
 		},
 	})

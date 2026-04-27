@@ -68,7 +68,7 @@ func (t CronPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the cron property
 func (t CronPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "cron:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the CronPropertyTask would produce.

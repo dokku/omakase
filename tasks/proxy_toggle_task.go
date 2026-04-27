@@ -6,9 +6,8 @@ import (
 	"github.com/dokku/docket/subprocess"
 )
 
-// proxyEnabled reports whether the proxy is enabled for the given app via
-// `dokku --quiet proxy:report <app> --proxy-enabled`. The report subcommand
-// emits "true"/"false" on stdout.
+// proxyEnabled probes whether the proxy is enabled for an app via
+// `dokku --quiet proxy:report <app> --proxy-enabled`. Output is "true"/"false".
 func proxyEnabled(ctx ToggleContext) (bool, error) {
 	args := []string{"--quiet", "proxy:report"}
 	if ctx.AllowGlobal && ctx.Global {
@@ -64,7 +63,7 @@ func (t ProxyToggleTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables the proxy
 func (t ProxyToggleTask) Execute() TaskOutputState {
-	return executeToggle(t.State, t.App, t.Global, false, "proxy:enable", "proxy:disable", proxyEnabled)
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the ProxyToggleTask would produce.

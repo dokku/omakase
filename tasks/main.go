@@ -99,10 +99,9 @@ const (
 
 // PlanResult is the read-only drift report for a task.
 //
-// Plan() never mutates server state. Tasks that probe live state populate
-// InSync, Status, and (for multi-mutation tasks) Mutations. Tasks that today
-// mutate without probing return a conservative result indicating that the
-// run would mutate but cannot itemize the change without executing.
+// Plan() never mutates server state. The unexported apply closure carries
+// any state probed during planning so the apply path does not re-probe;
+// ExecutePlan is the only consumer. When InSync is true, apply is nil.
 type PlanResult struct {
 	// InSync is true when the task would not change anything.
 	InSync bool
@@ -113,18 +112,24 @@ type PlanResult struct {
 	// Reason is human-readable detail (e.g. "ref drift", "2 keys to set").
 	Reason string
 
-	// Mutations optionally itemizes per-mutation drift for tasks that perform
-	// multiple operations (e.g. config_task setting and unsetting individual
-	// keys). One entry per atomic change.
+	// Mutations optionally itemizes per-mutation drift for tasks that
+	// perform multiple operations (e.g. config setting and unsetting
+	// individual keys). One entry per atomic change.
 	Mutations []string
 
-	// DesiredState is the state the task was asked to converge to. Mirrors
-	// TaskOutputState.DesiredState so plan output can render the same context.
+	// DesiredState mirrors TaskOutputState.DesiredState so plan output can
+	// render the same context as apply output.
 	DesiredState State
 
 	// Error is non-nil when the read-state probe itself failed. A non-nil
 	// Error implies Status == PlanStatusError.
 	Error error
+
+	// apply, when non-nil, is the closure ExecutePlan invokes to mutate
+	// server state. nil when InSync. Captures any probed state needed for
+	// the mutation so the apply path does not re-probe. Unexported so
+	// formatters and JSON consumers cannot accidentally invoke it.
+	apply func() TaskOutputState
 }
 
 // Task represents a task
@@ -139,7 +144,9 @@ type Task interface {
 	// without mutating it. Plan must never call mutating dokku commands.
 	Plan() PlanResult
 
-	// Execute executes the task
+	// Execute executes the task. Conventionally implemented as
+	// ExecutePlan(t.Plan()) so probing happens once and the per-state
+	// mutation logic lives only in Plan().
 	Execute() TaskOutputState
 }
 

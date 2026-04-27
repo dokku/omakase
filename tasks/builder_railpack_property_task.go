@@ -68,7 +68,7 @@ func (t BuilderRailpackPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the builder-railpack property
 func (t BuilderRailpackPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "builder-railpack:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the BuilderRailpackPropertyTask would produce.

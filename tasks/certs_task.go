@@ -83,10 +83,7 @@ func (t CertsTask) Examples() ([]Doc, error) {
 
 // Execute manages the SSL certificate
 func (t CertsTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		StatePresent: func() TaskOutputState { return addCert(t) },
-		StateAbsent:  func() TaskOutputState { return removeCert(t) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the CertsTask would produce.
@@ -115,6 +112,23 @@ func (t CertsTask) Plan() PlanResult {
 				Status:    PlanStatusCreate,
 				Reason:    "certificate not installed",
 				Mutations: []string{fmt.Sprintf("install certificate for %s", target)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					args := []string{"--quiet", "certs:add", t.App, t.Cert, t.Key}
+					if t.Global {
+						args = []string{"--quiet", "global-cert:set", t.Cert, t.Key}
+					}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
 			}
 		},
 		StateAbsent: func() PlanResult {
@@ -137,6 +151,23 @@ func (t CertsTask) Plan() PlanResult {
 				Status:    PlanStatusDestroy,
 				Reason:    "certificate present",
 				Mutations: []string{fmt.Sprintf("remove certificate for %s", target)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					args := []string{"--quiet", "certs:remove", t.App}
+					if t.Global {
+						args = []string{"--quiet", "global-cert:remove"}
+					}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
 			}
 		},
 	})
@@ -169,92 +200,6 @@ func certsEnabled(t CertsTask) (bool, error) {
 	}
 
 	return strings.TrimSpace(result.StdoutContents()) == "true", nil
-}
-
-// addCert installs an SSL certificate for an app or globally
-func addCert(t CertsTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StateAbsent,
-	}
-
-	if err := validateCertsTask(t); err != nil {
-		state.Error = err
-		return state
-	}
-	if t.Cert == "" || t.Key == "" {
-		state.Error = fmt.Errorf("'cert' and 'key' are required when state is 'present'")
-		return state
-	}
-
-	enabled, err := certsEnabled(t)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-	if enabled {
-		state.State = StatePresent
-		return state
-	}
-
-	args := []string{"--quiet", "certs:add", t.App, t.Cert, t.Key}
-	if t.Global {
-		args = []string{"--quiet", "global-cert:set", t.Cert, t.Key}
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StatePresent
-	return state
-}
-
-// removeCert removes the SSL certificate for an app or globally
-func removeCert(t CertsTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StatePresent,
-	}
-
-	if err := validateCertsTask(t); err != nil {
-		state.Error = err
-		return state
-	}
-
-	enabled, err := certsEnabled(t)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-	if !enabled {
-		state.State = StateAbsent
-		return state
-	}
-
-	args := []string{"--quiet", "certs:remove", t.App}
-	if t.Global {
-		args = []string{"--quiet", "global-cert:remove"}
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StateAbsent
-	return state
 }
 
 // init registers the CertsTask with the task registry

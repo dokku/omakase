@@ -66,16 +66,13 @@ func (t ServiceCreateTask) Examples() ([]Doc, error) {
 
 // Execute creates or destroys a dokku service
 func (t ServiceCreateTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return createService(t.Service, t.Name) },
-		"absent":  func() TaskOutputState { return destroyService(t.Service, t.Name) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the ServiceCreateTask would produce.
 func (t ServiceCreateTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
-		"present": func() PlanResult {
+		StatePresent: func() PlanResult {
 			if serviceExists(t.Service, t.Name) {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
@@ -84,9 +81,22 @@ func (t ServiceCreateTask) Plan() PlanResult {
 				Status:    PlanStatusCreate,
 				Reason:    fmt.Sprintf("%s service %s missing", t.Service, t.Name),
 				Mutations: []string{fmt.Sprintf("%s:create %s", t.Service, t.Name)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", fmt.Sprintf("%s:create", t.Service), t.Name},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
 			}
 		},
-		"absent": func() PlanResult {
+		StateAbsent: func() PlanResult {
 			if !serviceExists(t.Service, t.Name) {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
@@ -95,6 +105,19 @@ func (t ServiceCreateTask) Plan() PlanResult {
 				Status:    PlanStatusDestroy,
 				Reason:    fmt.Sprintf("%s service %s present", t.Service, t.Name),
 				Mutations: []string{fmt.Sprintf("%s:destroy %s", t.Service, t.Name)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "--force", fmt.Sprintf("%s:destroy", t.Service), t.Name},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
 			}
 		},
 	})

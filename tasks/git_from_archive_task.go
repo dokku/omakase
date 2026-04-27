@@ -73,15 +73,13 @@ var validGitFromArchiveTypes = map[string]bool{"tar": true, "tar.gz": true, "zip
 
 // Execute deploys a git repository from an archive URL
 func (t GitFromArchiveTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"deployed": func() TaskOutputState { return deployGitFromArchive(t) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the GitFromArchiveTask would produce.
 func (t GitFromArchiveTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
-		"deployed": func() PlanResult {
+		StateDeployed: func() PlanResult {
 			if t.App == "" {
 				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'app' is required")}
 			}
@@ -106,6 +104,23 @@ func (t GitFromArchiveTask) Plan() PlanResult {
 				Status:    PlanStatusModify,
 				Reason:    "archive source drift",
 				Mutations: []string{fmt.Sprintf("git:from-archive %s %s (%s)", t.App, t.ArchiveURL, archiveType)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: "undeployed"}
+					args := []string{"git:from-archive", "--archive-type", archiveType, t.App, t.ArchiveURL}
+					if t.GitUsername != "" {
+						args = append(args, t.GitUsername, t.GitEmail)
+					}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateDeployed
+					return state
+				},
 			}
 		},
 	})
@@ -120,59 +135,6 @@ func checkAppSourceArchive(app, expectedType, expectedURL string) bool {
 		return false
 	}
 	return source.Source == expectedType && source.SourceMetadata == expectedURL
-}
-
-// deployGitFromArchive deploys a git repository from an archive URL
-func deployGitFromArchive(t GitFromArchiveTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "undeployed",
-	}
-
-	if t.App == "" {
-		state.Error = fmt.Errorf("'app' is required")
-		return state
-	}
-	if t.ArchiveURL == "" {
-		state.Error = fmt.Errorf("'archive_url' is required")
-		return state
-	}
-
-	archiveType := t.ArchiveType
-	if archiveType == "" {
-		archiveType = "tar"
-	}
-	if !validGitFromArchiveTypes[archiveType] {
-		state.Error = fmt.Errorf("'archive_type' must be one of tar, tar.gz, zip")
-		return state
-	}
-
-	if (t.GitUsername == "") != (t.GitEmail == "") {
-		state.Error = fmt.Errorf("'git_username' and 'git_email' must be set together")
-		return state
-	}
-
-	if checkAppSourceArchive(t.App, archiveType, t.ArchiveURL) {
-		state.State = "deployed"
-		return state
-	}
-
-	args := []string{"git:from-archive", "--archive-type", archiveType, t.App, t.ArchiveURL}
-	if t.GitUsername != "" {
-		args = append(args, t.GitUsername, t.GitEmail)
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "deployed"
-	return state
 }
 
 // init registers the GitFromArchiveTask with the task registry

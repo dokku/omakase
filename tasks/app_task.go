@@ -53,16 +53,13 @@ func (t AppTask) Examples() ([]Doc, error) {
 
 // Execute creates or destroys an app
 func (t AppTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return createApp(t.App) },
-		"absent":  func() TaskOutputState { return destroyApp(t.App) },
-	})
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the AppTask would produce.
 func (t AppTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
-		"present": func() PlanResult {
+		StatePresent: func() PlanResult {
 			if appExists(t.App) {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
@@ -71,9 +68,10 @@ func (t AppTask) Plan() PlanResult {
 				Status:    PlanStatusCreate,
 				Reason:    "app missing",
 				Mutations: []string{"create app " + t.App},
+				apply:     applyCreateApp(t.App),
 			}
 		},
-		"absent": func() PlanResult {
+		StateAbsent: func() PlanResult {
 			if !appExists(t.App) {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
@@ -82,6 +80,7 @@ func (t AppTask) Plan() PlanResult {
 				Status:    PlanStatusDestroy,
 				Reason:    "app present",
 				Mutations: []string{"destroy app " + t.App},
+				apply:     applyDestroyApp(t.App),
 			}
 		},
 	})
@@ -104,61 +103,56 @@ func appExists(appName string) bool {
 	return result.ExitCode == 0
 }
 
-// createApp creates an app
-func createApp(app string) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "absent",
-	}
-	if appExists(app) {
-		state.State = "present"
+// applyCreateApp returns a closure that runs `dokku apps:create <app>`.
+func applyCreateApp(app string) func() TaskOutputState {
+	return func() TaskOutputState {
+		state := TaskOutputState{Changed: false, State: StateAbsent}
+		result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+			Command: "dokku",
+			Args:    []string{"--quiet", "apps:create", app},
+		})
+		if err != nil {
+			return TaskOutputErrorFromExec(state, err, result)
+		}
+		state.Changed = true
+		state.State = StatePresent
 		return state
 	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			"apps:create",
-			app,
-		},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "present"
-	return state
 }
 
-// destroyApp destroys an app
-func destroyApp(app string) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "present",
-	}
-	if !appExists(app) {
-		state.State = "absent"
+// applyDestroyApp returns a closure that runs `dokku --force apps:destroy <app>`.
+func applyDestroyApp(app string) func() TaskOutputState {
+	return func() TaskOutputState {
+		state := TaskOutputState{Changed: false, State: StatePresent}
+		result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+			Command: "dokku",
+			Args:    []string{"--quiet", "--force", "apps:destroy", app},
+		})
+		if err != nil {
+			return TaskOutputErrorFromExec(state, err, result)
+		}
+		state.Changed = true
+		state.State = StateAbsent
 		return state
 	}
+}
 
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args: []string{
-			"--quiet",
-			"--force",
-			"apps:destroy",
-			app,
-		},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
+// destroyApp is retained as an integration-test helper. It runs the
+// destroy-app apply path synchronously.
+func destroyApp(app string) TaskOutputState {
+	if !appExists(app) {
+		return TaskOutputState{Changed: false, State: StateAbsent}
 	}
+	return applyDestroyApp(app)()
+}
 
-	state.Changed = true
-	state.State = "absent"
-	return state
+// createApp is retained as an integration-test helper. It runs the
+// create-app apply path synchronously.
+func createApp(app string) TaskOutputState {
+	if appExists(app) {
+		return TaskOutputState{Changed: false, State: StatePresent}
+	}
+	return applyCreateApp(app)()
 }
 
 // init registers the AppTask with the task registry

@@ -6,8 +6,8 @@ import (
 	"github.com/dokku/docket/subprocess"
 )
 
-// domainsEnabled reports whether the domains plugin is enabled for the given
-// app via `dokku --quiet domains:report <app> --domains-app-enabled`, or for
+// domainsEnabled probes whether the domains plugin is enabled for an app
+// via `dokku --quiet domains:report <app> --domains-app-enabled`, or for
 // the global scope via `--domains-global-enabled`.
 func domainsEnabled(ctx ToggleContext) (bool, error) {
 	args := []string{"--quiet", "domains:report"}
@@ -64,7 +64,7 @@ func (t DomainsToggleTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables the domains plugin
 func (t DomainsToggleTask) Execute() TaskOutputState {
-	return executeToggle(t.State, t.App, t.Global, false, "domains:enable", "domains:disable", domainsEnabled)
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the DomainsToggleTask would produce.

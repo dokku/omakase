@@ -68,7 +68,7 @@ func (t TraefikPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the traefik property
 func (t TraefikPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "traefik:set")
+	return ExecutePlan(t.Plan())
 }
 
 // Plan reports the drift the TraefikPropertyTask would produce.
