@@ -94,7 +94,7 @@ const (
 	// PlanStatusDestroy indicates the task would remove existing state.
 	PlanStatusDestroy PlanStatus = "-"
 	// PlanStatusError indicates the read-state probe itself failed.
-	PlanStatusError PlanStatus = "error"
+	PlanStatusError PlanStatus = "!"
 )
 
 // PlanResult is the read-only drift report for a task.

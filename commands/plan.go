@@ -138,7 +138,7 @@ func (c *PlanCommand) Run(args []string) int {
 		case result.Error != nil:
 			totals.errors++
 			hasError = true
-			c.Ui.Error(fmt.Sprintf("[error]   %s  (%v)", name, result.Error))
+			c.Ui.Error(fmt.Sprintf("[%s]       %s  (%v)", tasks.PlanStatusError, name, result.Error))
 		case result.InSync:
 			totals.inSync++
 			c.Ui.Info(fmt.Sprintf("[ok]      %s  (in sync)", name))

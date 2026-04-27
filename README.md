@@ -49,7 +49,7 @@ Running `docket` with no subcommand prints the available commands. Use `docket a
 | `[+]` | `apply` would create new state |
 | `[~]` | `apply` would modify existing state |
 | `[-]` | `apply` would remove existing state |
-| `[error]` | The read-state probe itself errored (drift unknown) |
+| `[!]` | The read-state probe itself errored (drift unknown) |
 
 Tasks that perform multiple operations (e.g. `dokku_config` setting several keys) report each individual mutation under the task line:
 

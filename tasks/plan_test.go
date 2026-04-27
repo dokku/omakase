@@ -147,7 +147,7 @@ func TestPlanResultStatusConstants(t *testing.T) {
 		PlanStatusModify:  "~",
 		PlanStatusCreate:  "+",
 		PlanStatusDestroy: "-",
-		PlanStatusError:   "error",
+		PlanStatusError:   "!",
 	}
 	for got, want := range cases {
 		if string(got) != want {
