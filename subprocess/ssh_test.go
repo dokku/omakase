@@ -304,6 +304,18 @@ func TestCallSshCommandReturnsSshErrorOnEmptyHost(t *testing.T) {
 	}
 }
 
+func TestSetAndGetDefaultHost(t *testing.T) {
+	t.Cleanup(func() { SetDefaultHost("") })
+	SetDefaultHost("alice@host:2222")
+	if got := GetDefaultHost(); got != "alice@host:2222" {
+		t.Errorf("GetDefaultHost() = %q, want %q", got, "alice@host:2222")
+	}
+	SetDefaultHost("")
+	if got := GetDefaultHost(); got != "" {
+		t.Errorf("GetDefaultHost() = %q, want empty after clear", got)
+	}
+}
+
 // helpers
 
 func containsExact(haystack []string, needle string) bool {

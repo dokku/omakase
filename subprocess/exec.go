@@ -54,6 +54,13 @@ type ExecCommandInput struct {
 
 	// WorkingDirectory is the working directory to run the command in
 	WorkingDirectory string
+
+	// Host, when non-empty, routes the command through an `ssh` subprocess
+	// against [user@]host[:port] instead of executing locally. Only used
+	// when Command is "dokku"; non-dokku commands always run locally
+	// (the remote side may not have those binaries). When empty, the
+	// dispatcher consults the package default set by SetDefaultHost.
+	Host string
 }
 
 // ExecCommandResponse is the response for the ExecCommand function
@@ -104,14 +111,18 @@ func CallExecCommand(input ExecCommandInput) (ExecCommandResponse, error) {
 
 // CallExecCommandWithContext executes a command on the local host with the given context.
 //
-// When DOKKU_HOST is set and the command is `dokku`, dispatch is routed
+// When `input.Host` is set (or a default has been configured via
+// SetDefaultHost) and the command is `dokku`, dispatch is routed
 // through the SSH transport so the dokku invocation runs on the remote
 // host. Non-dokku subprocesses (echo/git/etc.) always run locally even
-// when DOKKU_HOST is set, since the remote side may not have those
+// when a host is configured, since the remote side may not have those
 // binaries (and tests expect local execution).
 func CallExecCommandWithContext(ctx context.Context, input ExecCommandInput) (ExecCommandResponse, error) {
-	if host := os.Getenv("DOKKU_HOST"); host != "" && input.Command == "dokku" {
-		return CallSshCommandWithContext(ctx, host, input)
+	if input.Host == "" {
+		input.Host = GetDefaultHost()
+	}
+	if input.Host != "" && input.Command == "dokku" {
+		return CallSshCommandWithContext(ctx, input.Host, input)
 	}
 
 	signals := make(chan os.Signal, 1)

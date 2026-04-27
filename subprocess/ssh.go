@@ -194,6 +194,33 @@ var (
 	sshLookPathErr  error
 )
 
+// defaultHost is the package-level fallback used by CallExecCommand
+// when the per-call ExecCommandInput.Host is empty. The commands layer
+// (commands/apply.go and commands/plan.go) sets this once at start-of-
+// run from the resolved CLI flag / env var so tasks can keep building
+// transport-agnostic ExecCommandInput values.
+var (
+	defaultHostMu sync.RWMutex
+	defaultHost   string
+)
+
+// SetDefaultHost registers the host that CallExecCommandWithContext
+// should use when ExecCommandInput.Host is empty. Pass an empty string
+// to clear the default. Mirrors the SetGlobalSensitive pattern.
+func SetDefaultHost(host string) {
+	defaultHostMu.Lock()
+	defer defaultHostMu.Unlock()
+	defaultHost = host
+}
+
+// GetDefaultHost returns the currently registered default host (or
+// empty string when none).
+func GetDefaultHost() string {
+	defaultHostMu.RLock()
+	defer defaultHostMu.RUnlock()
+	return defaultHost
+}
+
 func ensureSshAvailable() error {
 	sshLookPathOnce.Do(func() {
 		_, err := exec.LookPath("ssh")

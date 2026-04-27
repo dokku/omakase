@@ -110,7 +110,7 @@ func (c *PlanCommand) Run(args []string) int {
 		return 1
 	}
 
-	applySshFlagsToEnv(c.host, c.sudo, c.acceptNewHostKeys)
+	resolvedHost := resolveSshFlags(c.host, c.sudo, c.acceptNewHostKeys)
 
 	data, err := os.ReadFile(c.tasksFile)
 	if err != nil {
@@ -143,7 +143,6 @@ func (c *PlanCommand) Run(args []string) int {
 	subprocess.SetGlobalSensitive(sensitiveValues)
 	defer subprocess.SetGlobalSensitive(nil)
 
-	resolvedHost := os.Getenv("DOKKU_HOST")
 	if resolvedHost != "" {
 		defer subprocess.CloseSshControlMaster(resolvedHost)
 	}
