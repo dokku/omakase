@@ -53,6 +53,12 @@ type Input struct {
 	// Required is a flag indicating if the input is required
 	Required bool `yaml:"required"`
 
+	// Sensitive marks the input's resolved value as a secret. When true,
+	// the value is masked as `***` anywhere it would otherwise appear in
+	// user-facing output (apply --verbose echoes, plan output, error
+	// messages, and the DOKKU_TRACE debug log).
+	Sensitive bool `yaml:"sensitive"`
+
 	// Type is the type of the input
 	Type string `yaml:"type"`
 

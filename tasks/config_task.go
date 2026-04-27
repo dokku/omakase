@@ -72,6 +72,23 @@ func (t ConfigTask) Execute() TaskOutputState {
 	return ExecutePlan(t.Plan())
 }
 
+// SensitiveValues returns every non-empty value in the Config map together
+// with its base64 encoding. The base64 form is included because the apply
+// path passes config values to `dokku config:set --encoded` as
+// `KEY=<base64(value)>`, so the literal value never appears on argv but the
+// encoded form does. Masking both means the verbose command echo and the
+// DOKKU_TRACE log scrub the secret in either representation.
+func (t ConfigTask) SensitiveValues() []string {
+	out := make([]string, 0, 2*len(t.Config))
+	for _, v := range t.Config {
+		if v == "" {
+			continue
+		}
+		out = append(out, v, base64.StdEncoding.EncodeToString([]byte(v)))
+	}
+	return out
+}
+
 // Plan reports the drift the ConfigTask would produce.
 func (t ConfigTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{

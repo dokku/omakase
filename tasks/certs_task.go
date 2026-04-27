@@ -17,10 +17,10 @@ type CertsTask struct {
 	Global bool `required:"false" yaml:"global,omitempty"`
 
 	// Cert is the path on the dokku server to the SSL certificate file
-	Cert string `required:"false" yaml:"cert,omitempty"`
+	Cert string `required:"false" sensitive:"true" yaml:"cert,omitempty"`
 
 	// Key is the path on the dokku server to the SSL certificate key file
-	Key string `required:"false" yaml:"key,omitempty"`
+	Key string `required:"false" sensitive:"true" yaml:"key,omitempty"`
 
 	// State is the desired state of the SSL configuration
 	State State `required:"false" yaml:"state,omitempty" default:"present" options:"present,absent"`

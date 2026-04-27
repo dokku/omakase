@@ -21,7 +21,7 @@ type GitAuthTask struct {
 	Username string `required:"false" yaml:"username,omitempty"`
 
 	// Password is the netrc password. Required when state is present.
-	Password string `required:"false" yaml:"password,omitempty"`
+	Password string `required:"false" sensitive:"true" yaml:"password,omitempty"`
 
 	// State is the desired state of the netrc entry
 	State State `required:"false" yaml:"state,omitempty" default:"present" options:"present,absent"`
@@ -87,7 +87,7 @@ func (t GitAuthTask) Plan() PlanResult {
 				InSync:    false,
 				Status:    PlanStatusModify,
 				Reason:    "netrc state not probed",
-				Mutations: []string{"git:auth " + t.Host + " " + t.Username + " ***"},
+				Mutations: []string{"git:auth " + t.Host + " " + t.Username + " " + t.Password},
 				apply: func() TaskOutputState {
 					state := TaskOutputState{Changed: false, State: StateAbsent}
 					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{

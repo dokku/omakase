@@ -15,7 +15,7 @@ type HttpAuthTask struct {
 	Username string `required:"false" yaml:"username,omitempty"`
 
 	// Password is the HTTP auth password
-	Password string `required:"false" yaml:"password,omitempty"`
+	Password string `required:"false" sensitive:"true" yaml:"password,omitempty"`
 
 	// State is the state of the HTTP auth
 	State State `required:"false" yaml:"state,omitempty" default:"present" options:"present,absent"`

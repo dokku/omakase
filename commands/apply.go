@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/dokku/docket/subprocess"
 	"github.com/dokku/docket/tasks"
 
 	"github.com/josegonzalez/cli-skeleton/command"
@@ -57,7 +58,7 @@ func (c *ApplyCommand) ParsedArguments(args []string) (map[string]command.Argume
 func (c *ApplyCommand) FlagSet() *flag.FlagSet {
 	f := c.Meta.FlagSet(c.Name(), command.FlagSetClient)
 	f.StringVar(&c.tasksFile, "tasks", "tasks.yml", "a yaml file containing a task list")
-	f.BoolVar(&c.verbose, "verbose", false, "echo the resolved dokku command for each task as a continuation line (commands are not masked; avoid on recipes that pass secrets via task arguments)")
+	f.BoolVar(&c.verbose, "verbose", false, "echo the resolved dokku command for each task as a continuation line. Values from inputs declared `sensitive: true` and from task struct fields tagged `sensitive:\"true\"` are masked as `***`")
 
 	taskFile := getTaskYamlFilename(os.Args)
 	data, err := os.ReadFile(taskFile)
@@ -100,12 +101,18 @@ func (c *ApplyCommand) Run(args []string) int {
 	}
 
 	context := make(map[string]interface{})
+	var sensitiveValues []string
 	for name, argument := range c.arguments {
 		if argument.Required && !argument.HasValue() {
 			c.Ui.Error(fmt.Sprintf("Missing flag '--%s'", name))
 			return 1
 		}
 		context[name] = argument.GetValue()
+		if argument.Sensitive {
+			if v := argument.StringValue(); v != "" {
+				sensitiveValues = append(sensitiveValues, v)
+			}
+		}
 	}
 
 	taskList, err := tasks.GetTasks(data, context)
@@ -113,6 +120,10 @@ func (c *ApplyCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("task error: %v", err))
 		return 1
 	}
+
+	sensitiveValues = append(sensitiveValues, tasks.CollectSensitiveValues(taskList)...)
+	subprocess.SetGlobalSensitive(sensitiveValues)
+	defer subprocess.SetGlobalSensitive(nil)
 
 	formatter := NewFormatter(c.Ui, c.verbose)
 	formatter.PlayHeader("tasks")

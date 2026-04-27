@@ -3,6 +3,7 @@ package subprocess
 import (
 	"bytes"
 	"context"
+	"log"
 	"strings"
 	"testing"
 	"time"
@@ -142,3 +143,68 @@ func TestCallExecCommandWithContext(t *testing.T) {
 		t.Fatal("expected error from cancelled context")
 	}
 }
+
+func TestCallExecCommandResponseCommandIsMasked(t *testing.T) {
+	SetGlobalSensitive([]string{"topsecret123"})
+	defer SetGlobalSensitive(nil)
+
+	resp, err := CallExecCommand(ExecCommandInput{
+		Command: "echo",
+		Args:    []string{"login", "topsecret123"},
+	})
+	if err != nil {
+		t.Fatalf("CallExecCommand failed: %v", err)
+	}
+	if strings.Contains(resp.Command, "topsecret123") {
+		t.Errorf("response.Command leaked secret: %q", resp.Command)
+	}
+	if !strings.Contains(resp.Command, "***") {
+		t.Errorf("response.Command did not mask: %q", resp.Command)
+	}
+	// Stdout still contains the actual value because the subprocess
+	// receives the unmasked args - masking only applies to display.
+	if !strings.Contains(resp.StdoutContents(), "topsecret123") {
+		t.Errorf("subprocess should have received unmasked args; stdout = %q", resp.StdoutContents())
+	}
+}
+
+func TestCallExecCommandTraceLogIsMasked(t *testing.T) {
+	t.Setenv("DOKKU_TRACE", "1")
+	SetGlobalSensitive([]string{"topsecret123"})
+	defer SetGlobalSensitive(nil)
+
+	var buf bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(prev)
+
+	if _, err := CallExecCommand(ExecCommandInput{
+		Command: "echo",
+		Args:    []string{"login", "topsecret123"},
+	}); err != nil {
+		t.Fatalf("CallExecCommand failed: %v", err)
+	}
+	got := buf.String()
+	if strings.Contains(got, "topsecret123") {
+		t.Errorf("DOKKU_TRACE log leaked secret: %q", got)
+	}
+	if !strings.Contains(got, "***") {
+		t.Errorf("DOKKU_TRACE log did not mask: %q", got)
+	}
+}
+
+func TestCallExecCommandResponseCommandUnmaskedWhenNoSecrets(t *testing.T) {
+	SetGlobalSensitive(nil)
+
+	resp, err := CallExecCommand(ExecCommandInput{
+		Command: "echo",
+		Args:    []string{"hello", "world"},
+	})
+	if err != nil {
+		t.Fatalf("CallExecCommand failed: %v", err)
+	}
+	if !strings.Contains(resp.Command, "hello") || !strings.Contains(resp.Command, "world") {
+		t.Errorf("response.Command unexpectedly altered: %q", resp.Command)
+	}
+}
+

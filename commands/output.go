@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dokku/docket/subprocess"
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 )
@@ -108,12 +109,14 @@ func (f *Formatter) PlayHeader(name string) {
 // appended after two spaces (matching the legacy plan-line layout).
 //
 // Errored task lines are routed through Ui.Error so they land on stderr
-// and inherit the cli-skeleton error styling.
+// and inherit the cli-skeleton error styling. The suffix is masked
+// against the global sensitive value set so error contexts that include
+// stderr can't leak secrets.
 func (f *Formatter) TaskLine(m Marker, name, suffix string) {
 	marker := f.paintMarker(m)
 	line := marker + name
 	if suffix != "" {
-		line = line + "  " + suffix
+		line = line + "  " + subprocess.MaskString(suffix)
 	}
 	if m == MarkerError || m == MarkerProbeError {
 		f.ui.Error(line)
@@ -126,11 +129,13 @@ func (f *Formatter) TaskLine(m Marker, name, suffix string) {
 // recent task line. prefix is the leading rune (`!` for errors,
 // `→` for the verbose command echo, `-` for plan mutation items).
 // Each line of `body` is emitted as its own continuation so multi-line
-// stderr renders cleanly under the marker column.
+// stderr renders cleanly under the marker column. The body is masked
+// against the global sensitive value set before output.
 func (f *Formatter) Continuation(prefix rune, body string) {
 	if body == "" {
 		return
 	}
+	body = subprocess.MaskString(body)
 	for _, line := range strings.Split(strings.TrimRight(body, "\n"), "\n") {
 		out := fmt.Sprintf("%s%c %s", continuationIndent, prefix, line)
 		f.ui.Output(out)
