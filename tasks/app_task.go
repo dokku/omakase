@@ -111,6 +111,7 @@ func applyCreateApp(app string) func() TaskOutputState {
 			Command: "dokku",
 			Args:    []string{"--quiet", "apps:create", app},
 		})
+		state.Commands = append(state.Commands, result.Command)
 		if err != nil {
 			return TaskOutputErrorFromExec(state, err, result)
 		}
@@ -128,6 +129,7 @@ func applyDestroyApp(app string) func() TaskOutputState {
 			Command: "dokku",
 			Args:    []string{"--quiet", "--force", "apps:destroy", app},
 		})
+		state.Commands = append(state.Commands, result.Command)
 		if err != nil {
 			return TaskOutputErrorFromExec(state, err, result)
 		}

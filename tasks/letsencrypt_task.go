@@ -84,6 +84,7 @@ func (t LetsencryptTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "letsencrypt:enable", t.App},
 					})
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -112,6 +113,7 @@ func (t LetsencryptTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "letsencrypt:disable", t.App},
 					})
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -164,6 +166,7 @@ func enableLetsencrypt(app string) TaskOutputState {
 		Command: "dokku",
 		Args:    []string{"--quiet", "letsencrypt:enable", app},
 	})
+	state.Commands = append(state.Commands, result.Command)
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}
@@ -200,6 +203,7 @@ func disableLetsencrypt(app string) TaskOutputState {
 		Command: "dokku",
 		Args:    []string{"--quiet", "letsencrypt:disable", app},
 	})
+	state.Commands = append(state.Commands, result.Command)
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}

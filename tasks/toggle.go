@@ -87,6 +87,7 @@ func applyToggle(subcommand, target string, finalState State) func() TaskOutputS
 			Command: "dokku",
 			Args:    []string{"--quiet", subcommand, target},
 		})
+		state.Commands = append(state.Commands, result.Command)
 		if err != nil {
 			return TaskOutputErrorFromExec(state, err, result)
 		}

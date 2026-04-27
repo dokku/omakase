@@ -117,6 +117,7 @@ func (t PsScaleTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    args,
 					})
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}

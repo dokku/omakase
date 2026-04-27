@@ -250,6 +250,7 @@ func applyDokkuArgs(subcommand, target string, extra []string, finalState State,
 			Command: "dokku",
 			Args:    args,
 		})
+		state.Commands = append(state.Commands, result.Command)
 		if err != nil {
 			return TaskOutputErrorFromExec(state, err, result)
 		}

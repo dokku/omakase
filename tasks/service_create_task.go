@@ -87,6 +87,7 @@ func (t ServiceCreateTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", fmt.Sprintf("%s:create", t.Service), t.Name},
 					})
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -111,6 +112,7 @@ func (t ServiceCreateTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "--force", fmt.Sprintf("%s:destroy", t.Service), t.Name},
 					})
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -159,6 +161,7 @@ func createService(service, name string) TaskOutputState {
 			name,
 		},
 	})
+	state.Commands = append(state.Commands, result.Command)
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}
@@ -188,6 +191,7 @@ func destroyService(service, name string) TaskOutputState {
 			name,
 		},
 	})
+	state.Commands = append(state.Commands, result.Command)
 	if err != nil {
 		return TaskOutputErrorFromExec(state, err, result)
 	}

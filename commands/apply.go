@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/dokku/docket/tasks"
 
@@ -15,6 +16,7 @@ type ApplyCommand struct {
 	command.Meta
 
 	tasksFile string
+	verbose   bool
 	arguments map[string]*Argument
 }
 
@@ -55,6 +57,7 @@ func (c *ApplyCommand) ParsedArguments(args []string) (map[string]command.Argume
 func (c *ApplyCommand) FlagSet() *flag.FlagSet {
 	f := c.Meta.FlagSet(c.Name(), command.FlagSetClient)
 	f.StringVar(&c.tasksFile, "tasks", "tasks.yml", "a yaml file containing a task list")
+	f.BoolVar(&c.verbose, "verbose", false, "echo the resolved dokku command for each task as a continuation line (commands are not masked; avoid on recipes that pass secrets via task arguments)")
 
 	taskFile := getTaskYamlFilename(os.Args)
 	data, err := os.ReadFile(taskFile)
@@ -75,7 +78,8 @@ func (c *ApplyCommand) AutocompleteFlags() complete.Flags {
 	return command.MergeAutocompleteFlags(
 		c.Meta.AutocompleteFlags(command.FlagSetClient),
 		complete.Flags{
-			"--tasks": complete.PredictFiles("*.yml"),
+			"--tasks":   complete.PredictFiles("*.yml"),
+			"--verbose": complete.PredictNothing,
 		},
 	)
 }
@@ -110,20 +114,52 @@ func (c *ApplyCommand) Run(args []string) int {
 		return 1
 	}
 
+	formatter := NewFormatter(c.Ui, c.verbose)
+	formatter.PlayHeader("tasks")
+
+	start := time.Now()
+	counts := ApplyCounts{}
+
 	for _, name := range taskList.Keys() {
 		task := taskList.Get(name)
-		c.Ui.Info(fmt.Sprintf("executing %s", name))
 		state := task.Execute()
-		if state.Error != nil {
-			c.Ui.Error(fmt.Sprintf("execute error: %v", state.Error))
+		counts.Tasks++
+
+		switch {
+		case state.Error != nil:
+			counts.Errors++
+			formatter.TaskLine(MarkerError, name, "")
+			formatter.Continuation('!', state.Error.Error())
+			if c.verbose {
+				for _, cmd := range state.Commands {
+					formatter.Continuation('\u2192', cmd)
+				}
+			}
+			formatter.ApplySummary(counts, time.Since(start))
 			return 1
+		case state.Changed:
+			counts.Changed++
+			formatter.TaskLine(MarkerChanged, name, "")
+		default:
+			counts.OK++
+			formatter.TaskLine(MarkerOK, name, "")
+		}
+
+		if c.verbose {
+			for _, cmd := range state.Commands {
+				formatter.Continuation('\u2192', cmd)
+			}
 		}
 
 		if state.State != state.DesiredState {
-			c.Ui.Error(fmt.Sprintf("Invalid state found, expected=%v actual=%v", state.DesiredState, state.State))
+			counts.Errors++
+			formatter.TaskLine(MarkerError, name, "")
+			formatter.Continuation('!', fmt.Sprintf("invalid state: expected=%v actual=%v", state.DesiredState, state.State))
+			formatter.ApplySummary(counts, time.Since(start))
 			return 1
 		}
 	}
 
+	formatter.ApplySummary(counts, time.Since(start))
 	return 0
 }

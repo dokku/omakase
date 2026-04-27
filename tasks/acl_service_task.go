@@ -114,6 +114,7 @@ func (t AclServiceTask) Plan() PlanResult {
 							Command: "dokku",
 							Args:    []string{"--quiet", "acl:add-service", t.Type, t.Service, u},
 						})
+						state.Commands = append(state.Commands, result.Command)
 						if err != nil {
 							return TaskOutputErrorFromExec(state, err, result)
 						}
@@ -159,6 +160,7 @@ func (t AclServiceTask) Plan() PlanResult {
 							Command: "dokku",
 							Args:    []string{"--quiet", "acl:remove-service", t.Type, t.Service, u},
 						})
+						state.Commands = append(state.Commands, result.Command)
 						if err != nil {
 							return TaskOutputErrorFromExec(state, err, result)
 						}

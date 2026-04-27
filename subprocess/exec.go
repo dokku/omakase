@@ -58,6 +58,11 @@ type ExecCommandInput struct {
 
 // ExecCommandResponse is the response for the ExecCommand function
 type ExecCommandResponse struct {
+	// Command is the resolved command line that was executed, including
+	// any sudo wrapping and joined arguments. Used by callers that surface
+	// the command in user-facing output (e.g. `docket apply --verbose`).
+	Command string
+
 	// Stdout is the stdout of the command
 	Stdout string
 
@@ -172,9 +177,15 @@ func CallExecCommandWithContext(ctx context.Context, input ExecCommandInput) (Ex
 		cmd.StdErrWriter = input.StderrWriter
 	}
 
+	resolved := command
+	if len(commandArgs) > 0 {
+		resolved = command + " " + strings.Join(commandArgs, " ")
+	}
+
 	res, err := cmd.Execute(ctx)
 	if err != nil {
 		return ExecCommandResponse{
+			Command:   resolved,
 			Stdout:    res.Stdout,
 			Stderr:    res.Stderr,
 			ExitCode:  res.ExitCode,
@@ -184,6 +195,7 @@ func CallExecCommandWithContext(ctx context.Context, input ExecCommandInput) (Ex
 
 	if res.ExitCode != 0 {
 		return ExecCommandResponse{
+			Command:   resolved,
 			Stdout:    res.Stdout,
 			Stderr:    res.Stderr,
 			ExitCode:  res.ExitCode,
@@ -192,6 +204,7 @@ func CallExecCommandWithContext(ctx context.Context, input ExecCommandInput) (Ex
 	}
 
 	return ExecCommandResponse{
+		Command:   resolved,
 		Stdout:    res.Stdout,
 		Stderr:    res.Stderr,
 		ExitCode:  res.ExitCode,

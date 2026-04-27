@@ -121,49 +121,43 @@ func (c *PlanCommand) Run(args []string) int {
 		return 1
 	}
 
-	totals := struct {
-		tasks       int
-		wouldChange int
-		inSync      int
-		errors      int
-	}{}
+	formatter := NewFormatter(c.Ui, false)
+	formatter.PlayHeader("tasks")
+
+	counts := PlanCounts{}
 	hasError := false
 
 	for _, name := range taskList.Keys() {
 		task := taskList.Get(name)
 		result := task.Plan()
-		totals.tasks++
+		counts.Tasks++
 
 		switch {
 		case result.Error != nil:
-			totals.errors++
+			counts.Errors++
 			hasError = true
-			c.Ui.Error(fmt.Sprintf("[%s]       %s  (%v)", tasks.PlanStatusError, name, result.Error))
+			formatter.TaskLine(MarkerProbeError, name, fmt.Sprintf("(%v)", result.Error))
 		case result.InSync:
-			totals.inSync++
-			c.Ui.Info(fmt.Sprintf("[ok]      %s  (in sync)", name))
+			counts.InSync++
+			formatter.TaskLine(MarkerOK, name, "(in sync)")
 		default:
-			totals.wouldChange++
-			marker := string(result.Status)
+			counts.WouldChange++
+			marker := Marker(result.Status)
 			if marker == "" {
-				marker = string(tasks.PlanStatusModify)
+				marker = Marker(tasks.PlanStatusModify)
 			}
-			line := fmt.Sprintf("[%s]       %s", marker, name)
+			suffix := ""
 			if result.Reason != "" {
-				line = fmt.Sprintf("[%s]       %s  (%s)", marker, name, result.Reason)
+				suffix = "(" + result.Reason + ")"
 			}
-			c.Ui.Info(line)
+			formatter.TaskLine(marker, name, suffix)
 			for _, m := range result.Mutations {
-				c.Ui.Info(fmt.Sprintf("          - %s", m))
+				formatter.Continuation('-', m)
 			}
 		}
 	}
 
-	c.Ui.Info("")
-	c.Ui.Info(fmt.Sprintf(
-		"Plan: %d task(s); %d would change, %d in sync, %d error(s).",
-		totals.tasks, totals.wouldChange, totals.inSync, totals.errors,
-	))
+	formatter.PlanSummary(counts)
 
 	if hasError {
 		return 1

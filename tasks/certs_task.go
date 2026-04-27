@@ -122,6 +122,7 @@ func (t CertsTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    args,
 					})
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -161,6 +162,7 @@ func (t CertsTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    args,
 					})
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}

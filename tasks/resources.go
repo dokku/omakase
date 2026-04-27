@@ -177,6 +177,7 @@ func applyResourceSet(subcommand string, rctx ResourceContext) func() TaskOutput
 			Command: "dokku",
 			Args:    args,
 		})
+		state.Commands = append(state.Commands, result.Command)
 		if err != nil {
 			return TaskOutputErrorFromExec(state, err, result)
 		}

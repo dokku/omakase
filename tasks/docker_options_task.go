@@ -95,6 +95,7 @@ func (t DockerOptionsTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "docker-options:add", t.App, t.Phase, t.Option},
 					})
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
@@ -126,6 +127,7 @@ func (t DockerOptionsTask) Plan() PlanResult {
 						Command: "dokku",
 						Args:    []string{"--quiet", "docker-options:remove", t.App, t.Phase, t.Option},
 					})
+					state.Commands = append(state.Commands, result.Command)
 					if err != nil {
 						return TaskOutputErrorFromExec(state, err, result)
 					}
