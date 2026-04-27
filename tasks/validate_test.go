@@ -297,11 +297,15 @@ func TestValidateLevenshtein(t *testing.T) {
 }
 
 func TestValidateReservedEnvelopeKeyFlagged(t *testing.T) {
+	// register / changed_when / failed_when / ignore_errors stay reserved
+	// for #210; the rest of the envelope keys (name, tags, when, loop)
+	// are activated by #205. Using `register:` here pins the assertion to
+	// a key whose semantics have not landed yet.
 	data := []byte(`---
 - tasks:
     - dokku_app:
         app: my-app
-      when: "true"
+      register: app_result
 `)
 	problems := Validate(data, ValidateOptions{})
 	if p := findProblem(problems, "envelope_key_unsupported"); p == nil {
@@ -369,5 +373,81 @@ func TestParseSigilErrorPosition(t *testing.T) {
 	}
 	if col != 0 {
 		t.Errorf("expected col 0, got %d", col)
+	}
+}
+
+func TestValidateExprPredicateCompileError(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: deploy
+      when: 'env =='
+      dokku_app:
+        app: x
+`)
+	problems := Validate(data, ValidateOptions{})
+	p := findProblem(problems, "expr_compile")
+	if p == nil {
+		t.Fatalf("expected expr_compile problem, got: %+v", problems)
+	}
+	if p.Line == 0 {
+		t.Errorf("expected non-zero source line, got %d", p.Line)
+	}
+}
+
+func TestValidateExprPredicateLoopStringForm(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: deploy
+      loop: 'apps where ('
+      dokku_app:
+        app: x
+`)
+	problems := Validate(data, ValidateOptions{})
+	if findProblem(problems, "expr_compile") == nil {
+		t.Fatalf("expected expr_compile problem on loop, got: %+v", problems)
+	}
+}
+
+func TestValidateLoopVarOutsideLoopFlagged(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: deploy
+      dokku_app:
+        app: "{{ .item }}"
+`)
+	problems := Validate(data, ValidateOptions{})
+	if findProblem(problems, "loop_var_outside_loop") == nil {
+		t.Fatalf("expected loop_var_outside_loop problem, got: %+v", problems)
+	}
+}
+
+func TestValidateLoopVarInsideLoopAllowed(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: deploy
+      loop: [a, b]
+      dokku_app:
+        app: "{{ .item }}"
+`)
+	problems := Validate(data, ValidateOptions{})
+	if p := findProblem(problems, "loop_var_outside_loop"); p != nil {
+		t.Fatalf("did not expect loop_var_outside_loop inside a loop body, got: %+v", p)
+	}
+}
+
+func TestValidateActiveEnvelopeKeysNotReserved(t *testing.T) {
+	// name / tags / when / loop are activated by #205 and must not
+	// produce an envelope_key_unsupported diagnostic.
+	data := []byte(`---
+- tasks:
+    - name: deploy
+      tags: [api]
+      when: 'true'
+      dokku_app:
+        app: x
+`)
+	problems := Validate(data, ValidateOptions{})
+	if p := findProblem(problems, "envelope_key_unsupported"); p != nil {
+		t.Fatalf("did not expect envelope_key_unsupported, got: %+v", p)
 	}
 }

@@ -39,6 +39,90 @@ docket apply
 
 Running `docket` with no subcommand prints the available commands. Use `docket init` to scaffold a starter `tasks.yml`, `docket apply` to execute a task file, `docket fmt` to canonically format a task file, `docket plan` to preview the changes a task file would make without mutating any state, `docket validate` to check a task file's schema and templates without contacting the server, or `docket version` to print the binary's version.
 
+### Task envelope
+
+Each task entry in `tasks.yml` admits a small set of cross-cutting envelope keys alongside the single `dokku_*` task-type key. Body templating uses [sigil](https://github.com/gliderlabs/sigil) (`{{ .input }}` substitutions) and envelope predicates use [expr-lang/expr](https://github.com/expr-lang/expr) so the two languages live in clearly separate positions.
+
+| Key | Status | What it does |
+|-----|--------|--------------|
+| `name` | active | Human label for the task. Auto-generated when omitted. |
+| `tags` | active | Tag list filtered by `--tags` / `--skip-tags` on `apply` and `plan`. |
+| `when` | active | expr expression. Falsy renders the task as `[skipped]`. |
+| `loop` | active | List literal, or expr returning a list. Expands one entry into N with `.item` / `.index` available in the body. |
+| `register` | reserved (#210) | Bind the task result for downstream tasks. |
+| `changed_when` | reserved (#210) | expr override for the task's "changed" verdict. |
+| `failed_when` | reserved (#210) | expr override for the task's "failed" verdict. |
+| `ignore_errors` | reserved (#210) | Continue on task failure. |
+
+Unknown envelope keys are rejected at parse time with a "did you mean" suggestion against the closest valid key.
+
+#### Tags and `--tags` / `--skip-tags`
+
+Tags are a small free-form set on each task:
+
+```yaml
+- tasks:
+    - name: deploy api
+      tags: [api, deploy]
+      dokku_app:
+        app: api
+    - name: deploy worker
+      tags: [worker, deploy]
+      dokku_app:
+        app: worker
+```
+
+`--tags foo,bar` keeps tasks whose tag set intersects `{foo, bar}`. Untagged tasks are excluded. `--skip-tags foo,bar` drops tasks whose tag set intersects `{foo, bar}`; untagged tasks are kept. Specifying both intersects "kept by `--tags`" with "not filtered by `--skip-tags`":
+
+```shell
+docket plan  --tasks tasks.yml --tags api          # only the api task
+docket apply --tasks tasks.yml --skip-tags worker  # everything except worker
+```
+
+#### `when:` per-task conditional
+
+`when:` is an expr expression evaluated per-task at execution time. Falsy results render as `[skipped]` in the apply / plan output and contribute to the new "skipped" summary count:
+
+```yaml
+- inputs:
+    - name: env
+      default: staging
+  tasks:
+    - name: enable letsencrypt
+      when: 'env == "prod"'
+      dokku_letsencrypt:
+        app: api
+        state: enabled
+```
+
+The expression context today carries the file-level inputs plus, for loop expansions, `.item` and `.index`. Other context keys (`.timestamp`, `.host`, `.play.name`, `.result`, `.registered`) are reserved for follow-on issues.
+
+#### `loop:` per-task iteration
+
+`loop:` expands one envelope into N before execution. The value is either a list literal:
+
+```yaml
+- tasks:
+    - name: deploy
+      loop: [api, worker, web]
+      dokku_app:
+        app: "{{ .item }}"
+```
+
+or an expr expression that returns a list:
+
+```yaml
+- tasks:
+    - name: deploy
+      loop: 'apps where length(name) > 0'
+      dokku_app:
+        app: "{{ .item.name }}"
+```
+
+Each iteration renders the body with `.item` (the iterator value) and `.index` (zero-based) injected. Expanded envelope names are suffixed with `(item=<value>)` to keep them unique; complex items fall back to `(item=#<index>)`. `.item` / `.index` references outside a `loop:` body are rejected at parse time so a stray reference does not silently render to an empty value.
+
+`when:` interacts with `loop:`: the predicate is evaluated per expansion, so `loop: [a, b, c]` plus `when: 'item != "b"'` runs only the `a` and `c` expansions.
+
 ### Scaffolding with `init`
 
 `docket init` writes a starter `tasks.yml` from an embedded template. It is offline only: no Dokku server contact, no `git` subprocess. The default scaffold ships four tasks (`dokku_app`, `dokku_config`, `dokku_domains`, `dokku_git_sync`) wrapped in a single play with `app` and `repo` inputs, and round-trips cleanly through `docket validate`.
@@ -199,7 +283,7 @@ A handful of tasks (notably `dokku_git_auth`, `dokku_registry_auth`, and `dokku_
 
 `docket validate` performs offline schema and template checks against a `tasks.yml` without contacting any Dokku server, suitable for CI lint jobs that need to reject broken recipes before deploy.
 
-The shipping checks cover: YAML parses, recipe shape (top-level list of plays with `inputs`/`tasks`), task entry shape (envelope keys plus exactly one task-type key), task type registered (with a "did you mean" suggestion for typos), required fields decode, and sigil templates render against input defaults.
+The shipping checks cover: YAML parses, recipe shape (top-level list of plays with `inputs`/`tasks`), task entry shape (envelope keys plus exactly one task-type key), task type registered (with a "did you mean" suggestion for typos), required fields decode, sigil templates render against input defaults, expr predicates (`when:`, scalar-form `loop:`) parse, and `.item` / `.index` references stay inside a `loop:` body. Reserved envelope keys (`register`, `changed_when`, `failed_when`, `ignore_errors`) emit a "reserved but not yet supported" diagnostic until #210 lands.
 
 ```shell
 docket validate --tasks path/to/tasks.yml

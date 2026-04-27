@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"regexp"
 	"strings"
 
 	sigil "github.com/gliderlabs/sigil"
@@ -28,6 +29,11 @@ const (
 	StateSet State = "set"
 	// StateClear represents the clear state
 	StateClear State = "clear"
+	// StateSkipped is the sentinel value the apply / plan path emits when
+	// a task's `when:` predicate is false. Both State and DesiredState are
+	// set to this so the equality check in commands/apply.go does not flag
+	// a skipped task as a state mismatch.
+	StateSkipped State = "skipped"
 )
 
 // Recipe represents a recipe for a task
@@ -165,6 +171,94 @@ type Task interface {
 // Global registry for Tasks.
 var RegisteredTasks map[string]Task
 
+// envelopeAllowlistKeys are the cross-cutting envelope keys the loader
+// admits alongside the single task-type key. name / tags / when / loop
+// are activated by #205; register / changed_when / failed_when /
+// ignore_errors are reserved for #210 (the loader recognises and decodes
+// them so #210 does not need to revisit the cap).
+var envelopeAllowlistKeys = []string{
+	"name",
+	"tags",
+	"when",
+	"loop",
+	"register",
+	"changed_when",
+	"failed_when",
+	"ignore_errors",
+}
+
+// envelopeAllowlistSet is envelopeAllowlistKeys as a lookup set.
+var envelopeAllowlistSet = func() map[string]bool {
+	m := make(map[string]bool, len(envelopeAllowlistKeys))
+	for _, k := range envelopeAllowlistKeys {
+		m[k] = true
+	}
+	return m
+}()
+
+// loopVarPlaceholder is the literal substitution sigil renders for `.item`
+// and `.index` during the file-level pass. Keeping `{{ .item }}` /
+// `{{ .index }}` intact through the first pass means loop expansion sees
+// the original template and can render with real values. The loader
+// rejects any task body that still contains these tokens after the
+// per-task second pass, so misuse outside a loop is reported as a parse
+// error.
+const (
+	loopItemPlaceholder  = "{{ .item }}"
+	loopIndexPlaceholder = "{{ .index }}"
+)
+
+// loopVarSentinelPattern catches `{{ .item ... }}` and `{{ .index ... }}`
+// references (any whitespace, optional sub-field access, optional
+// pipelines) so they can be hidden from the file-level sigil pass and
+// restored before loop expansion runs the second pass. The sub-match
+// captures the full template token verbatim.
+//
+// Sub-field access (`{{ .item.app }}`) is the motivating case: with a
+// scalar self-referencing placeholder, sigil errors when traversing a
+// field on a string. Hiding the whole `{{ ... }}` token sidesteps the
+// problem entirely.
+var loopVarSentinelPattern = regexp.MustCompile(`\{\{[^}]*?\.(item|index)([^}]*)\}\}`)
+
+// loopVarSentinelOpen / Close wrap escaped loop-var tokens during the
+// file-level sigil pass. The pair must be unique enough to never appear
+// in a real recipe; the prefix doubles as documentation when one of
+// these survives a render error report.
+const (
+	loopVarSentinelOpen  = "__DOCKET_LOOPVAR<<"
+	loopVarSentinelClose = ">>__"
+)
+
+// escapeLoopVars hides `{{ .item ... }}` / `{{ .index ... }}` tokens from
+// sigil's file-level render. Returns the escaped data and the list of
+// captured tokens in encounter order so unescapeLoopVars can restore
+// them. Strings that contain no loop-var references round-trip unchanged.
+func escapeLoopVars(data []byte) ([]byte, []string) {
+	var captured []string
+	out := loopVarSentinelPattern.ReplaceAllFunc(data, func(match []byte) []byte {
+		idx := len(captured)
+		captured = append(captured, string(match))
+		return []byte(fmt.Sprintf("%s%d%s", loopVarSentinelOpen, idx, loopVarSentinelClose))
+	})
+	return out, captured
+}
+
+// unescapeLoopVars reverses escapeLoopVars. Each sentinel
+// `__DOCKET_LOOPVAR<<N>>__` is replaced with captured[N]. Sentinels that
+// reference an out-of-range index are left untouched (defensive against
+// upstream code that mangles the sentinel).
+func unescapeLoopVars(data []byte, captured []string) []byte {
+	if len(captured) == 0 {
+		return data
+	}
+	out := data
+	for i, tok := range captured {
+		sentinel := fmt.Sprintf("%s%d%s", loopVarSentinelOpen, i, loopVarSentinelClose)
+		out = []byte(strings.ReplaceAll(string(out), sentinel, tok))
+	}
+	return out
+}
+
 // RegisterTask registers a task
 func RegisterTask(t Task) {
 	if len(RegisteredTasks) == 0 {
@@ -198,90 +292,312 @@ func (i Input) GetValue() string {
 	return i.value
 }
 
-// GetTasks gets the tasks from the data
-// todo: use a slice instead of a map
-func GetTasks(data []byte, context map[string]interface{}) (OrderedStringTaskMap, error) {
-	tasks := OrderedStringTaskMap{}
-	render, err := sigil.Execute(data, context, "tasks")
+// GetTasks parses data as a docket recipe and returns the per-task
+// envelopes the executor consumes. The pipeline is:
+//
+//  1. Inject `.item` / `.index` self-reference placeholders into the
+//     sigil context so loop-body templates pass through the file-level
+//     render intact.
+//  2. Sigil-render the file with the augmented context.
+//  3. YAML-unmarshal into a Recipe.
+//  4. For each task entry: partition envelope keys vs the task-type key,
+//     reject unknown keys with a "did you mean" hint, decode envelope
+//     fields, decode task body, pre-compile any `when:` predicate.
+//  5. If `loop:` is present, expand into N envelopes via expandLoop;
+//     otherwise emit one envelope.
+//  6. Reject any envelope whose final body still contains
+//     `{{ .item }}` / `{{ .index }}` (i.e. the user referenced a loop
+//     variable from a non-loop task).
+func GetTasks(data []byte, context map[string]interface{}) (OrderedStringEnvelopeMap, error) {
+	tasks := OrderedStringEnvelopeMap{}
+
+	escaped, captured := escapeLoopVars(data)
+
+	render, err := sigil.Execute(escaped, context, "tasks")
 	if err != nil {
 		return tasks, fmt.Errorf("re-render error: %v", err.Error())
 	}
 
-	out, err := io.ReadAll(&render)
+	rendered, err := io.ReadAll(&render)
 	if err != nil {
 		return tasks, fmt.Errorf("read error: %v", err.Error())
 	}
+
+	out := unescapeLoopVars(rendered, captured)
 
 	recipe := Recipe{}
 	if err := yaml.Unmarshal([]byte(out), &recipe); err != nil {
 		return tasks, fmt.Errorf("unmarshal error: %v", err.Error())
 	}
 
-	i := 0
-	validTasks := make([]string, len(RegisteredTasks))
-	for k := range RegisteredTasks {
-		validTasks[i] = k
-		i++
-	}
-
 	if len(recipe) == 0 {
 		return tasks, fmt.Errorf("parse error: no recipe found in tasks file")
 	}
 
+	exprContext := buildExprContext(context)
+
 	for i, t := range recipe[0].Tasks {
-		if len(t) > 2 {
-			return tasks, fmt.Errorf("task parse error: task #%d has too many properties - expected=2 actual=%d", i+1, len(t))
+		envelopes, err := buildEnvelopesForEntry(i+1, t, context, exprContext)
+		if err != nil {
+			return tasks, err
 		}
-
-		name, ok := t["name"]
-		if len(t) == 2 && !ok {
-			keys := make([]string, len(t))
-
-			j := 0
-			for k := range t {
-				keys[j] = k
-				j++
-			}
-
-			return tasks, fmt.Errorf("task parse error: task #%d has an unexpected property - properties=%v", i+1, keys)
-		}
-
-		if !ok {
-			b := make([]byte, 8)
-			if _, err := rand.Read(b); err != nil {
-				return tasks, fmt.Errorf("task parse error: task #%d had no task name and there was a failure to generate random task name - %s", i+1, err)
-			}
-			name = fmt.Sprintf("task #%d %X", i+1, b)
-		}
-
-		detected := false
-		for taskName, registeredTask := range RegisteredTasks {
-			config, ok := t[taskName]
-			if !ok {
-				continue
-			}
-
-			marshaled, err := yaml.Marshal(config)
-			if err != nil {
-				return tasks, fmt.Errorf("task parse error: task #%d failed to marshal config to yaml - %s", i+1, err)
-			}
-
-			v := reflect.New(reflect.TypeOf(registeredTask))
-			if err := yaml.Unmarshal([]byte(marshaled), v.Interface()); err != nil {
-				return tasks, fmt.Errorf("task parse error: task #%d failed to decode to %s - %s", i+1, taskName, err)
-			}
-
-			task := v.Elem().Interface().(Task)
-			defaults.SetDefaults(task)
-			tasks.Set(name.(string), task)
-			detected = true
-			break
-		}
-
-		if !detected {
-			return tasks, fmt.Errorf("task parse error: task #%d was not a valid task - valid_tasks=%v", i+1, validTasks)
+		for _, env := range envelopes {
+			tasks.Set(env.Name, env)
 		}
 	}
 
 	return tasks, nil
+}
+
+// buildEnvelopesForEntry walks a single task entry, partitions envelope
+// keys vs the task-type key, decodes the body, pre-compiles `when:`, and
+// expands `loop:` if present. Returns one or more envelopes ready for
+// insertion into the ordered map.
+func buildEnvelopesForEntry(index int, entry map[string]interface{}, sigilContext, exprContext map[string]interface{}) ([]*TaskEnvelope, error) {
+	envelope := &TaskEnvelope{}
+
+	var (
+		taskTypeKey  string
+		taskBody     interface{}
+		taskTypeKeys []string
+		unknownKeys  []string
+	)
+
+	for key, value := range entry {
+		switch key {
+		case "name":
+			if s, ok := value.(string); ok {
+				envelope.Name = s
+			}
+		case "tags":
+			tags, err := decodeTags(value)
+			if err != nil {
+				return nil, fmt.Errorf("task parse error: task #%d: %s", index, err)
+			}
+			envelope.Tags = tags
+		case "when":
+			s, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("task parse error: task #%d: when must be a string expression, got %T", index, value)
+			}
+			envelope.When = s
+		case "loop":
+			envelope.Loop = value
+		case "register":
+			s, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("task parse error: task #%d: register must be a string, got %T", index, value)
+			}
+			envelope.Register = s
+		case "changed_when":
+			s, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("task parse error: task #%d: changed_when must be a string expression, got %T", index, value)
+			}
+			envelope.ChangedWhen = s
+		case "failed_when":
+			s, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("task parse error: task #%d: failed_when must be a string expression, got %T", index, value)
+			}
+			envelope.FailedWhen = s
+		case "ignore_errors":
+			b, ok := value.(bool)
+			if !ok {
+				return nil, fmt.Errorf("task parse error: task #%d: ignore_errors must be a bool, got %T", index, value)
+			}
+			envelope.IgnoreErrors = b
+		default:
+			if _, registered := RegisteredTasks[key]; registered {
+				taskTypeKeys = append(taskTypeKeys, key)
+				taskTypeKey = key
+				taskBody = value
+				continue
+			}
+			unknownKeys = append(unknownKeys, key)
+		}
+	}
+
+	if envelope.Name == "" {
+		generated, err := generateTaskName(index)
+		if err != nil {
+			return nil, err
+		}
+		envelope.Name = generated
+	}
+
+	if len(unknownKeys) > 0 {
+		return nil, unknownKeyError(index, envelope.Name, unknownKeys)
+	}
+
+	if len(taskTypeKeys) == 0 {
+		return nil, fmt.Errorf("task parse error: task #%d %q was not a valid task - valid_tasks=%v", index, envelope.Name, registeredTaskNamesSorted())
+	}
+	if len(taskTypeKeys) > 1 {
+		return nil, fmt.Errorf("task parse error: task #%d %q has %d task-type keys (%s); exactly one is allowed", index, envelope.Name, len(taskTypeKeys), strings.Join(taskTypeKeys, ", "))
+	}
+
+	envelope.TypeName = taskTypeKey
+	registered := RegisteredTasks[taskTypeKey]
+
+	bodyBytes, err := yaml.Marshal(taskBody)
+	if err != nil {
+		return nil, fmt.Errorf("task parse error: task #%d %q failed to marshal config to yaml - %s", index, envelope.Name, err)
+	}
+
+	if envelope.When != "" {
+		prog, err := CompilePredicate(envelope.When)
+		if err != nil {
+			return nil, fmt.Errorf("task parse error: task #%d %q: when compile error: %s", index, envelope.Name, err)
+		}
+		envelope.whenProgram = prog
+	}
+
+	if envelope.Loop != nil {
+		expanded, err := expandLoop(envelope, taskBody, registered, sigilContext, exprContext)
+		if err != nil {
+			return nil, fmt.Errorf("task parse error: task #%d %q: %s", index, envelope.Name, err)
+		}
+		for _, exp := range expanded {
+			if err := rejectLoopVarsInTask(index, exp.Name, exp.Task); err != nil {
+				return nil, err
+			}
+		}
+		return expanded, nil
+	}
+
+	taskValue := reflect.New(reflect.TypeOf(registered))
+	if err := yaml.Unmarshal(bodyBytes, taskValue.Interface()); err != nil {
+		return nil, fmt.Errorf("task parse error: task #%d %q failed to decode to %s - %s", index, envelope.Name, taskTypeKey, err)
+	}
+	task := taskValue.Elem().Interface().(Task)
+	defaults.SetDefaults(task)
+	envelope.Task = task
+
+	if err := rejectLoopVarsInTask(index, envelope.Name, task); err != nil {
+		return nil, err
+	}
+
+	return []*TaskEnvelope{envelope}, nil
+}
+
+// decodeTags coerces a yaml-parsed tags value into a []string. Supports
+// list-form (`tags: [foo, bar]`) and inline string-form (`tags: foo`).
+func decodeTags(value interface{}) ([]string, error) {
+	switch v := value.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return []string{v}, nil
+	case []interface{}:
+		out := make([]string, 0, len(v))
+		for i, raw := range v {
+			s, ok := raw.(string)
+			if !ok {
+				return nil, fmt.Errorf("tags[%d] must be a string, got %T", i, raw)
+			}
+			out = append(out, s)
+		}
+		return out, nil
+	}
+	return nil, fmt.Errorf("tags must be a list of strings, got %T", value)
+}
+
+// generateTaskName returns a unique task name when the user did not
+// supply one. The format mirrors the legacy `task #N XXXX` pattern.
+func generateTaskName(index int) (string, error) {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("task parse error: task #%d had no task name and there was a failure to generate random task name - %s", index, err)
+	}
+	return fmt.Sprintf("task #%d %X", index, b), nil
+}
+
+// unknownKeyError builds a parse error for an entry with one or more
+// unknown keys, including a "did you mean" suggestion when the closest
+// match is within Levenshtein distance 2.
+func unknownKeyError(index int, name string, unknown []string) error {
+	primary := unknown[0]
+	suggestion := nearestEnvelopeOrTaskKey(primary)
+	hint := ""
+	if suggestion != "" {
+		hint = fmt.Sprintf(" - did you mean %q?", suggestion)
+	}
+	return fmt.Errorf("task parse error: task #%d %q has unknown envelope key %q (allowed: %s, or any registered task type)%s", index, name, primary, strings.Join(envelopeAllowlistKeys, ", "), hint)
+}
+
+// nearestEnvelopeOrTaskKey returns the envelope-allowlist or registered
+// task name with the lowest Levenshtein distance to candidate, but only
+// if that distance is at most 2.
+func nearestEnvelopeOrTaskKey(candidate string) string {
+	best := ""
+	bestDist := 3
+	for _, k := range envelopeAllowlistKeys {
+		d := levenshtein(candidate, k)
+		if d < bestDist {
+			bestDist = d
+			best = k
+		}
+	}
+	for k := range RegisteredTasks {
+		d := levenshtein(candidate, k)
+		if d < bestDist {
+			bestDist = d
+			best = k
+		}
+	}
+	if bestDist <= 2 {
+		return best
+	}
+	return ""
+}
+
+// registeredTaskNamesSorted returns the registered task names sorted
+// alphabetically. Used for error messages so the output is stable.
+func registeredTaskNamesSorted() []string {
+	names := make([]string, 0, len(RegisteredTasks))
+	for k := range RegisteredTasks {
+		names = append(names, k)
+	}
+	// Bubble-sort works fine for ~50 entries and avoids the import cost.
+	for i := 0; i < len(names); i++ {
+		for j := i + 1; j < len(names); j++ {
+			if names[j] < names[i] {
+				names[i], names[j] = names[j], names[i]
+			}
+		}
+	}
+	return names
+}
+
+// buildExprContext returns the file-level expr context. Today this is
+// just the inputs map; later issues add timestamp / host / play / result
+// / registered keys (#208 / #210). Keys are reserved here but not yet
+// populated.
+func buildExprContext(context map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(context))
+	for k, v := range context {
+		out[k] = v
+	}
+	return out
+}
+
+// rejectLoopVarsInTask scans every string field on task for surviving
+// `{{ .item }}` / `{{ .index }}` references and returns an error when
+// it finds one. Loop expansions render those tokens to real values, so
+// any survivor implies the user referenced a loop variable from a
+// non-loop task.
+func rejectLoopVarsInTask(index int, name string, task Task) error {
+	bytes, err := yaml.Marshal(task)
+	if err != nil {
+		return nil
+	}
+	body := string(bytes)
+	if strings.Contains(body, ".item") && (strings.Contains(body, "{{ .item }}") || strings.Contains(body, "{{.item}}")) {
+		return fmt.Errorf("task parse error: task #%d %q: .item is only available inside a loop body", index, name)
+	}
+	if strings.Contains(body, ".index") && (strings.Contains(body, "{{ .index }}") || strings.Contains(body, "{{.index}}")) {
+		return fmt.Errorf("task parse error: task #%d %q: .index is only available inside a loop body", index, name)
+	}
+	return nil
 }

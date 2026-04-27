@@ -49,13 +49,23 @@ const validatePlaceholder = "__docket_validate_placeholder__"
 // task-type name (e.g. dokku_appp) is reported as "unknown task type" rather
 // than getting silently swallowed by an envelope allowlist.
 var reservedEnvelopeKeys = map[string]string{
-	"block":    "#211",
-	"rescue":   "#211",
-	"always":   "#211",
-	"when":     "#205",
-	"loop":     "#205",
-	"register": "#210",
-	"tags":     "#212",
+	"block":         "#211",
+	"rescue":        "#211",
+	"always":        "#211",
+	"register":      "#210",
+	"changed_when":  "#210",
+	"failed_when":   "#210",
+	"ignore_errors": "#210",
+}
+
+// activeEnvelopeKeys are the envelope keys this PR (#205) activates. They
+// are recognised by the validator and pass through to the loader without
+// generating an "envelope key reserved" diagnostic.
+var activeEnvelopeKeys = map[string]bool{
+	"name": true,
+	"tags": true,
+	"when": true,
+	"loop": true,
 }
 
 // Validate parses data as a docket recipe and returns every problem it finds.
@@ -259,6 +269,10 @@ func validateTaskEntry(task *yaml.Node, playLabel string, idx int) []Problem {
 			continue
 		}
 
+		if activeEnvelopeKeys[key] {
+			continue
+		}
+
 		if dependentIssue, reserved := reservedEnvelopeKeys[key]; reserved {
 			problems = append(problems, Problem{
 				Code:    "envelope_key_unsupported",
@@ -394,8 +408,15 @@ func validateTaskBody(registered Task, typeName string, body *yaml.Node, playLab
 // renderForValidate runs the recipe through sigil with the given context and
 // returns the rendered bytes. A non-nil Problem return signals a render
 // failure; the caller is responsible for surfacing it.
+//
+// Loop-variable references (`{{ .item ... }}`, `{{ .index ... }}`) are
+// hidden from sigil before the render and restored afterwards so non-
+// scalar item access (`{{ .item.app }}`) does not blow up the file-level
+// pass. The loop_var_outside_loop check then walks the rendered tree to
+// flag any reference in a non-loop task body.
 func renderForValidate(data []byte, context map[string]interface{}) ([]byte, *Problem) {
-	rendered, err := sigil.Execute(data, context, "tasks.yml")
+	escaped, captured := escapeLoopVars(data)
+	rendered, err := sigil.Execute(escaped, context, "tasks.yml")
 	if err != nil {
 		line, col := parseSigilErrorPosition(err.Error())
 		return nil, &Problem{
@@ -412,7 +433,7 @@ func renderForValidate(data []byte, context map[string]interface{}) ([]byte, *Pr
 			Message: fmt.Sprintf("template render read error: %v", err),
 		}
 	}
-	return out, nil
+	return unescapeLoopVars(out, captured), nil
 }
 
 func validateStrictInputs(inputs []inputWithNode, overrides map[string]bool, label string) []Problem {
@@ -445,10 +466,62 @@ func validateBlockStructure(_ *yaml.Node, _ string) []Problem {
 	return nil
 }
 
-// validateExprPredicates is a stub. #205 will populate it with checks that
-// when:/changed_when:/failed_when: and list-form loop: parse as expr.
-func validateExprPredicates(_ *yaml.Node, _ string) []Problem {
-	// TODO(#205): compile expr predicates once envelope-level expr lands.
+// validateExprPredicates compiles each scalar `when:` / `changed_when:` /
+// `failed_when:` value and the scalar form of `loop:` on every task entry.
+// Compile errors are reported with the source line/column from the
+// rendered yaml node so editors can jump straight to the problem.
+//
+// Loop-list literals (sequence form) are skipped here - they are not expr
+// programs. `register` / `changed_when` / `failed_when` are reserved at
+// the loader level for #210 but the syntax check is wired now so that
+// issue does not have to revisit the validator.
+func validateExprPredicates(tasksNode *yaml.Node, label string) []Problem {
+	if tasksNode == nil || tasksNode.Kind != yaml.SequenceNode {
+		return nil
+	}
+	var problems []Problem
+	for i, task := range tasksNode.Content {
+		if task.Kind != yaml.MappingNode {
+			continue
+		}
+		taskLabel := taskLabelForNode(task, i+1)
+		problems = append(problems, compileExprNode(mappingValue(task, "when"), "when", label, taskLabel)...)
+		problems = append(problems, compileExprNode(mappingValue(task, "changed_when"), "changed_when", label, taskLabel)...)
+		problems = append(problems, compileExprNode(mappingValue(task, "failed_when"), "failed_when", label, taskLabel)...)
+		if loop := mappingValue(task, "loop"); loop != nil && loop.Kind == yaml.ScalarNode {
+			problems = append(problems, compileExprNode(loop, "loop", label, taskLabel)...)
+		}
+	}
+	return problems
+}
+
+// taskLabelForNode mirrors the labelling validateTaskEntry uses so plan /
+// expr / target diagnostics align in human output.
+func taskLabelForNode(task *yaml.Node, idx int) string {
+	name := scalarChild(task, "name")
+	if name != "" {
+		return fmt.Sprintf("task #%d %q", idx, name)
+	}
+	return fmt.Sprintf("task #%d", idx)
+}
+
+// compileExprNode runs expr.Compile on the scalar value of node and
+// returns a Problem when the source does not parse. nil node or
+// non-scalar / empty value is a no-op.
+func compileExprNode(node *yaml.Node, key, playLabel, taskLabel string) []Problem {
+	if node == nil || node.Kind != yaml.ScalarNode || node.Value == "" {
+		return nil
+	}
+	if _, err := CompilePredicate(node.Value); err != nil {
+		return []Problem{{
+			Code:    "expr_compile",
+			Play:    playLabel,
+			Task:    taskLabel,
+			Line:    node.Line,
+			Column:  node.Column,
+			Message: fmt.Sprintf("%s expression compile error: %v", key, err),
+		}}
+	}
 	return nil
 }
 
@@ -459,12 +532,72 @@ func validateRegisterReferences(_ *yaml.Node, _ string) []Problem {
 	return nil
 }
 
-// validateTargetReferences is a stub. #205/#208/#212 will populate it with
-// checks that --start-at-task / --play / --tags references actually exist
-// in the file.
-func validateTargetReferences(_ *yaml.Node, _ string) []Problem {
-	// TODO(#205/#208/#212): resolve target references once they exist.
-	return nil
+// validateTargetReferences guards `.item` / `.index` references. They
+// are loop-iteration variables and are only meaningful inside a task
+// entry that carries a `loop:` key. Any non-loop entry whose body still
+// references the placeholder tokens is reported here. #208 / #212 will
+// extend this stub for --start-at-task and --play target validation.
+func validateTargetReferences(tasksNode *yaml.Node, label string) []Problem {
+	if tasksNode == nil || tasksNode.Kind != yaml.SequenceNode {
+		return nil
+	}
+	var problems []Problem
+	for i, task := range tasksNode.Content {
+		if task.Kind != yaml.MappingNode {
+			continue
+		}
+		if mappingValue(task, "loop") != nil {
+			continue
+		}
+		taskLabel := taskLabelForNode(task, i+1)
+		problems = append(problems, scanForLoopVars(task, label, taskLabel)...)
+	}
+	return problems
+}
+
+// scanForLoopVars walks every scalar value reachable from node and
+// reports a Problem for each `{{ .item }}` / `{{ .index }}` reference.
+// Scalars are matched against the placeholder substrings the loader
+// injects at file-level render time.
+func scanForLoopVars(node *yaml.Node, playLabel, taskLabel string) []Problem {
+	if node == nil {
+		return nil
+	}
+	var problems []Problem
+	switch node.Kind {
+	case yaml.ScalarNode:
+		if containsLoopVar(node.Value) {
+			problems = append(problems, Problem{
+				Code:    "loop_var_outside_loop",
+				Play:    playLabel,
+				Task:    taskLabel,
+				Line:    node.Line,
+				Column:  node.Column,
+				Message: ".item / .index are only available inside a loop body",
+				Hint:    "wrap the task with `loop:` or remove the reference",
+			})
+		}
+	case yaml.SequenceNode, yaml.MappingNode, yaml.DocumentNode:
+		for _, child := range node.Content {
+			problems = append(problems, scanForLoopVars(child, playLabel, taskLabel)...)
+		}
+	}
+	return problems
+}
+
+// containsLoopVar reports whether s contains a `{{ .item }}` or
+// `{{ .index }}` reference (with or without surrounding whitespace).
+func containsLoopVar(s string) bool {
+	if s == "" {
+		return false
+	}
+	if strings.Contains(s, "{{ .item }}") || strings.Contains(s, "{{.item}}") {
+		return true
+	}
+	if strings.Contains(s, "{{ .index }}") || strings.Contains(s, "{{.index}}") {
+		return true
+	}
+	return false
 }
 
 // inputWithNode is the validate-time projection of an Input that also carries
@@ -520,6 +653,10 @@ func extractPlayInputs(recipe *yaml.Node) [][]inputWithNode {
 // default contribute validatePlaceholder so the render does not error on
 // missing keys. Names collide cleanly across plays since sigil receives a
 // single flat namespace.
+//
+// `.item` and `.index` references in loop-body templates are hidden from
+// the file-level render via escapeLoopVars / unescapeLoopVars, so they
+// do not need a placeholder entry here.
 func buildSigilContext(plays [][]inputWithNode) map[string]interface{} {
 	context := map[string]interface{}{}
 	for _, inputs := range plays {

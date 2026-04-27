@@ -55,6 +55,7 @@ type PlanCounts struct {
 	Tasks       int
 	WouldChange int
 	InSync      int
+	Skipped     int
 	Errors      int
 }
 
@@ -202,9 +203,19 @@ func (f *Formatter) ApplySummary(c ApplyCounts, elapsed time.Duration) {
 // PlanSummary emits the blank line and `Plan: ...` footer that
 // follows a plan run. The format intentionally matches the legacy
 // shape so existing CI consumers (and the bats partial-match
-// assertions in tests/bats/plan.bats) keep working.
+// assertions in tests/bats/plan.bats) keep working. The skipped
+// count is appended only when at least one task was filtered out by
+// `when:`, so recipes that do not exercise envelope predicates still
+// produce the legacy summary.
 func (f *Formatter) PlanSummary(c PlanCounts) {
 	f.ui.Output("")
+	if c.Skipped > 0 {
+		f.ui.Output(fmt.Sprintf(
+			"Plan: %d task(s); %d would change, %d in sync, %d skipped, %d error(s).",
+			c.Tasks, c.WouldChange, c.InSync, c.Skipped, c.Errors,
+		))
+		return
+	}
 	f.ui.Output(fmt.Sprintf(
 		"Plan: %d task(s); %d would change, %d in sync, %d error(s).",
 		c.Tasks, c.WouldChange, c.InSync, c.Errors,
