@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -104,6 +105,47 @@ func (f *Formatter) PlayHeader(name string) {
 	f.ui.Output(fmt.Sprintf("==> Play: %s", name))
 }
 
+// PlayHeaderWithHost is like PlayHeader but appends a `(host: <name>)`
+// annotation when the apply/plan run targets a remote dokku host
+// (DOKKU_HOST set). When host is empty it delegates to PlayHeader so
+// callers can pass `os.Getenv("DOKKU_HOST")` unconditionally.
+func (f *Formatter) PlayHeaderWithHost(name, host string) {
+	if host == "" {
+		f.PlayHeader(name)
+		return
+	}
+	f.ui.Output(fmt.Sprintf("==> Play: %s  (host: %s)", name, host))
+}
+
+// ErrorContinuation emits an `! <prefix>: <body>` continuation line
+// under an errored task. The prefix is `ssh` when err unwraps to a
+// *subprocess.SSHError (transport-level failure: connect, auth,
+// host-key) and `dokku` otherwise (remote command exit). Multi-line
+// bodies are masked and rendered as separate continuation lines under
+// the same indent.
+func (f *Formatter) ErrorContinuation(err error) {
+	if err == nil {
+		return
+	}
+	f.Continuation('!', PrefixErrorMessage(err))
+}
+
+// PrefixErrorMessage prepends `ssh:` or `dokku:` to err.Error() based
+// on whether err unwraps to a *subprocess.SSHError. Exported so the
+// plan command can reuse the same prefixing logic for the probe-error
+// suffix that surfaces inline in the TaskLine instead of in a
+// continuation line.
+func PrefixErrorMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+	var sshErr *subprocess.SSHError
+	if errors.As(err, &sshErr) {
+		return "ssh: " + err.Error()
+	}
+	return "dokku: " + err.Error()
+}
+
 // TaskLine emits one structured task line: a colored, bracketed,
 // padded marker followed by the task name. suffix, when non-empty, is
 // appended after two spaces (matching the legacy plan-line layout).
@@ -188,4 +230,3 @@ func (f *Formatter) paintMarker(m Marker) string {
 	}
 	return padded
 }
-

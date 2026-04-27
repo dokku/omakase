@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/dokku/docket/subprocess"
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
 )
@@ -26,6 +28,77 @@ func TestFormatterPlayHeader(t *testing.T) {
 	want := "==> Play: tasks\n"
 	if got != want {
 		t.Errorf("PlayHeader output mismatch\nwant: %q\ngot:  %q", want, got)
+	}
+}
+
+func TestFormatterPlayHeaderWithHost(t *testing.T) {
+	f, ui := newTestFormatter(false)
+	f.PlayHeaderWithHost("tasks", "alice@host:2222")
+	got := ui.OutputWriter.String()
+	want := "==> Play: tasks  (host: alice@host:2222)\n"
+	if got != want {
+		t.Errorf("PlayHeaderWithHost output mismatch\nwant: %q\ngot:  %q", want, got)
+	}
+}
+
+func TestFormatterPlayHeaderWithHostEmptyDelegates(t *testing.T) {
+	f, ui := newTestFormatter(false)
+	f.PlayHeaderWithHost("tasks", "")
+	got := ui.OutputWriter.String()
+	want := "==> Play: tasks\n"
+	if got != want {
+		t.Errorf("PlayHeaderWithHost empty host\nwant: %q\ngot:  %q", want, got)
+	}
+}
+
+func TestFormatterErrorContinuationDokkuPrefix(t *testing.T) {
+	f, ui := newTestFormatter(false)
+	f.ErrorContinuation(errors.New("app foo does not exist"))
+	got := ui.OutputWriter.String()
+	want := "          ! dokku: app foo does not exist\n"
+	if got != want {
+		t.Errorf("ErrorContinuation dokku\nwant: %q\ngot:  %q", want, got)
+	}
+}
+
+func TestFormatterErrorContinuationSshPrefix(t *testing.T) {
+	f, ui := newTestFormatter(false)
+	f.ErrorContinuation(&subprocess.SSHError{Host: "alice@host", Stderr: "Permission denied (publickey)."})
+	got := ui.OutputWriter.String()
+	want := "          ! ssh: ssh alice@host: Permission denied (publickey).\n"
+	if got != want {
+		t.Errorf("ErrorContinuation ssh\nwant: %q\ngot:  %q", want, got)
+	}
+}
+
+func TestFormatterErrorContinuationSshWrappedPrefix(t *testing.T) {
+	wrapped := &subprocess.SSHError{Host: "host", Err: errors.New("connect refused")}
+	f, ui := newTestFormatter(false)
+	f.ErrorContinuation(wrapped)
+	got := ui.OutputWriter.String()
+	if !strings.HasPrefix(strings.TrimLeft(got, " "), "! ssh:") {
+		t.Errorf("expected ssh: prefix, got %q", got)
+	}
+}
+
+func TestFormatterErrorContinuationNilNoOp(t *testing.T) {
+	f, ui := newTestFormatter(false)
+	f.ErrorContinuation(nil)
+	if got := ui.OutputWriter.String(); got != "" {
+		t.Errorf("nil error should produce no output, got %q", got)
+	}
+}
+
+func TestPrefixErrorMessage(t *testing.T) {
+	if got := PrefixErrorMessage(nil); got != "" {
+		t.Errorf("nil should return empty, got %q", got)
+	}
+	if got := PrefixErrorMessage(errors.New("boom")); got != "dokku: boom" {
+		t.Errorf("plain err\ngot:  %q\nwant: %q", got, "dokku: boom")
+	}
+	sshErr := &subprocess.SSHError{Host: "h", Err: errors.New("boom")}
+	if got := PrefixErrorMessage(sshErr); !strings.HasPrefix(got, "ssh:") {
+		t.Errorf("ssh err should be prefixed `ssh:`, got %q", got)
 	}
 }
 

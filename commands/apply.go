@@ -16,9 +16,12 @@ import (
 type ApplyCommand struct {
 	command.Meta
 
-	tasksFile string
-	verbose   bool
-	arguments map[string]*Argument
+	tasksFile         string
+	verbose           bool
+	host              string
+	sudo              bool
+	acceptNewHostKeys bool
+	arguments         map[string]*Argument
 }
 
 func (c *ApplyCommand) Name() string {
@@ -59,6 +62,9 @@ func (c *ApplyCommand) FlagSet() *flag.FlagSet {
 	f := c.Meta.FlagSet(c.Name(), command.FlagSetClient)
 	f.StringVar(&c.tasksFile, "tasks", "tasks.yml", "a yaml file containing a task list")
 	f.BoolVar(&c.verbose, "verbose", false, "echo the resolved dokku command for each task as a continuation line. Values from inputs declared `sensitive: true` and from task struct fields tagged `sensitive:\"true\"` are masked as `***`")
+	f.StringVar(&c.host, "host", "", "remote dokku host as [user@]host[:port]; equivalent to DOKKU_HOST. Routes every dokku invocation through ssh.")
+	f.BoolVar(&c.sudo, "sudo", false, "wrap remote dokku invocations with `sudo -n`; equivalent to DOKKU_SUDO=1")
+	f.BoolVar(&c.acceptNewHostKeys, "accept-new-host-keys", false, "for SSH transport, accept new host keys on first connection (`-o StrictHostKeyChecking=accept-new`). MITM risk on first connect.")
 
 	taskFile := getTaskYamlFilename(os.Args)
 	data, err := os.ReadFile(taskFile)
@@ -79,8 +85,11 @@ func (c *ApplyCommand) AutocompleteFlags() complete.Flags {
 	return command.MergeAutocompleteFlags(
 		c.Meta.AutocompleteFlags(command.FlagSetClient),
 		complete.Flags{
-			"--tasks":   complete.PredictFiles("*.yml"),
-			"--verbose": complete.PredictNothing,
+			"--tasks":                complete.PredictFiles("*.yml"),
+			"--verbose":              complete.PredictNothing,
+			"--host":                 complete.PredictAnything,
+			"--sudo":                 complete.PredictNothing,
+			"--accept-new-host-keys": complete.PredictNothing,
 		},
 	)
 }
@@ -93,6 +102,8 @@ func (c *ApplyCommand) Run(args []string) int {
 		c.Ui.Error(command.CommandErrorText(c))
 		return 1
 	}
+
+	applySshFlagsToEnv(c.host, c.sudo, c.acceptNewHostKeys)
 
 	data, err := os.ReadFile(c.tasksFile)
 	if err != nil {
@@ -125,8 +136,13 @@ func (c *ApplyCommand) Run(args []string) int {
 	subprocess.SetGlobalSensitive(sensitiveValues)
 	defer subprocess.SetGlobalSensitive(nil)
 
+	resolvedHost := os.Getenv("DOKKU_HOST")
+	if resolvedHost != "" {
+		defer subprocess.CloseSshControlMaster(resolvedHost)
+	}
+
 	formatter := NewFormatter(c.Ui, c.verbose)
-	formatter.PlayHeader("tasks")
+	formatter.PlayHeaderWithHost("tasks", resolvedHost)
 
 	start := time.Now()
 	counts := ApplyCounts{}
@@ -140,7 +156,7 @@ func (c *ApplyCommand) Run(args []string) int {
 		case state.Error != nil:
 			counts.Errors++
 			formatter.TaskLine(MarkerError, name, "")
-			formatter.Continuation('!', state.Error.Error())
+			formatter.ErrorContinuation(state.Error)
 			if c.verbose {
 				for _, cmd := range state.Commands {
 					formatter.Continuation('\u2192', cmd)

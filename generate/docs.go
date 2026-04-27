@@ -4,16 +4,26 @@ package main
 import (
 	"fmt"
 	"log"
-	"github.com/dokku/docket/tasks"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+
+	"github.com/dokku/docket/tasks"
 )
 
 func main() {
-	docsFolderName := "../" + os.Args[1]
-	// expand docsFolderName
-	docsFolderName, err := filepath.Abs(docsFolderName)
+	// Anchor the output directory to the repo root (one level above this
+	// generate/ file) regardless of where `go generate` or `go run` was
+	// invoked from. Without this, `go run generate/docs.go docs` from the
+	// repo root would resolve `../docs` to a sibling repo and clobber it.
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		log.Fatal("failed to determine generator file location")
+	}
+	repoRoot := filepath.Dir(filepath.Dir(thisFile))
+
+	docsFolderName, err := filepath.Abs(filepath.Join(repoRoot, os.Args[1]))
 	if err != nil {
 		log.Fatalf("failed to expand docs folder name: %v", err)
 	}

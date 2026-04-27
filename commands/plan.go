@@ -18,8 +18,11 @@ import (
 type PlanCommand struct {
 	command.Meta
 
-	tasksFile string
-	arguments map[string]*Argument
+	tasksFile         string
+	host              string
+	sudo              bool
+	acceptNewHostKeys bool
+	arguments         map[string]*Argument
 }
 
 func (c *PlanCommand) Name() string {
@@ -59,6 +62,9 @@ func (c *PlanCommand) ParsedArguments(args []string) (map[string]command.Argumen
 func (c *PlanCommand) FlagSet() *flag.FlagSet {
 	f := c.Meta.FlagSet(c.Name(), command.FlagSetClient)
 	f.StringVar(&c.tasksFile, "tasks", "tasks.yml", "a yaml file containing a task list")
+	f.StringVar(&c.host, "host", "", "remote dokku host as [user@]host[:port]; equivalent to DOKKU_HOST. Routes every dokku invocation through ssh.")
+	f.BoolVar(&c.sudo, "sudo", false, "wrap remote dokku invocations with `sudo -n`; equivalent to DOKKU_SUDO=1")
+	f.BoolVar(&c.acceptNewHostKeys, "accept-new-host-keys", false, "for SSH transport, accept new host keys on first connection (`-o StrictHostKeyChecking=accept-new`). MITM risk on first connect.")
 
 	taskFile := getTaskYamlFilename(os.Args)
 	data, err := os.ReadFile(taskFile)
@@ -79,7 +85,10 @@ func (c *PlanCommand) AutocompleteFlags() complete.Flags {
 	return command.MergeAutocompleteFlags(
 		c.Meta.AutocompleteFlags(command.FlagSetClient),
 		complete.Flags{
-			"--tasks": complete.PredictFiles("*.yml"),
+			"--tasks":                complete.PredictFiles("*.yml"),
+			"--host":                 complete.PredictAnything,
+			"--sudo":                 complete.PredictNothing,
+			"--accept-new-host-keys": complete.PredictNothing,
 		},
 	)
 }
@@ -100,6 +109,8 @@ func (c *PlanCommand) Run(args []string) int {
 		c.Ui.Error(command.CommandErrorText(c))
 		return 1
 	}
+
+	applySshFlagsToEnv(c.host, c.sudo, c.acceptNewHostKeys)
 
 	data, err := os.ReadFile(c.tasksFile)
 	if err != nil {
@@ -132,8 +143,13 @@ func (c *PlanCommand) Run(args []string) int {
 	subprocess.SetGlobalSensitive(sensitiveValues)
 	defer subprocess.SetGlobalSensitive(nil)
 
+	resolvedHost := os.Getenv("DOKKU_HOST")
+	if resolvedHost != "" {
+		defer subprocess.CloseSshControlMaster(resolvedHost)
+	}
+
 	formatter := NewFormatter(c.Ui, false)
-	formatter.PlayHeader("tasks")
+	formatter.PlayHeaderWithHost("tasks", resolvedHost)
 
 	counts := PlanCounts{}
 	hasError := false
@@ -147,7 +163,7 @@ func (c *PlanCommand) Run(args []string) int {
 		case result.Error != nil:
 			counts.Errors++
 			hasError = true
-			formatter.TaskLine(MarkerProbeError, name, fmt.Sprintf("(%v)", result.Error))
+			formatter.TaskLine(MarkerProbeError, name, fmt.Sprintf("(%s)", PrefixErrorMessage(result.Error)))
 		case result.InSync:
 			counts.InSync++
 			formatter.TaskLine(MarkerOK, name, "(in sync)")

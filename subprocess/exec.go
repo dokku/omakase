@@ -102,8 +102,18 @@ func CallExecCommand(input ExecCommandInput) (ExecCommandResponse, error) {
 	return CallExecCommandWithContext(ctx, input)
 }
 
-// CallExecCommandWithContext executes a command on the local host with the given context
+// CallExecCommandWithContext executes a command on the local host with the given context.
+//
+// When DOKKU_HOST is set and the command is `dokku`, dispatch is routed
+// through the SSH transport so the dokku invocation runs on the remote
+// host. Non-dokku subprocesses (echo/git/etc.) always run locally even
+// when DOKKU_HOST is set, since the remote side may not have those
+// binaries (and tests expect local execution).
 func CallExecCommandWithContext(ctx context.Context, input ExecCommandInput) (ExecCommandResponse, error) {
+	if host := os.Getenv("DOKKU_HOST"); host != "" && input.Command == "dokku" {
+		return CallSshCommandWithContext(ctx, host, input)
+	}
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGHUP,
 		syscall.SIGINT,
