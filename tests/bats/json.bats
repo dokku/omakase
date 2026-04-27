@@ -31,7 +31,7 @@ EOF
   while IFS= read -r line; do
     [ -z "$line" ] && continue
     echo "$line" | jq . >/dev/null || fail "invalid JSON: $line"
-  done <<< "$output"
+  done <<<"$output"
 }
 
 @test "docket apply --json includes version 1 on every event" {
@@ -47,7 +47,7 @@ EOF
   while IFS= read -r line; do
     [ -z "$line" ] && continue
     [ "$(echo "$line" | jq -r .version)" = "1" ] || fail "missing or wrong version: $line"
-  done <<< "$output"
+  done <<<"$output"
 }
 
 @test "docket apply --json emits a play_start event before the first task" {
@@ -108,7 +108,7 @@ EOF
   while IFS= read -r line; do
     [ -z "$line" ] && continue
     echo "$line" | jq . >/dev/null || fail "non-JSON on stdout: $line"
-  done <<< "$output"
+  done <<<"$output"
 }
 
 @test "docket plan --json includes per-task mutations array" {
@@ -202,7 +202,7 @@ EOF
   while IFS= read -r line; do
     [ -z "$line" ] && continue
     echo "$line" | jq . >/dev/null || fail "invalid JSON: $line"
-  done <<< "$output"
+  done <<<"$output"
 }
 
 @test "docket apply --json masks sensitive values in commands" {
