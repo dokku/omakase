@@ -56,9 +56,71 @@ func (t LetsencryptTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables letsencrypt
 func (t LetsencryptTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		StatePresent: func() TaskOutputState { return enableLetsencrypt(t.App) },
-		StateAbsent:  func() TaskOutputState { return disableLetsencrypt(t.App) },
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the LetsencryptTask would produce.
+func (t LetsencryptTask) Plan() PlanResult {
+	if t.App == "" {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'app' is required")}
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			active, err := letsencryptActive(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if active {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    "letsencrypt not active",
+				Mutations: []string{"letsencrypt:enable " + t.App},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "letsencrypt:enable", t.App},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			active, err := letsencryptActive(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !active {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    "letsencrypt active",
+				Mutations: []string{"letsencrypt:disable " + t.App},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "letsencrypt:disable", t.App},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
+			}
+		},
 	})
 }
 

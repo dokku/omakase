@@ -1,5 +1,30 @@
 package tasks
 
+import (
+	"strings"
+
+	"github.com/dokku/docket/subprocess"
+)
+
+// proxyEnabled probes whether the proxy is enabled for an app via
+// `dokku --quiet proxy:report <app> --proxy-enabled`. Output is "true"/"false".
+func proxyEnabled(ctx ToggleContext) (bool, error) {
+	args := []string{"--quiet", "proxy:report"}
+	if ctx.AllowGlobal && ctx.Global {
+		args = append(args, "--global", "--proxy-enabled")
+	} else {
+		args = append(args, ctx.App, "--proxy-enabled")
+	}
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    args,
+	})
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(result.StdoutContents()) == "true", nil
+}
+
 // ProxyToggleTask manages the proxy for a given dokku application
 type ProxyToggleTask struct {
 	// App is the name of the app
@@ -38,7 +63,12 @@ func (t ProxyToggleTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables the proxy
 func (t ProxyToggleTask) Execute() TaskOutputState {
-	return executeToggle(t.State, t.App, t.Global, false, "proxy:enable", "proxy:disable")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the ProxyToggleTask would produce.
+func (t ProxyToggleTask) Plan() PlanResult {
+	return planToggle(t.State, t.App, t.Global, false, "proxy:enable", "proxy:disable", proxyEnabled)
 }
 
 // init registers the ProxyToggleTask with the task registry

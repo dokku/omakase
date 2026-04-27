@@ -68,7 +68,12 @@ func (t CaddyPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the caddy property
 func (t CaddyPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "caddy:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the CaddyPropertyTask would produce.
+func (t CaddyPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "caddy:set")
 }
 
 // init registers the CaddyPropertyTask with the task registry

@@ -74,9 +74,101 @@ func (t AclServiceTask) Examples() ([]Doc, error) {
 
 // Execute manages the service ACL
 func (t AclServiceTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		StatePresent: func() TaskOutputState { return addAclServiceUsers(t) },
-		StateAbsent:  func() TaskOutputState { return removeAclServiceUsers(t) },
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the AclServiceTask would produce.
+func (t AclServiceTask) Plan() PlanResult {
+	if err := validateAclServiceTask(t); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if len(t.Users) == 0 {
+				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'users' must not be empty for state 'present'")}
+			}
+			current, err := getAclServiceUsers(t.Type, t.Service)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			toAdd := []string{}
+			mutations := []string{}
+			for _, u := range t.Users {
+				if !current[u] {
+					toAdd = append(toAdd, u)
+					mutations = append(mutations, "add "+u)
+				}
+			}
+			if len(toAdd) == 0 {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    fmt.Sprintf("%d user(s) to add", len(toAdd)),
+				Mutations: mutations,
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					for _, u := range toAdd {
+						result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+							Command: "dokku",
+							Args:    []string{"--quiet", "acl:add-service", t.Type, t.Service, u},
+						})
+						if err != nil {
+							return TaskOutputErrorFromExec(state, err, result)
+						}
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			current, err := getAclServiceUsers(t.Type, t.Service)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			toRemove := []string{}
+			mutations := []string{}
+			if len(t.Users) == 0 {
+				for u := range current {
+					toRemove = append(toRemove, u)
+					mutations = append(mutations, "remove "+u)
+				}
+			} else {
+				for _, u := range t.Users {
+					if current[u] {
+						toRemove = append(toRemove, u)
+						mutations = append(mutations, "remove "+u)
+					}
+				}
+			}
+			if len(toRemove) == 0 {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    fmt.Sprintf("%d user(s) to remove", len(toRemove)),
+				Mutations: mutations,
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					for _, u := range toRemove {
+						result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+							Command: "dokku",
+							Args:    []string{"--quiet", "acl:remove-service", t.Type, t.Service, u},
+						})
+						if err != nil {
+							return TaskOutputErrorFromExec(state, err, result)
+						}
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
+			}
+		},
 	})
 }
 
@@ -113,109 +205,6 @@ func validateAclServiceTask(t AclServiceTask) error {
 		return fmt.Errorf("'type' is required")
 	}
 	return nil
-}
-
-// addAclServiceUsers adds users to a service's ACL, skipping ones already present
-func addAclServiceUsers(t AclServiceTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StateAbsent,
-	}
-
-	if err := validateAclServiceTask(t); err != nil {
-		state.Error = err
-		return state
-	}
-	if len(t.Users) == 0 {
-		state.Error = fmt.Errorf("'users' must not be empty for state 'present'")
-		return state
-	}
-
-	current, err := getAclServiceUsers(t.Type, t.Service)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-
-	var toAdd []string
-	for _, user := range t.Users {
-		if !current[user] {
-			toAdd = append(toAdd, user)
-		}
-	}
-
-	if len(toAdd) == 0 {
-		state.State = StatePresent
-		return state
-	}
-
-	for _, user := range toAdd {
-		result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-			Command: "dokku",
-			Args:    []string{"--quiet", "acl:add-service", t.Type, t.Service, user},
-		})
-		if err != nil {
-			return TaskOutputErrorFromExec(state, err, result)
-		}
-	}
-
-	state.Changed = true
-	state.State = StatePresent
-	return state
-}
-
-// removeAclServiceUsers removes users from a service's ACL. With an empty
-// Users list, removes every entry currently in the ACL (i.e. clears it).
-func removeAclServiceUsers(t AclServiceTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StatePresent,
-	}
-
-	if err := validateAclServiceTask(t); err != nil {
-		state.Error = err
-		return state
-	}
-
-	current, err := getAclServiceUsers(t.Type, t.Service)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-
-	var toRemove []string
-	if len(t.Users) == 0 {
-		for user := range current {
-			toRemove = append(toRemove, user)
-		}
-	} else {
-		for _, user := range t.Users {
-			if current[user] {
-				toRemove = append(toRemove, user)
-			}
-		}
-	}
-
-	if len(toRemove) == 0 {
-		state.State = StateAbsent
-		return state
-	}
-
-	for _, user := range toRemove {
-		result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-			Command: "dokku",
-			Args:    []string{"--quiet", "acl:remove-service", t.Type, t.Service, user},
-		})
-		if err != nil {
-			return TaskOutputErrorFromExec(state, err, result)
-		}
-	}
-
-	state.Changed = true
-	state.State = StateAbsent
-	return state
 }
 
 // init registers the AclServiceTask with the task registry

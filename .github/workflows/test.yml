@@ -60,3 +60,32 @@ jobs:
         run: sudo dokku plugin:install https://github.com/dokku-community/dokku-acl.git acl
       - name: run integration tests
         run: sudo go test -v -count=1 -run TestIntegration ./tasks/
+
+  bats-test:
+    name: bats-test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: enable docker legacy link support
+        run: |
+          sudo mkdir -p /etc/systemd/system/docker.service.d
+          printf '[Service]\nEnvironment="DOCKER_KEEP_DEPRECATED_LEGACY_LINKS_ENV_VARS=1"\n' | sudo tee /etc/systemd/system/docker.service.d/legacy-links.conf
+          sudo systemctl daemon-reload
+          sudo systemctl restart docker
+      - name: install dokku
+        run: |
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://packagecloud.io/dokku/dokku/gpgkey | sudo gpg --dearmor -o /etc/apt/keyrings/dokku-archive-keyring.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/dokku-archive-keyring.gpg] https://packagecloud.io/dokku/dokku/ubuntu/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/dokku.list
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -qq -y dokku
+          sudo dokku plugin:install-dependencies --core
+      - name: install bats
+        run: sudo apt-get install -qq -y bats bats-support bats-assert
+      - name: build docket
+        run: go build -o docket .
+      - name: run bats tests
+        run: sudo --preserve-env=PATH bats tests/bats/

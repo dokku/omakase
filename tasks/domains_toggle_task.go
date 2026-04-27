@@ -1,5 +1,31 @@
 package tasks
 
+import (
+	"strings"
+
+	"github.com/dokku/docket/subprocess"
+)
+
+// domainsEnabled probes whether the domains plugin is enabled for an app
+// via `dokku --quiet domains:report <app> --domains-app-enabled`, or for
+// the global scope via `--domains-global-enabled`.
+func domainsEnabled(ctx ToggleContext) (bool, error) {
+	args := []string{"--quiet", "domains:report"}
+	if ctx.AllowGlobal && ctx.Global {
+		args = append(args, "--global", "--domains-global-enabled")
+	} else {
+		args = append(args, ctx.App, "--domains-app-enabled")
+	}
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    args,
+	})
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(result.StdoutContents()) == "true", nil
+}
+
 // DomainsToggleTask enables or disables the domains plugin for a given dokku application
 type DomainsToggleTask struct {
 	// App is the name of the app
@@ -38,7 +64,12 @@ func (t DomainsToggleTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables the domains plugin
 func (t DomainsToggleTask) Execute() TaskOutputState {
-	return executeToggle(t.State, t.App, t.Global, false, "domains:enable", "domains:disable")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the DomainsToggleTask would produce.
+func (t DomainsToggleTask) Plan() PlanResult {
+	return planToggle(t.State, t.App, t.Global, false, "domains:enable", "domains:disable", domainsEnabled)
 }
 
 // init registers the DomainsToggleTask with the task registry

@@ -78,12 +78,185 @@ func (t DomainsTask) Examples() ([]Doc, error) {
 
 // Execute manages the domains
 func (t DomainsTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		StatePresent: func() TaskOutputState { return addDomains(t) },
-		StateAbsent:  func() TaskOutputState { return removeDomains(t) },
-		StateSet:     func() TaskOutputState { return setDomains(t) },
-		StateClear:   func() TaskOutputState { return clearDomains(t) },
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the DomainsTask would produce.
+func (t DomainsTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult { return planDomainsPresent(t) },
+		StateAbsent:  func() PlanResult { return planDomainsAbsent(t) },
+		StateSet:     func() PlanResult { return planDomainsSet(t) },
+		StateClear:   func() PlanResult { return planDomainsClear(t) },
 	})
+}
+
+// planDomainsPresent reports drift for the present-state domain add.
+func planDomainsPresent(t DomainsTask) PlanResult {
+	if err := validateDomainsTask(t, true); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	currentDomains, err := getDomains(t.App, t.Global)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	toAdd := []string{}
+	mutations := []string{}
+	for _, d := range t.Domains {
+		if !currentDomains[d] {
+			toAdd = append(toAdd, d)
+			mutations = append(mutations, fmt.Sprintf("add %s", d))
+		}
+	}
+	if len(toAdd) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	status := PlanStatusModify
+	if len(currentDomains) == 0 {
+		status = PlanStatusCreate
+	}
+	subcommand := "domains:add"
+	appName := t.App
+	if t.Global {
+		subcommand = "domains:add-global"
+		appName = "--global"
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    status,
+		Reason:    fmt.Sprintf("%d domain(s) to add", len(toAdd)),
+		Mutations: mutations,
+		apply:     applyDokkuArgs(subcommand, appName, toAdd, StatePresent, StateAbsent),
+	}
+}
+
+// planDomainsAbsent reports drift for the absent-state domain remove.
+func planDomainsAbsent(t DomainsTask) PlanResult {
+	if err := validateDomainsTask(t, true); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	currentDomains, err := getDomains(t.App, t.Global)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	toRemove := []string{}
+	mutations := []string{}
+	for _, d := range t.Domains {
+		if currentDomains[d] {
+			toRemove = append(toRemove, d)
+			mutations = append(mutations, fmt.Sprintf("remove %s", d))
+		}
+	}
+	if len(toRemove) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	subcommand := "domains:remove"
+	appName := t.App
+	if t.Global {
+		subcommand = "domains:remove-global"
+		appName = "--global"
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusDestroy,
+		Reason:    fmt.Sprintf("%d domain(s) to remove", len(toRemove)),
+		Mutations: mutations,
+		apply:     applyDokkuArgs(subcommand, appName, toRemove, StateAbsent, StatePresent),
+	}
+}
+
+// planDomainsSet reports drift for the set-state full replacement.
+func planDomainsSet(t DomainsTask) PlanResult {
+	if err := validateDomainsTask(t, true); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	currentDomains, err := getDomains(t.App, t.Global)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	desired := map[string]bool{}
+	for _, d := range t.Domains {
+		desired[d] = true
+	}
+	mutations := []string{}
+	for d := range desired {
+		if !currentDomains[d] {
+			mutations = append(mutations, fmt.Sprintf("add %s", d))
+		}
+	}
+	for d := range currentDomains {
+		if !desired[d] {
+			mutations = append(mutations, fmt.Sprintf("remove %s", d))
+		}
+	}
+	if len(mutations) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	subcommand := "domains:set"
+	appName := t.App
+	if t.Global {
+		subcommand = "domains:set-global"
+		appName = "--global"
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusModify,
+		Reason:    fmt.Sprintf("%d domain change(s)", len(mutations)),
+		Mutations: mutations,
+		apply:     applyDokkuArgs(subcommand, appName, t.Domains, StateSet, StateAbsent),
+	}
+}
+
+// planDomainsClear reports drift for the clear-state operation.
+func planDomainsClear(t DomainsTask) PlanResult {
+	if err := validateDomainsTask(t, false); err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	currentDomains, err := getDomains(t.App, t.Global)
+	if err != nil {
+		return PlanResult{Status: PlanStatusError, Error: err}
+	}
+	if len(currentDomains) == 0 {
+		return PlanResult{InSync: true, Status: PlanStatusOK}
+	}
+	mutations := make([]string, 0, len(currentDomains))
+	for d := range currentDomains {
+		mutations = append(mutations, fmt.Sprintf("remove %s", d))
+	}
+	subcommand := "domains:clear"
+	appName := t.App
+	if t.Global {
+		subcommand = "domains:clear-global"
+		appName = "--global"
+	}
+	return PlanResult{
+		InSync:    false,
+		Status:    PlanStatusDestroy,
+		Reason:    fmt.Sprintf("clear %d domain(s)", len(currentDomains)),
+		Mutations: mutations,
+		apply:     applyDokkuArgs(subcommand, appName, nil, StateClear, StatePresent),
+	}
+}
+
+// applyDokkuArgs returns a closure that runs `dokku --quiet <subcommand>
+// <target> <extra...>`. It is used by domains plan paths to share the
+// boilerplate around constructing the subprocess call.
+func applyDokkuArgs(subcommand, target string, extra []string, finalState State, errState State) func() TaskOutputState {
+	return func() TaskOutputState {
+		state := TaskOutputState{Changed: false, State: errState}
+		args := []string{"--quiet", subcommand, target}
+		args = append(args, extra...)
+		result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+			Command: "dokku",
+			Args:    args,
+		})
+		if err != nil {
+			return TaskOutputErrorFromExec(state, err, result)
+		}
+		state.Changed = true
+		state.State = finalState
+		return state
+	}
 }
 
 // validateDomainsTask validates the domains task parameters
@@ -129,183 +302,6 @@ func getDomains(app string, global bool) (map[string]bool, error) {
 		domains[domain] = true
 	}
 	return domains, nil
-}
-
-// addDomains adds domains if they don't already exist
-func addDomains(t DomainsTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StateAbsent,
-	}
-
-	if err := validateDomainsTask(t, true); err != nil {
-		state.Error = err
-		return state
-	}
-
-	currentDomains, err := getDomains(t.App, t.Global)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-
-	var newDomains []string
-	for _, domain := range t.Domains {
-		if !currentDomains[domain] {
-			newDomains = append(newDomains, domain)
-		}
-	}
-
-	if len(newDomains) == 0 {
-		state.State = StatePresent
-		return state
-	}
-
-	subcommand := "domains:add"
-	appName := t.App
-	if t.Global {
-		subcommand = "domains:add-global"
-		appName = "--global"
-	}
-
-	args := []string{"--quiet", subcommand, appName}
-	args = append(args, newDomains...)
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StatePresent
-	return state
-}
-
-// removeDomains removes domains if they exist
-func removeDomains(t DomainsTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StatePresent,
-	}
-
-	if err := validateDomainsTask(t, true); err != nil {
-		state.Error = err
-		return state
-	}
-
-	currentDomains, err := getDomains(t.App, t.Global)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-
-	var domainsToRemove []string
-	for _, domain := range t.Domains {
-		if currentDomains[domain] {
-			domainsToRemove = append(domainsToRemove, domain)
-		}
-	}
-
-	if len(domainsToRemove) == 0 {
-		state.State = StateAbsent
-		return state
-	}
-
-	subcommand := "domains:remove"
-	appName := t.App
-	if t.Global {
-		subcommand = "domains:remove-global"
-		appName = "--global"
-	}
-
-	args := []string{"--quiet", subcommand, appName}
-	args = append(args, domainsToRemove...)
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StateAbsent
-	return state
-}
-
-// setDomains replaces all domains with the specified ones
-func setDomains(t DomainsTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StateAbsent,
-	}
-
-	if err := validateDomainsTask(t, true); err != nil {
-		state.Error = err
-		return state
-	}
-
-	subcommand := "domains:set"
-	appName := t.App
-	if t.Global {
-		subcommand = "domains:set-global"
-		appName = "--global"
-	}
-
-	args := []string{"--quiet", subcommand, appName}
-	args = append(args, t.Domains...)
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StateSet
-	return state
-}
-
-// clearDomains removes all domains
-func clearDomains(t DomainsTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StatePresent,
-	}
-
-	if err := validateDomainsTask(t, false); err != nil {
-		state.Error = err
-		return state
-	}
-
-	subcommand := "domains:clear"
-	appName := t.App
-	if t.Global {
-		subcommand = "domains:clear-global"
-		appName = "--global"
-	}
-
-	args := []string{"--quiet", subcommand, appName}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StateClear
-	return state
 }
 
 // init registers the DomainsTask with the task registry

@@ -55,9 +55,63 @@ func (t AppLockTask) Examples() ([]Doc, error) {
 
 // Execute locks or unlocks the app
 func (t AppLockTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		StatePresent: func() TaskOutputState { return lockApp(t.App) },
-		StateAbsent:  func() TaskOutputState { return unlockApp(t.App) },
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the AppLockTask would produce.
+func (t AppLockTask) Plan() PlanResult {
+	if t.App == "" {
+		return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'app' is required")}
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if appLocked(t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "app unlocked",
+				Mutations: []string{"lock " + t.App},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "apps:lock", t.App},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			if !appLocked(t.App) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusModify,
+				Reason:    "app locked",
+				Mutations: []string{"unlock " + t.App},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "apps:unlock", t.App},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
+			}
+		},
 	})
 }
 
@@ -71,66 +125,6 @@ func appLocked(app string) bool {
 		return false
 	}
 	return result.ExitCode == 0
-}
-
-// lockApp locks a dokku app for deployment
-func lockApp(app string) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StateAbsent,
-	}
-
-	if app == "" {
-		state.Error = fmt.Errorf("'app' is required")
-		return state
-	}
-
-	if appLocked(app) {
-		state.State = StatePresent
-		return state
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    []string{"--quiet", "apps:lock", app},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StatePresent
-	return state
-}
-
-// unlockApp unlocks a dokku app for deployment
-func unlockApp(app string) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StatePresent,
-	}
-
-	if app == "" {
-		state.Error = fmt.Errorf("'app' is required")
-		return state
-	}
-
-	if !appLocked(app) {
-		state.State = StateAbsent
-		return state
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    []string{"--quiet", "apps:unlock", app},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StateAbsent
-	return state
 }
 
 // init registers the AppLockTask with the task registry

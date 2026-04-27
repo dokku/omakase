@@ -76,7 +76,12 @@ func (t OpenrestyPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the openresty property
 func (t OpenrestyPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "openresty:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the OpenrestyPropertyTask would produce.
+func (t OpenrestyPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "openresty:set")
 }
 
 // init registers the OpenrestyPropertyTask with the task registry

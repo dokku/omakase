@@ -68,7 +68,12 @@ func (t HaproxyPropertyTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the haproxy property
 func (t HaproxyPropertyTask) Execute() TaskOutputState {
-	return executeProperty(t.State, t.App, t.Global, t.Property, t.Value, "haproxy:set")
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the HaproxyPropertyTask would produce.
+func (t HaproxyPropertyTask) Plan() PlanResult {
+	return planProperty(t.State, t.App, t.Global, t.Property, t.Value, "haproxy:set")
 }
 
 // init registers the HaproxyPropertyTask with the task registry

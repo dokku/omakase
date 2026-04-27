@@ -63,19 +63,93 @@ func (t PortsTask) Examples() ([]Doc, error) {
 
 // Execute sets or unsets the ports
 func (t PortsTask) Execute() TaskOutputState {
-	// todo: add port mapping validation
-	if len(t.PortMappings) == 0 {
-		return TaskOutputState{
-			Changed: false,
-			State:   "absent",
-			Error:   errors.New("no port mappings provided"),
-			Message: "no port mappings provided",
-		}
-	}
+	return ExecutePlan(t.Plan())
+}
 
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		"present": func() TaskOutputState { return setPorts(t.App, t.PortMappings) },
-		"absent":  func() TaskOutputState { return unsetPorts(t.App, t.PortMappings) },
+// Plan reports the drift the PortsTask would produce.
+func (t PortsTask) Plan() PlanResult {
+	if len(t.PortMappings) == 0 {
+		return PlanResult{Status: PlanStatusError, Error: errors.New("no port mappings provided")}
+	}
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			currentPorts := getPorts(t.App)
+			toAdd := []PortMapping{}
+			mutations := []string{}
+			for _, pm := range t.PortMappings {
+				if _, ok := currentPorts[pm.String()]; !ok {
+					toAdd = append(toAdd, pm)
+					mutations = append(mutations, fmt.Sprintf("add %s", pm.String()))
+				}
+			}
+			if len(toAdd) == 0 {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			status := PlanStatusModify
+			if len(currentPorts) == 0 {
+				status = PlanStatusCreate
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    status,
+				Reason:    fmt.Sprintf("%d port mapping(s) to add", len(toAdd)),
+				Mutations: mutations,
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					args := []string{"--quiet", "ports:add", t.App}
+					for _, pm := range toAdd {
+						args = append(args, pm.String())
+					}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			currentPorts := getPorts(t.App)
+			toRemove := []PortMapping{}
+			mutations := []string{}
+			for _, pm := range t.PortMappings {
+				if _, ok := currentPorts[pm.String()]; ok {
+					toRemove = append(toRemove, pm)
+					mutations = append(mutations, fmt.Sprintf("remove %s", pm.String()))
+				}
+			}
+			if len(toRemove) == 0 {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    fmt.Sprintf("%d port mapping(s) to remove", len(toRemove)),
+				Mutations: mutations,
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					args := []string{"--quiet", "ports:remove", t.App}
+					for _, pm := range toRemove {
+						args = append(args, pm.String())
+					}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    args,
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
+			}
+		},
 	})
 }
 
@@ -121,92 +195,6 @@ func getPorts(appName string) map[string]PortMapping {
 	}
 
 	return portMappings
-}
-
-// setPorts sets the ports for a given app
-func setPorts(appName string, portMappings []PortMapping) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "absent",
-	}
-
-	currentPorts := getPorts(appName)
-	newPorts := map[string]PortMapping{}
-	for _, portMapping := range portMappings {
-		if _, ok := currentPorts[portMapping.String()]; !ok {
-			newPorts[portMapping.String()] = portMapping
-		}
-	}
-
-	if len(newPorts) == 0 {
-		state.State = "present"
-		return state
-	}
-
-	args := []string{
-		"--quiet",
-		"ports:add",
-		appName,
-	}
-
-	for _, portMapping := range newPorts {
-		args = append(args, portMapping.String())
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "present"
-	return state
-}
-
-// unsetPorts unsets the ports for a given app
-func unsetPorts(appName string, portMappings []PortMapping) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   "present",
-	}
-
-	currentPorts := getPorts(appName)
-	removedPorts := map[string]PortMapping{}
-	for _, portMapping := range portMappings {
-		if _, ok := currentPorts[portMapping.String()]; ok {
-			removedPorts[portMapping.String()] = portMapping
-		}
-	}
-
-	if len(removedPorts) == 0 {
-		state.State = "absent"
-		return state
-	}
-
-	args := []string{
-		"--quiet",
-		"ports:remove",
-		appName,
-	}
-
-	for _, portMapping := range removedPorts {
-		args = append(args, portMapping.String())
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    args,
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = "absent"
-	return state
 }
 
 // init registers the PortsTask with the task registry

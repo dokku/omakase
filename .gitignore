@@ -24,3 +24,4 @@ validation/*
 .env*
 
 docket
+tmp/

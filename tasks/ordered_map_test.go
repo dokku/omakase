@@ -12,6 +12,7 @@ type mockTask struct {
 
 func (m mockTask) Doc() string              { return "" }
 func (m mockTask) Examples() ([]Doc, error) { return nil, nil }
+func (m mockTask) Plan() PlanResult         { return PlanResult{InSync: true, Status: PlanStatusOK} }
 func (m mockTask) Execute() TaskOutputState { return TaskOutputState{State: m.state} }
 
 func TestOrderedStringTaskMapSetAndGet(t *testing.T) {

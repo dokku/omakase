@@ -67,9 +67,74 @@ func (t DockerOptionsTask) Examples() ([]Doc, error) {
 
 // Execute manages the docker option
 func (t DockerOptionsTask) Execute() TaskOutputState {
-	return DispatchState(t.State, map[State]func() TaskOutputState{
-		StatePresent: func() TaskOutputState { return addDockerOption(t) },
-		StateAbsent:  func() TaskOutputState { return removeDockerOption(t) },
+	return ExecutePlan(t.Plan())
+}
+
+// Plan reports the drift the DockerOptionsTask would produce.
+func (t DockerOptionsTask) Plan() PlanResult {
+	return DispatchPlan(t.State, map[State]func() PlanResult{
+		StatePresent: func() PlanResult {
+			if err := validateDockerOptionsTask(t); err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			current, err := getDockerOptions(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if optionPresent(current[t.Phase], t.Option) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusCreate,
+				Reason:    fmt.Sprintf("missing on %s phase", t.Phase),
+				Mutations: []string{fmt.Sprintf("add %s option %q", t.Phase, t.Option)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StateAbsent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "docker-options:add", t.App, t.Phase, t.Option},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StatePresent
+					return state
+				},
+			}
+		},
+		StateAbsent: func() PlanResult {
+			if err := validateDockerOptionsTask(t); err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			current, err := getDockerOptions(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !optionPresent(current[t.Phase], t.Option) {
+				return PlanResult{InSync: true, Status: PlanStatusOK}
+			}
+			return PlanResult{
+				InSync:    false,
+				Status:    PlanStatusDestroy,
+				Reason:    fmt.Sprintf("present on %s phase", t.Phase),
+				Mutations: []string{fmt.Sprintf("remove %s option %q", t.Phase, t.Option)},
+				apply: func() TaskOutputState {
+					state := TaskOutputState{Changed: false, State: StatePresent}
+					result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+						Command: "dokku",
+						Args:    []string{"--quiet", "docker-options:remove", t.App, t.Phase, t.Option},
+					})
+					if err != nil {
+						return TaskOutputErrorFromExec(state, err, result)
+					}
+					state.Changed = true
+					state.State = StateAbsent
+					return state
+				},
+			}
+		},
 	})
 }
 
@@ -132,78 +197,6 @@ func optionPresent(existing, option string) bool {
 		}
 	}
 	return false
-}
-
-// addDockerOption adds a docker option to the specified phase
-func addDockerOption(t DockerOptionsTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StateAbsent,
-	}
-
-	if err := validateDockerOptionsTask(t); err != nil {
-		state.Error = err
-		return state
-	}
-
-	current, err := getDockerOptions(t.App)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-	if optionPresent(current[t.Phase], t.Option) {
-		state.State = StatePresent
-		return state
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    []string{"--quiet", "docker-options:add", t.App, t.Phase, t.Option},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StatePresent
-	return state
-}
-
-// removeDockerOption removes a docker option from the specified phase
-func removeDockerOption(t DockerOptionsTask) TaskOutputState {
-	state := TaskOutputState{
-		Changed: false,
-		State:   StatePresent,
-	}
-
-	if err := validateDockerOptionsTask(t); err != nil {
-		state.Error = err
-		return state
-	}
-
-	current, err := getDockerOptions(t.App)
-	if err != nil {
-		state.Error = err
-		state.Message = err.Error()
-		return state
-	}
-	if !optionPresent(current[t.Phase], t.Option) {
-		state.State = StateAbsent
-		return state
-	}
-
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
-		Command: "dokku",
-		Args:    []string{"--quiet", "docker-options:remove", t.App, t.Phase, t.Option},
-	})
-	if err != nil {
-		return TaskOutputErrorFromExec(state, err, result)
-	}
-
-	state.Changed = true
-	state.State = StateAbsent
-	return state
 }
 
 // init registers the DockerOptionsTask with the task registry

@@ -37,7 +37,33 @@ Run it:
 docket apply
 ```
 
-Running `docket` with no subcommand prints the available commands. Use `docket apply` to execute a task file, or `docket version` to print the binary's version.
+Running `docket` with no subcommand prints the available commands. Use `docket apply` to execute a task file, `docket plan` to preview the changes a task file would make without mutating any state, or `docket version` to print the binary's version.
+
+### Previewing changes with `plan`
+
+`docket plan` reads each task's current state from the live dokku server and reports what `apply` would change, without invoking any mutating dokku command. Each task line is prefixed with a marker:
+
+| Marker | Meaning |
+|--------|---------|
+| `[ok]` | Task is in sync; `apply` would not change anything |
+| `[+]` | `apply` would create new state |
+| `[~]` | `apply` would modify existing state |
+| `[-]` | `apply` would remove existing state |
+| `[error]` | The read-state probe itself errored (drift unknown) |
+
+Tasks that perform multiple operations (e.g. `dokku_config` setting several keys) report each individual mutation under the task line:
+
+```text
+[~]       configure  (2 key(s) to set)
+          - set KEY_ONE (new)
+          - set KEY_TWO (was set)
+
+Plan: 1 task(s); 1 would change, 0 in sync, 0 error(s).
+```
+
+`Plan()` results drive `apply`: every task probes the server once, and `apply` reuses that probe to decide whether to mutate. `apply` on an already-converged server reports `Changed=false` for every task; back-to-back applies are no-ops by design.
+
+A handful of tasks (notably `dokku_git_auth`, `dokku_registry_auth`, and `dokku_storage_ensure`) cannot probe their current state without invoking the corresponding dokku command, so their plan output reports drift unconditionally with `(... not probed)` in the reason.
 
 A task file can also be specified via flag, and may be a file retrieved via http:
 
@@ -135,11 +161,30 @@ type LollipopTask struct {
   State State `required:"true" yaml:"state" default:"present"`
 }
 
-func (t LollipopTask) Execute() TaskOutputState {
-  return DispatchState(t.State, map[State]func() TaskOutputState{
-    "present": func() TaskOutputState { /* ... */ },
-    "absent":  func() TaskOutputState { /* ... */ },
+func (t LollipopTask) Plan() PlanResult {
+  return DispatchPlan(t.State, map[State]func() PlanResult{
+    "present": func() PlanResult {
+      // Probe the server once, decide whether to mutate.
+      if /* already in desired state */ {
+        return PlanResult{InSync: true, Status: PlanStatusOK}
+      }
+      return PlanResult{
+        InSync:    false,
+        Status:    PlanStatusCreate, // or PlanStatusModify, PlanStatusDestroy
+        Reason:    "...",
+        Mutations: []string{"create lollipop"},
+        apply: func() TaskOutputState {
+          // Run the underlying dokku command. Return Changed=true on success.
+          return TaskOutputState{Changed: true, State: StatePresent}
+        },
+      }
+    },
+    "absent": func() PlanResult { /* ... */ },
   })
+}
+
+func (t LollipopTask) Execute() TaskOutputState {
+  return ExecutePlan(t.Plan())
 }
 
 func init() {
@@ -149,6 +194,10 @@ func init() {
 
 The `LollipopTask` struct contains the fields necessary for the task. The only necessary field is `State`, which holds the desired state of the task. All other fields are completely custom for the task at hand.
 
-The `Execute()` function should use `DispatchState()` to route to the appropriate handler based on the task's state. `DispatchState` automatically sets `DesiredState` on the returned `TaskOutputState`.
+`Plan()` is the canonical implementation: it probes the live server once, computes the diff, and returns a `PlanResult`. When `InSync` is `false`, `Plan()` embeds an `apply` closure that performs the underlying mutation. For tasks that perform multiple operations (e.g. setting several config keys in one call), populate `PlanResult.Mutations` with one entry per atomic change so the plan output can itemize the diff.
+
+`Execute()` is always `return ExecutePlan(t.Plan())`. The shared `ExecutePlan` helper handles the InSync, error, and apply cases uniformly so the per-state mutation logic lives in exactly one place per task.
+
+`DispatchPlan` and `DispatchState` automatically set `DesiredState` on the returned result.
 
 The `init()` function registers the task for usage within a recipe.
