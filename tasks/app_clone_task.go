@@ -76,7 +76,11 @@ func (t AppCloneTask) Plan() PlanResult {
 			if t.SourceApp == "" {
 				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("'source_app' is required")}
 			}
-			if appExists(t.App) {
+			exists, err := appExists(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if exists {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{

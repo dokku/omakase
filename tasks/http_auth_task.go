@@ -1,9 +1,11 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
-	"github.com/dokku/docket/subprocess"
 	"strings"
+
+	"github.com/dokku/docket/subprocess"
 )
 
 // HttpAuthTask manages HTTP authentication for a dokku application
@@ -76,7 +78,11 @@ func (t HttpAuthTask) Plan() PlanResult {
 	}
 	return DispatchPlan(t.State, map[State]func() PlanResult{
 		StatePresent: func() PlanResult {
-			if httpAuthEnabled(t.App) {
+			enabled, err := httpAuthEnabled(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if enabled {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -101,7 +107,11 @@ func (t HttpAuthTask) Plan() PlanResult {
 			}
 		},
 		StateAbsent: func() PlanResult {
-			if !httpAuthEnabled(t.App) {
+			enabled, err := httpAuthEnabled(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !enabled {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -128,8 +138,11 @@ func (t HttpAuthTask) Plan() PlanResult {
 	})
 }
 
-// httpAuthEnabled checks if HTTP authentication is enabled for an app
-func httpAuthEnabled(appName string) bool {
+// httpAuthEnabled checks if HTTP authentication is enabled for an app.
+// A transport-level failure (`*subprocess.SSHError`) is propagated; a
+// dokku-level non-zero exit (e.g. app does not exist) is treated as
+// "disabled."
+func httpAuthEnabled(appName string) (bool, error) {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
 		Args: []string{
@@ -139,20 +152,24 @@ func httpAuthEnabled(appName string) bool {
 		},
 	})
 	if err != nil {
-		return false
+		var sshErr *subprocess.SSHError
+		if errors.As(err, &sshErr) {
+			return false, err
+		}
+		return false, nil
 	}
 
 	lines := strings.SplitN(result.StdoutContents(), "\n", 2)
 	if len(lines) == 0 {
-		return false
+		return false, nil
 	}
 
 	parts := strings.SplitN(lines[0], ":", 2)
 	if len(parts) < 2 {
-		return false
+		return false, nil
 	}
 
-	return strings.TrimSpace(parts[1]) == "true"
+	return strings.TrimSpace(parts[1]) == "true", nil
 }
 
 // enableHttpAuth enables HTTP authentication for an app
@@ -161,7 +178,8 @@ func enableHttpAuth(app, username, password string) TaskOutputState {
 		Changed: false,
 		State:   "absent",
 	}
-	if httpAuthEnabled(app) {
+	enabled, _ := httpAuthEnabled(app)
+	if enabled {
 		state.State = "present"
 		return state
 	}
@@ -192,7 +210,8 @@ func disableHttpAuth(app string) TaskOutputState {
 		Changed: false,
 		State:   "present",
 	}
-	if !httpAuthEnabled(app) {
+	enabled, _ := httpAuthEnabled(app)
+	if !enabled {
 		state.State = "absent"
 		return state
 	}

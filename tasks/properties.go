@@ -93,8 +93,16 @@ func planProperty(state State, app string, global bool, property, value, subcomm
 				}
 			}
 
-			// Probe; treat probe failure as "drift, must mutate".
+			// Probe; treat dokku-level failure as "drift, must mutate"
+			// (matches pre-probe behavior for unsupported plugins) but
+			// surface SSH transport failures so the user sees `! ssh:`.
 			current, probeErr := getProperty(subcommand, app, global, property)
+			if probeErr != nil {
+				var sshErr *subprocess.SSHError
+				if errors.As(probeErr, &sshErr) {
+					return PlanResult{Status: PlanStatusError, Error: probeErr}
+				}
+			}
 			if probeErr == nil && current == value {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
@@ -127,6 +135,12 @@ func planProperty(state State, app string, global bool, property, value, subcomm
 			}
 
 			current, probeErr := getProperty(subcommand, app, global, property)
+			if probeErr != nil {
+				var sshErr *subprocess.SSHError
+				if errors.As(probeErr, &sshErr) {
+					return PlanResult{Status: PlanStatusError, Error: probeErr}
+				}
+			}
 			if probeErr == nil && current == "" {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}

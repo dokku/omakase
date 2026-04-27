@@ -73,7 +73,10 @@ func (t PortsTask) Plan() PlanResult {
 	}
 	return DispatchPlan(t.State, map[State]func() PlanResult{
 		StatePresent: func() PlanResult {
-			currentPorts := getPorts(t.App)
+			currentPorts, err := getPorts(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
 			toAdd := []PortMapping{}
 			mutations := []string{}
 			for _, pm := range t.PortMappings {
@@ -115,7 +118,10 @@ func (t PortsTask) Plan() PlanResult {
 			}
 		},
 		StateAbsent: func() PlanResult {
-			currentPorts := getPorts(t.App)
+			currentPorts, err := getPorts(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
 			toRemove := []PortMapping{}
 			mutations := []string{}
 			for _, pm := range t.PortMappings {
@@ -155,8 +161,10 @@ func (t PortsTask) Plan() PlanResult {
 	})
 }
 
-// getPorts gets the ports for a given app
-func getPorts(appName string) map[string]PortMapping {
+// getPorts gets the ports for a given app. A transport-level failure
+// (`*subprocess.SSHError`) is propagated; a dokku-level non-zero exit
+// (e.g. app does not exist) is treated as "no ports configured."
+func getPorts(appName string) (map[string]PortMapping, error) {
 	// todo: update dokku to add proper json output for this
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
@@ -168,7 +176,11 @@ func getPorts(appName string) map[string]PortMapping {
 		},
 	})
 	if err != nil {
-		return map[string]PortMapping{}
+		var sshErr *subprocess.SSHError
+		if errors.As(err, &sshErr) {
+			return nil, err
+		}
+		return map[string]PortMapping{}, nil
 	}
 
 	portMappings := map[string]PortMapping{}
@@ -196,7 +208,7 @@ func getPorts(appName string) map[string]PortMapping {
 		}
 	}
 
-	return portMappings
+	return portMappings, nil
 }
 
 // init registers the PortsTask with the task registry

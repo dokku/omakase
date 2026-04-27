@@ -65,7 +65,11 @@ func (t AppLockTask) Plan() PlanResult {
 	}
 	return DispatchPlan(t.State, map[State]func() PlanResult{
 		StatePresent: func() PlanResult {
-			if appLocked(t.App) {
+			locked, err := appLocked(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if locked {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -90,7 +94,11 @@ func (t AppLockTask) Plan() PlanResult {
 			}
 		},
 		StateAbsent: func() PlanResult {
-			if !appLocked(t.App) {
+			locked, err := appLocked(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !locked {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -117,16 +125,14 @@ func (t AppLockTask) Plan() PlanResult {
 	})
 }
 
-// appLocked checks if a dokku app is locked
-func appLocked(app string) bool {
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+// appLocked checks if a dokku app is locked. Returns (false,
+// *subprocess.SSHError) on transport failure; (false, nil) when dokku
+// reports unlocked; (true, nil) when locked.
+func appLocked(app string) (bool, error) {
+	return subprocess.Probe(subprocess.ExecCommandInput{
 		Command: "dokku",
 		Args:    []string{"--quiet", "apps:locked", app},
 	})
-	if err != nil {
-		return false
-	}
-	return result.ExitCode == 0
 }
 
 // init registers the AppLockTask with the task registry

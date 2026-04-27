@@ -2,7 +2,9 @@ package tasks
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+
 	"github.com/dokku/docket/subprocess"
 )
 
@@ -55,7 +57,11 @@ func (t StorageMountTask) Plan() PlanResult {
 	mountSpec := fmt.Sprintf("%s:%s", t.HostDir, t.ContainerDir)
 	return DispatchPlan(t.State, map[State]func() PlanResult{
 		StatePresent: func() PlanResult {
-			if mountExists(t.App, t.HostDir, t.ContainerDir) {
+			exists, err := mountExists(t.App, t.HostDir, t.ContainerDir)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if exists {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -80,7 +86,11 @@ func (t StorageMountTask) Plan() PlanResult {
 			}
 		},
 		StateAbsent: func() PlanResult {
-			if !mountExists(t.App, t.HostDir, t.ContainerDir) {
+			exists, err := mountExists(t.App, t.HostDir, t.ContainerDir)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !exists {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -107,8 +117,10 @@ func (t StorageMountTask) Plan() PlanResult {
 	})
 }
 
-// mountExists checks if the storage mount exists
-func mountExists(app, hostDir, containerDir string) bool {
+// mountExists checks if the storage mount exists. A transport-level
+// failure (`*subprocess.SSHError`) is propagated; a dokku-level non-
+// zero exit (e.g. app does not exist) is treated as "no mount."
+func mountExists(app, hostDir, containerDir string) (bool, error) {
 	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
 		Command: "dokku",
 		Args: []string{
@@ -120,7 +132,11 @@ func mountExists(app, hostDir, containerDir string) bool {
 		},
 	})
 	if err != nil {
-		return false
+		var sshErr *subprocess.SSHError
+		if errors.As(err, &sshErr) {
+			return false, err
+		}
+		return false, nil
 	}
 
 	var mounts []struct {
@@ -128,17 +144,16 @@ func mountExists(app, hostDir, containerDir string) bool {
 		ContainerPath string `json:"container_path"`
 	}
 
-	err = json.Unmarshal(result.StdoutBytes(), &mounts)
-	if err != nil {
-		return false
+	if err := json.Unmarshal(result.StdoutBytes(), &mounts); err != nil {
+		return false, nil
 	}
 
 	for _, mount := range mounts {
 		if mount.HostPath == hostDir && mount.ContainerPath == containerDir {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // init registers the StorageMountTask with the task registry

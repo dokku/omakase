@@ -33,7 +33,8 @@ func TestIntegrationAppClone(t *testing.T) {
 	if result.State != StatePresent {
 		t.Errorf("expected state 'present', got '%s'", result.State)
 	}
-	if !appExists(targetApp) {
+	exists, _ := appExists(targetApp)
+	if !exists {
 		t.Errorf("expected target app %q to exist after clone", targetApp)
 	}
 

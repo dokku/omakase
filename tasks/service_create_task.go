@@ -73,7 +73,11 @@ func (t ServiceCreateTask) Execute() TaskOutputState {
 func (t ServiceCreateTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
 		StatePresent: func() PlanResult {
-			if serviceExists(t.Service, t.Name) {
+			exists, err := serviceExists(t.Service, t.Name)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if exists {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -98,7 +102,11 @@ func (t ServiceCreateTask) Plan() PlanResult {
 			}
 		},
 		StateAbsent: func() PlanResult {
-			if !serviceExists(t.Service, t.Name) {
+			exists, err := serviceExists(t.Service, t.Name)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !exists {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -125,9 +133,11 @@ func (t ServiceCreateTask) Plan() PlanResult {
 	})
 }
 
-// serviceExists checks if a dokku service exists
-func serviceExists(service, name string) bool {
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+// serviceExists checks if a dokku service exists. Returns (false,
+// *subprocess.SSHError) on transport failure, (false, nil) when dokku
+// reports the service absent, (true, nil) when present.
+func serviceExists(service, name string) (bool, error) {
+	return subprocess.Probe(subprocess.ExecCommandInput{
 		Command: "dokku",
 		Args: []string{
 			"--quiet",
@@ -135,11 +145,6 @@ func serviceExists(service, name string) bool {
 			name,
 		},
 	})
-	if err != nil {
-		return false
-	}
-
-	return result.ExitCode == 0
 }
 
 // createService creates a dokku service
@@ -148,7 +153,8 @@ func createService(service, name string) TaskOutputState {
 		Changed: false,
 		State:   "absent",
 	}
-	if serviceExists(service, name) {
+	exists, _ := serviceExists(service, name)
+	if exists {
 		state.State = "present"
 		return state
 	}
@@ -177,7 +183,8 @@ func destroyService(service, name string) TaskOutputState {
 		Changed: false,
 		State:   "present",
 	}
-	if !serviceExists(service, name) {
+	exists, _ := serviceExists(service, name)
+	if !exists {
 		state.State = "absent"
 		return state
 	}

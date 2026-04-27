@@ -67,7 +67,7 @@ EOF
   assert_failure
 }
 
-@test "ssh transport failure renders ssh-prefixed error" {
+@test "ssh transport failure renders ssh-prefixed error during plan" {
   write_tasks_file <<EOF
 ---
 - tasks:
@@ -75,11 +75,9 @@ EOF
       dokku_app:
         app: docket-test-ssh
 EOF
-  # Use apply (not plan) so a probe-level "app does not exist" outcome
-  # cannot mask the transport failure: apply unconditionally runs at
-  # least one ssh-wrapped dokku command and routes the error through
-  # the formatter where the `ssh:` prefix is applied.
-  DOKKU_HOST="$USER@127.0.0.1:1" run "$(docket_bin)" apply --tasks "$TASKS_FILE"
+  # Probes propagate *subprocess.SSHError, so plan surfaces transport
+  # failures with the same `ssh:` prefix as apply does.
+  DOKKU_HOST="$USER@127.0.0.1:1" run "$(docket_bin)" plan --tasks "$TASKS_FILE"
   assert_failure
   assert_output --partial "ssh:"
 }

@@ -79,13 +79,25 @@ func (t ServiceLinkTask) Execute() TaskOutputState {
 func (t ServiceLinkTask) Plan() PlanResult {
 	return DispatchPlan(t.State, map[State]func() PlanResult{
 		StatePresent: func() PlanResult {
-			if !serviceExists(t.Service, t.Name) {
+			svcExists, err := serviceExists(t.Service, t.Name)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !svcExists {
 				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("service %s %s does not exist", t.Service, t.Name)}
 			}
-			if !appExists(t.App) {
+			appOK, err := appExists(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !appOK {
 				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("app %s does not exist", t.App)}
 			}
-			if serviceLinked(t.Service, t.Name, t.App) {
+			linked, err := serviceLinked(t.Service, t.Name, t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if linked {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -110,13 +122,25 @@ func (t ServiceLinkTask) Plan() PlanResult {
 			}
 		},
 		StateAbsent: func() PlanResult {
-			if !serviceExists(t.Service, t.Name) {
+			svcExists, err := serviceExists(t.Service, t.Name)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !svcExists {
 				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("service %s %s does not exist", t.Service, t.Name)}
 			}
-			if !appExists(t.App) {
+			appOK, err := appExists(t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !appOK {
 				return PlanResult{Status: PlanStatusError, Error: fmt.Errorf("app %s does not exist", t.App)}
 			}
-			if !serviceLinked(t.Service, t.Name, t.App) {
+			linked, err := serviceLinked(t.Service, t.Name, t.App)
+			if err != nil {
+				return PlanResult{Status: PlanStatusError, Error: err}
+			}
+			if !linked {
 				return PlanResult{InSync: true, Status: PlanStatusOK}
 			}
 			return PlanResult{
@@ -143,9 +167,11 @@ func (t ServiceLinkTask) Plan() PlanResult {
 	})
 }
 
-// serviceLinked checks if a dokku service is linked to an app
-func serviceLinked(service, name, app string) bool {
-	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+// serviceLinked checks if a dokku service is linked to an app. Returns
+// (false, *subprocess.SSHError) on transport failure; (false, nil) when
+// dokku reports no link; (true, nil) when linked.
+func serviceLinked(service, name, app string) (bool, error) {
+	return subprocess.Probe(subprocess.ExecCommandInput{
 		Command: "dokku",
 		Args: []string{
 			"--quiet",
@@ -154,11 +180,6 @@ func serviceLinked(service, name, app string) bool {
 			app,
 		},
 	})
-	if err != nil {
-		return false
-	}
-
-	return result.ExitCode == 0
 }
 
 // linkService links a dokku service to an app
@@ -168,17 +189,20 @@ func linkService(service, name, app string) TaskOutputState {
 		State:   "absent",
 	}
 
-	if !serviceExists(service, name) {
+	svcExists, _ := serviceExists(service, name)
+	if !svcExists {
 		state.Error = fmt.Errorf("service %s %s does not exist", service, name)
 		return state
 	}
 
-	if !appExists(app) {
+	appOK, _ := appExists(app)
+	if !appOK {
 		state.Error = fmt.Errorf("app %s does not exist", app)
 		return state
 	}
 
-	if serviceLinked(service, name, app) {
+	linked, _ := serviceLinked(service, name, app)
+	if linked {
 		state.State = "present"
 		return state
 	}
@@ -209,17 +233,20 @@ func unlinkService(service, name, app string) TaskOutputState {
 		State:   "present",
 	}
 
-	if !serviceExists(service, name) {
+	svcExists, _ := serviceExists(service, name)
+	if !svcExists {
 		state.Error = fmt.Errorf("service %s %s does not exist", service, name)
 		return state
 	}
 
-	if !appExists(app) {
+	appOK, _ := appExists(app)
+	if !appOK {
 		state.Error = fmt.Errorf("app %s does not exist", app)
 		return state
 	}
 
-	if !serviceLinked(service, name, app) {
+	linked, _ := serviceLinked(service, name, app)
+	if !linked {
 		state.State = "absent"
 		return state
 	}
