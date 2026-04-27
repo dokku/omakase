@@ -75,12 +75,21 @@ EOF
 }
 
 @test "docket plan output never echoes dokku_config map values" {
-  write_tasks_file <<'EOF'
+  # Create the app first so the dokku_config plan probe succeeds; otherwise
+  # the missing-app probe error short-circuits the test before the masking
+  # path is exercised.
+  write_tasks_file create.yml <<'EOF'
 ---
 - tasks:
     - name: ensure docket-test-mask
       dokku_app:
         app: docket-test-mask
+EOF
+  "$(docket_bin)" apply --tasks "$TASKS_FILE"
+
+  write_tasks_file plan.yml <<'EOF'
+---
+- tasks:
     - name: set a literal config value
       dokku_config:
         app: docket-test-mask
