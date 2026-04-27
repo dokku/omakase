@@ -11,8 +11,9 @@ type GitFromArchiveTask struct {
 	// App is the name of the app
 	App string `required:"true" yaml:"app"`
 
-	// ArchiveURL is the URL of the archive to deploy
-	ArchiveURL string `required:"true" yaml:"archive_url"`
+	// ArchiveURL is the URL of the archive to deploy. Tagged sensitive
+	// because URLs can embed credentials (e.g. https://user:token@host/path).
+	ArchiveURL string `required:"true" sensitive:"true" yaml:"archive_url"`
 
 	// ArchiveType is the format of the archive
 	ArchiveType string `required:"false" yaml:"archive_type,omitempty" default:"tar" options:"tar,tar.gz,zip"`

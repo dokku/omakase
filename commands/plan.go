@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/dokku/docket/subprocess"
 	"github.com/dokku/docket/tasks"
 
 	"github.com/josegonzalez/cli-skeleton/command"
@@ -107,12 +108,18 @@ func (c *PlanCommand) Run(args []string) int {
 	}
 
 	context := make(map[string]interface{})
+	var sensitiveValues []string
 	for name, argument := range c.arguments {
 		if argument.Required && !argument.HasValue() {
 			c.Ui.Error(fmt.Sprintf("Missing flag '--%s'", name))
 			return 1
 		}
 		context[name] = argument.GetValue()
+		if argument.Sensitive {
+			if v := argument.StringValue(); v != "" {
+				sensitiveValues = append(sensitiveValues, v)
+			}
+		}
 	}
 
 	taskList, err := tasks.GetTasks(data, context)
@@ -120,6 +127,10 @@ func (c *PlanCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("task error: %v", err))
 		return 1
 	}
+
+	sensitiveValues = append(sensitiveValues, tasks.CollectSensitiveValues(taskList)...)
+	subprocess.SetGlobalSensitive(sensitiveValues)
+	defer subprocess.SetGlobalSensitive(nil)
 
 	formatter := NewFormatter(c.Ui, false)
 	formatter.PlayHeader("tasks")

@@ -152,7 +152,7 @@ func CallExecCommandWithContext(ctx context.Context, input ExecCommandInput) (Ex
 		if len(cmd.Args) > 0 {
 			argsSt = strings.Join(cmd.Args, " ")
 		}
-		log.Printf("exec: %s %s", cmd.Command, argsSt)
+		log.Printf("exec: %s %s", MaskString(cmd.Command), MaskString(argsSt))
 	}
 
 	if input.Stdin != nil {
@@ -181,6 +181,7 @@ func CallExecCommandWithContext(ctx context.Context, input ExecCommandInput) (Ex
 	if len(commandArgs) > 0 {
 		resolved = command + " " + strings.Join(commandArgs, " ")
 	}
+	resolved = MaskString(resolved)
 
 	res, err := cmd.Execute(ctx)
 	if err != nil {

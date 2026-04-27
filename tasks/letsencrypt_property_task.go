@@ -11,8 +11,10 @@ type LetsencryptPropertyTask struct {
 	// Property is the name of the letsencrypt property to set
 	Property string `required:"true" yaml:"property"`
 
-	// Value is the value to set for the letsencrypt property
-	Value string `required:"false" yaml:"value,omitempty"`
+	// Value is the value to set for the letsencrypt property. Tagged sensitive
+	// because some letsencrypt properties carry DNS-API credentials; benign
+	// property values get masked too, which is preferable to leaking secrets.
+	Value string `required:"false" sensitive:"true" yaml:"value,omitempty"`
 
 	// State is the desired state of the letsencrypt configuration
 	State State `required:"true" yaml:"state,omitempty" default:"present" options:"present,absent"`

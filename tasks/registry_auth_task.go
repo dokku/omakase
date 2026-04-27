@@ -23,7 +23,7 @@ type RegistryAuthTask struct {
 
 	// Password is the registry password (required when state is present)
 	// The value is fed to dokku via --password-stdin and never appears on argv
-	Password string `required:"false" yaml:"password,omitempty"`
+	Password string `required:"false" sensitive:"true" yaml:"password,omitempty"`
 
 	// State is the desired state of the registry credential
 	State State `required:"false" yaml:"state,omitempty" default:"present" options:"present,absent"`

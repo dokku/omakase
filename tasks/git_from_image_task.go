@@ -13,8 +13,9 @@ type GitFromImageTask struct {
 	// App is the name of the app
 	App string `required:"true" yaml:"app"`
 
-	// Image is the docker image to deploy
-	Image string `required:"true" yaml:"image"`
+	// Image is the docker image to deploy. Tagged sensitive because image
+	// references can embed registry credentials (e.g. user:token@host/repo).
+	Image string `required:"true" sensitive:"true" yaml:"image"`
 
 	// BuildDir is the directory to build the git repository
 	BuildDir string `required:"false" yaml:"build_dir"`

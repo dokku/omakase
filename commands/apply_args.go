@@ -15,6 +15,7 @@ import (
 
 type Argument struct {
 	Required    bool
+	Sensitive   bool
 	boolValue   *bool
 	floatValue  *float64
 	intValue    *int
@@ -36,6 +37,35 @@ func (c Argument) GetValue() interface{} {
 
 func (c Argument) HasValue() bool {
 	return c.GetValue() != nil
+}
+
+// StringValue returns the argument's value formatted as the same string sigil
+// will substitute into the rendered YAML. Returns "" when no value is set.
+// Used to register sensitive input values with the subprocess masker.
+func (c Argument) StringValue() string {
+	switch v := c.GetValue().(type) {
+	case *string:
+		if v == nil {
+			return ""
+		}
+		return *v
+	case *int:
+		if v == nil {
+			return ""
+		}
+		return strconv.Itoa(*v)
+	case *float64:
+		if v == nil {
+			return ""
+		}
+		return strconv.FormatFloat(*v, 'g', -1, 64)
+	case *bool:
+		if v == nil {
+			return ""
+		}
+		return strconv.FormatBool(*v)
+	}
+	return ""
 }
 
 func (c *Argument) SetBoolValue(ptr *bool) {
@@ -119,7 +149,7 @@ func registerInputFlags(f *flag.FlagSet, data []byte) (map[string]*Argument, err
 		if input.Name == "tasks" {
 			continue
 		}
-		arg := &Argument{Required: input.Required}
+		arg := &Argument{Required: input.Required, Sensitive: input.Sensitive}
 		switch input.Type {
 		case "string", "":
 			arg.SetStringValue(f.String(input.Name, input.Default, input.Description))
