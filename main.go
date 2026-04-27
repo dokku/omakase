@@ -44,6 +44,9 @@ func Commands(ctx context.Context, meta command.Meta) map[string]cli.CommandFact
 		"plan": func() (cli.Command, error) {
 			return &commands.PlanCommand{Meta: meta}, nil
 		},
+		"validate": func() (cli.Command, error) {
+			return &commands.ValidateCommand{Meta: meta}, nil
+		},
 		"version": func() (cli.Command, error) {
 			return &command.VersionCommand{Meta: meta}, nil
 		},

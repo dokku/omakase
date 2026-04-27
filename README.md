@@ -37,7 +37,7 @@ Run it:
 docket apply
 ```
 
-Running `docket` with no subcommand prints the available commands. Use `docket apply` to execute a task file, `docket plan` to preview the changes a task file would make without mutating any state, or `docket version` to print the binary's version.
+Running `docket` with no subcommand prints the available commands. Use `docket apply` to execute a task file, `docket plan` to preview the changes a task file would make without mutating any state, `docket validate` to check a task file's schema and templates without contacting the server, or `docket version` to print the binary's version.
 
 ### Previewing changes with `plan`
 
@@ -64,6 +64,21 @@ Plan: 1 task(s); 1 would change, 0 in sync, 0 error(s).
 `Plan()` results drive `apply`: every task probes the server once, and `apply` reuses that probe to decide whether to mutate. `apply` on an already-converged server reports `Changed=false` for every task; back-to-back applies are no-ops by design.
 
 A handful of tasks (notably `dokku_git_auth`, `dokku_registry_auth`, and `dokku_storage_ensure`) cannot probe their current state without invoking the corresponding dokku command, so their plan output reports drift unconditionally with `(... not probed)` in the reason.
+
+### Validating recipes with `validate`
+
+`docket validate` performs offline schema and template checks against a `tasks.yml` without contacting any Dokku server, suitable for CI lint jobs that need to reject broken recipes before deploy.
+
+The shipping checks cover: YAML parses, recipe shape (top-level list of plays with `inputs`/`tasks`), task entry shape (envelope keys plus exactly one task-type key), task type registered (with a "did you mean" suggestion for typos), required fields decode, and sigil templates render against input defaults.
+
+```shell
+docket validate --tasks path/to/tasks.yml
+```
+
+Exit codes are `0` when no problems are found and `1` otherwise. Two flags are available:
+
+- `--json` emits one JSON-lines event per problem with a stable `version: 1` schema (`{"type":"validate_problem","code":"unknown_task_type", ...}`), suitable for piping into a CI annotator.
+- `--strict` additionally flags any input declared `required: true` that has no `default` and no value supplied via a CLI flag - useful in CI to ensure the recipe can be applied without runtime overrides.
 
 A task file can also be specified via flag, and may be a file retrieved via http:
 
