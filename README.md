@@ -37,7 +37,7 @@ Run it:
 docket apply
 ```
 
-Running `docket` with no subcommand prints the available commands. Use `docket init` to scaffold a starter `tasks.yml`, `docket apply` to execute a task file, `docket plan` to preview the changes a task file would make without mutating any state, `docket validate` to check a task file's schema and templates without contacting the server, or `docket version` to print the binary's version.
+Running `docket` with no subcommand prints the available commands. Use `docket init` to scaffold a starter `tasks.yml`, `docket apply` to execute a task file, `docket fmt` to canonically format a task file, `docket plan` to preview the changes a task file would make without mutating any state, `docket validate` to check a task file's schema and templates without contacting the server, or `docket version` to print the binary's version.
 
 ### Scaffolding with `init`
 
@@ -61,6 +61,36 @@ The flags are:
 | `--name <name>` | Override the play and `app` input default (defaults to the cwd basename) |
 | `--repo <url>` | Override the `repo` input default (defaults to `remote.origin.url` in `./.git/config`, if present) |
 | `--minimal` | One-task example with no `inputs:` block |
+
+### Formatting recipes with `fmt`
+
+`docket fmt` is a canonical formatter for `tasks.yml`, in the spirit of `gofmt`. It parses with `gopkg.in/yaml.v3`'s `Node` API so head, line, and foot comments round-trip; reorders task envelope and play keys into a stable order; normalises indentation to a 2-space step; and inserts blank lines between top-level plays and between top-level task entries. The default rewrites `./tasks.yml` in place; `--check` and `--diff` are read-only modes. The CLI flags compose, modeled after `black` / `ruff format`.
+
+```shell
+# Rewrite ./tasks.yml in place.
+docket fmt
+
+# CI gate: print the diff and exit 1 if anything is not canonical.
+docket fmt --check --diff
+
+# Read from stdin, write canonical to stdout.
+cat tasks.yml | docket fmt -
+```
+
+The flags are:
+
+| Flag | Effect |
+|------|--------|
+| (default) | Format `./tasks.yml` in place; no-op (mtime preserved) when already canonical |
+| `--check` | Exit 1 if any file is not canonical; no writes. Composes with `--diff` |
+| `--diff` | Print a GNU unified diff against canonical; no writes. Composes with `--check` |
+| `--color <when>` | When to colorize the diff: `auto` (default; on if stdout is a TTY and `NO_COLOR` is unset), `always`, `never` |
+| `-` | Read from stdin, write canonical to stdout |
+| `<path...>` | Format the named files; each argument is expanded as a glob and rewritten in place |
+
+The diff output is GNU unified diff with `--- <path>` / `+++ <path>` / `@@` headers and is consumable by `git apply` and `patch -p0` once colors are stripped.
+
+Before writing, `fmt` re-parses its canonical output and aborts if the round-tripped AST does not match the input AST - a guard against `yaml.v3` emitter edge cases (notably anchors and complex flow scalars). On a parse error or round-trip mismatch the file is not touched and `fmt` exits 1.
 
 ### Previewing changes with `plan`
 
