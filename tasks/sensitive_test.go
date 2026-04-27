@@ -145,9 +145,9 @@ func TestSensitiveValuesOverrideMergesWithTags(t *testing.T) {
 }
 
 func TestCollectSensitiveValuesAcrossTasks(t *testing.T) {
-	m := OrderedStringTaskMap{}
-	m.Set("a", &fakeTask{Secret: "s1"})
-	m.Set("b", &taggedSliceTask{Tokens: []string{"s2"}})
+	m := OrderedStringEnvelopeMap{}
+	m.Set("a", &TaskEnvelope{Name: "a", Task: &fakeTask{Secret: "s1"}})
+	m.Set("b", &TaskEnvelope{Name: "b", Task: &taggedSliceTask{Tokens: []string{"s2"}}})
 	got := CollectSensitiveValues(m)
 	if !sortedEqual(got, []string{"s1", "s2"}) {
 		t.Errorf("got %v, want [s1 s2]", got)

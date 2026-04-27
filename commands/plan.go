@@ -22,6 +22,8 @@ type PlanCommand struct {
 	host              string
 	sudo              bool
 	acceptNewHostKeys bool
+	tags              []string
+	skipTags          []string
 	arguments         map[string]*Argument
 }
 
@@ -65,6 +67,8 @@ func (c *PlanCommand) FlagSet() *flag.FlagSet {
 	f.StringVar(&c.host, "host", "", "remote dokku host as [user@]host[:port]; equivalent to DOKKU_HOST. Routes every dokku invocation through ssh.")
 	f.BoolVar(&c.sudo, "sudo", false, "wrap remote dokku invocations with `sudo -n`; equivalent to DOKKU_SUDO=1")
 	f.BoolVar(&c.acceptNewHostKeys, "accept-new-host-keys", false, "for SSH transport, accept new host keys on first connection (`-o StrictHostKeyChecking=accept-new`). MITM risk on first connect.")
+	f.StringSliceVar(&c.tags, "tags", nil, "comma-separated tag list; only tasks whose `tags:` set intersects this list are planned")
+	f.StringSliceVar(&c.skipTags, "skip-tags", nil, "comma-separated tag list; tasks whose `tags:` set intersects this list are skipped")
 
 	taskFile := getTaskYamlFilename(os.Args)
 	data, err := os.ReadFile(taskFile)
@@ -89,6 +93,8 @@ func (c *PlanCommand) AutocompleteFlags() complete.Flags {
 			"--host":                 complete.PredictAnything,
 			"--sudo":                 complete.PredictNothing,
 			"--accept-new-host-keys": complete.PredictNothing,
+			"--tags":                 complete.PredictAnything,
+			"--skip-tags":            complete.PredictAnything,
 		},
 	)
 }
@@ -153,9 +159,30 @@ func (c *PlanCommand) Run(args []string) int {
 	counts := PlanCounts{}
 	hasError := false
 
-	for _, name := range taskList.Keys() {
-		task := taskList.Get(name)
-		result := task.Plan()
+	keys := tasks.FilterByTags(taskList, c.tags, c.skipTags)
+	exprBaseCtx := buildEnvelopeExprContext(context)
+
+	for _, name := range keys {
+		env := taskList.GetEnvelope(name)
+
+		if env.HasWhen() {
+			ok, err := tasks.EvalBool(env.WhenProgram(), envelopeExprContext(exprBaseCtx, env))
+			if err != nil {
+				counts.Tasks++
+				counts.Errors++
+				hasError = true
+				formatter.TaskLine(MarkerProbeError, name, fmt.Sprintf("(when expression error: %v)", err))
+				continue
+			}
+			if !ok {
+				counts.Tasks++
+				counts.Skipped++
+				formatter.TaskLine(MarkerSkipped, name, "(when: false)")
+				continue
+			}
+		}
+
+		result := env.Task.Plan()
 		counts.Tasks++
 
 		switch {

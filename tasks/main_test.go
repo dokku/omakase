@@ -80,8 +80,11 @@ func TestGetTasksInvalidTaskType(t *testing.T) {
 		t.Fatal("GetTasks with invalid task type should return an error")
 	}
 
-	if !strings.Contains(err.Error(), "not a valid task") {
-		t.Errorf("expected 'not a valid task' error, got: %v", err)
+	// An unknown task type lands in the unknown-envelope-key bucket and
+	// is reported with a "did you mean" hint pointing at the closest
+	// registered task name.
+	if !strings.Contains(err.Error(), "unknown envelope key") {
+		t.Errorf("expected 'unknown envelope key' error, got: %v", err)
 	}
 }
 
@@ -98,11 +101,15 @@ func TestGetTasksTooManyProperties(t *testing.T) {
 
 	_, err := GetTasks(data, context)
 	if err == nil {
-		t.Fatal("GetTasks with too many properties should return an error")
+		t.Fatal("GetTasks with two task-type keys should return an error")
 	}
 
-	if !strings.Contains(err.Error(), "too many properties") {
-		t.Errorf("expected 'too many properties' error, got: %v", err)
+	// The cap is now expressed as "exactly one task-type key per entry"
+	// instead of the legacy `len(t) > 2` heuristic so envelope keys
+	// (name, tags, when, loop, register, ...) can coexist with the
+	// task-type key.
+	if !strings.Contains(err.Error(), "task-type keys") {
+		t.Errorf("expected 'task-type keys' error, got: %v", err)
 	}
 }
 
@@ -326,10 +333,12 @@ func TestGetTasksTwoPropertiesNoName(t *testing.T) {
 
 	_, err := GetTasks(data, context)
 	if err == nil {
-		t.Fatal("expected error for two properties without name")
+		t.Fatal("expected error for two task-type keys without name")
 	}
-	if !strings.Contains(err.Error(), "unexpected property") {
-		t.Errorf("expected 'unexpected property' error, got: %v", err)
+	// Two task-type keys (with or without a name) collapse onto the
+	// same "exactly one task-type key" rule.
+	if !strings.Contains(err.Error(), "task-type keys") {
+		t.Errorf("expected 'task-type keys' error, got: %v", err)
 	}
 }
 
@@ -481,6 +490,141 @@ func TestRegisteredTaskCount(t *testing.T) {
 	expected := 54
 	if got := len(RegisteredTasks); got != expected {
 		t.Errorf("expected %d registered tasks, got %d", expected, got)
+	}
+}
+
+func TestGetTasksEnvelopeWithTagsAndWhen(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: deploy api
+      tags: [api, deploy]
+      when: 'env == "prod"'
+      dokku_app:
+        app: api
+`)
+	out, err := GetTasks(data, map[string]interface{}{"env": "prod"})
+	if err != nil {
+		t.Fatalf("GetTasks: %v", err)
+	}
+	env := out.GetEnvelope("deploy api")
+	if env == nil {
+		t.Fatal("envelope not found")
+	}
+	if got := env.Tags; len(got) != 2 || got[0] != "api" || got[1] != "deploy" {
+		t.Errorf("tags = %v, want [api deploy]", got)
+	}
+	if env.When != `env == "prod"` {
+		t.Errorf("when = %q", env.When)
+	}
+	if env.WhenProgram() == nil {
+		t.Error("expected when to be pre-compiled")
+	}
+}
+
+func TestGetTasksRejectsUnknownEnvelopeKey(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: x
+      onerror: ignore
+      dokku_app:
+        app: x
+`)
+	_, err := GetTasks(data, map[string]interface{}{})
+	if err == nil {
+		t.Fatal("expected error for unknown envelope key")
+	}
+	if !strings.Contains(err.Error(), "unknown envelope key") {
+		t.Errorf("got: %v", err)
+	}
+}
+
+func TestGetTasksUnknownEnvelopeKeyDidYouMean(t *testing.T) {
+	// "tag" is one Levenshtein step from "tags" so the suggestion fires.
+	data := []byte(`---
+- tasks:
+    - name: x
+      tag: foo
+      dokku_app:
+        app: x
+`)
+	_, err := GetTasks(data, map[string]interface{}{})
+	if err == nil {
+		t.Fatal("expected error for unknown envelope key")
+	}
+	if !strings.Contains(err.Error(), `did you mean "tags"`) {
+		t.Errorf("expected 'did you mean tags' hint, got: %v", err)
+	}
+}
+
+func TestGetTasksAcceptsMultipleEnvelopeKeys(t *testing.T) {
+	// Pre-#205 the parser capped each entry at 2 keys (`name` plus exactly
+	// one `dokku_*` key). Verify the cap is gone: name + tags + when +
+	// dokku_app should now parse cleanly.
+	data := []byte(`---
+- tasks:
+    - name: deploy api
+      tags: [api]
+      when: 'true'
+      dokku_app:
+        app: api
+`)
+	out, err := GetTasks(data, map[string]interface{}{})
+	if err != nil {
+		t.Fatalf("GetTasks: %v", err)
+	}
+	if len(out.Keys()) != 1 {
+		t.Errorf("expected 1 task, got %d", len(out.Keys()))
+	}
+}
+
+func TestGetTasksReservedEnvelopeKeysDecode(t *testing.T) {
+	// register / changed_when / failed_when / ignore_errors are reserved
+	// by #210; the loader still decodes them so #210 does not have to
+	// revisit the envelope-key allowlist.
+	data := []byte(`---
+- tasks:
+    - name: deploy api
+      register: app_result
+      changed_when: 'result.changed'
+      failed_when: 'result.failed'
+      ignore_errors: true
+      dokku_app:
+        app: api
+`)
+	out, err := GetTasks(data, map[string]interface{}{})
+	if err != nil {
+		t.Fatalf("GetTasks: %v", err)
+	}
+	env := out.GetEnvelope("deploy api")
+	if env.Register != "app_result" {
+		t.Errorf("register = %q", env.Register)
+	}
+	if env.ChangedWhen != "result.changed" {
+		t.Errorf("changed_when = %q", env.ChangedWhen)
+	}
+	if env.FailedWhen != "result.failed" {
+		t.Errorf("failed_when = %q", env.FailedWhen)
+	}
+	if !env.IgnoreErrors {
+		t.Errorf("ignore_errors = %v", env.IgnoreErrors)
+	}
+}
+
+func TestGetTasksTagsScalarFormDecodes(t *testing.T) {
+	data := []byte(`---
+- tasks:
+    - name: deploy api
+      tags: api
+      dokku_app:
+        app: api
+`)
+	out, err := GetTasks(data, map[string]interface{}{})
+	if err != nil {
+		t.Fatalf("GetTasks: %v", err)
+	}
+	env := out.GetEnvelope("deploy api")
+	if got := env.Tags; len(got) != 1 || got[0] != "api" {
+		t.Errorf("tags = %v, want [api]", got)
 	}
 }
 

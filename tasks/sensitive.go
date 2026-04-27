@@ -26,11 +26,14 @@ type SensitiveOverride interface {
 // String, []string, and map[string]string fields are supported. Nested
 // structs and pointers are walked recursively. Empty values are dropped by
 // the subprocess masker, not here.
-func CollectSensitiveValues(tasks OrderedStringTaskMap) []string {
+func CollectSensitiveValues(tasks OrderedStringEnvelopeMap) []string {
 	var out []string
 	for _, name := range tasks.Keys() {
-		t := tasks.Get(name)
-		out = append(out, sensitiveValuesFromTask(t)...)
+		env := tasks.GetEnvelope(name)
+		if env == nil || env.Task == nil {
+			continue
+		}
+		out = append(out, sensitiveValuesFromTask(env.Task)...)
 	}
 	return out
 }

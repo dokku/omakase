@@ -242,6 +242,19 @@ func TestFormatterPlanSummary(t *testing.T) {
 	}
 }
 
+func TestFormatterPlanSummaryWithSkipped(t *testing.T) {
+	// The skipped count is appended only when at least one task was
+	// skipped by `when:` so recipes that do not exercise envelope
+	// predicates keep the legacy summary shape (covered above).
+	f, ui := newTestFormatter(false)
+	f.PlanSummary(PlanCounts{Tasks: 3, WouldChange: 1, InSync: 1, Skipped: 1, Errors: 0})
+	got := ui.OutputWriter.String()
+	want := "Plan: 3 task(s); 1 would change, 1 in sync, 1 skipped, 0 error(s)."
+	if !strings.Contains(got, want) {
+		t.Errorf("PlanSummary with skipped missing %q in:\n%s", want, got)
+	}
+}
+
 func TestFormatterColorOffProducesPlainOutput(t *testing.T) {
 	f, ui := newTestFormatter(false) // color forced off
 	f.TaskLine(MarkerChanged, "task", "")
