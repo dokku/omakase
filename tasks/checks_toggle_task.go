@@ -1,5 +1,37 @@
 package tasks
 
+import (
+	"strings"
+
+	"github.com/dokku/docket/subprocess"
+)
+
+// checksEnabled reports whether checks are enabled for the given app via
+// `dokku --quiet checks:report <app> --checks-disabled`. The dokku-checks
+// plugin lists disabled process types here (comma-separated). An empty
+// list or the literal "none" means all checks are enabled.
+func checksEnabled(ctx ToggleContext) (bool, error) {
+	args := []string{"--quiet", "checks:report"}
+	if ctx.AllowGlobal && ctx.Global {
+		args = append(args, "--global", "--checks-disabled")
+	} else {
+		args = append(args, ctx.App, "--checks-disabled")
+	}
+	result, err := subprocess.CallExecCommand(subprocess.ExecCommandInput{
+		Command: "dokku",
+		Args:    args,
+	})
+	if err != nil {
+		return false, err
+	}
+	disabled := strings.TrimSpace(result.StdoutContents())
+	// dokku-checks reports "none" when no procs are disabled; an empty
+	// string also means fully enabled. Any other non-empty value (a
+	// comma-separated list of proc types, or "_all_") indicates at least
+	// one process has checks disabled.
+	return disabled == "" || disabled == "none", nil
+}
+
 // ChecksToggleTask enables or disables the checks plugin for a given dokku application
 type ChecksToggleTask struct {
 	// App is the name of the app
@@ -53,12 +85,12 @@ func (t ChecksToggleTask) Examples() ([]Doc, error) {
 
 // Execute enables or disables the checks plugin
 func (t ChecksToggleTask) Execute() TaskOutputState {
-	return executeToggle(t.State, t.App, t.Global, false, "checks:enable", "checks:disable")
+	return executeToggle(t.State, t.App, t.Global, false, "checks:enable", "checks:disable", checksEnabled)
 }
 
 // Plan reports the drift the ChecksToggleTask would produce.
 func (t ChecksToggleTask) Plan() PlanResult {
-	return planToggle(t.State, t.App, t.Global, false, "checks:enable", "checks:disable")
+	return planToggle(t.State, t.App, t.Global, false, "checks:enable", "checks:disable", checksEnabled)
 }
 
 // init registers the ChecksToggleTask with the task registry

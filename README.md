@@ -63,7 +63,7 @@ docket apply --tasks http://dokku.com/docket/example.yml
 
 Tasks that perform multiple operations (e.g. `dokku_config` setting several keys) report each individual mutation under the task line:
 
-```
+```text
 [~]       configure  (2 key(s) to set)
           - set KEY_ONE (new)
           - set KEY_TWO (was set)
@@ -71,7 +71,7 @@ Tasks that perform multiple operations (e.g. `dokku_config` setting several keys
 Plan: 1 task(s); 1 would change, 0 in sync, 0 error(s).
 ```
 
-A small number of tasks (notably the `dokku_*_property` and `dokku_*_toggle` families, plus the auth tasks) cannot probe their current state without invoking the corresponding dokku command, so their plan output reports drift unconditionally with `(... not probed)` in the reason. These plans become an accurate "would change" only when the underlying dokku command exposes a probe.
+A handful of tasks (notably `dokku_git_auth`, `dokku_registry_auth`, and `dokku_storage_ensure`) cannot probe their current state without invoking the corresponding dokku command, so their plan output reports drift unconditionally with `(... not probed)` in the reason. The property and toggle task families do probe via `<plugin>:report` and report drift accurately.
 
 Some other ideas:
 

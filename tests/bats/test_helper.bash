@@ -11,21 +11,21 @@ set -euo pipefail
 # Load bats-support / bats-assert from the standard package paths. Both are
 # distributed as bash sources we `source` rather than as bats `load` units.
 load_bats_libraries() {
-    local lib
-    for lib in /usr/lib/bats/bats-support/load.bash /usr/lib/bats-support/load.bash; do
-        if [ -f "$lib" ]; then
-            # shellcheck disable=SC1090
-            source "$lib"
-            break
-        fi
-    done
-    for lib in /usr/lib/bats/bats-assert/load.bash /usr/lib/bats-assert/load.bash; do
-        if [ -f "$lib" ]; then
-            # shellcheck disable=SC1090
-            source "$lib"
-            break
-        fi
-    done
+  local lib
+  for lib in /usr/lib/bats/bats-support/load.bash /usr/lib/bats-support/load.bash; do
+    if [ -f "$lib" ]; then
+      # shellcheck disable=SC1090
+      source "$lib"
+      break
+    fi
+  done
+  for lib in /usr/lib/bats/bats-assert/load.bash /usr/lib/bats-assert/load.bash; do
+    if [ -f "$lib" ]; then
+      # shellcheck disable=SC1090
+      source "$lib"
+      break
+    fi
+  done
 }
 
 load_bats_libraries
@@ -34,53 +34,55 @@ load_bats_libraries
 # `go build` tests the working tree; fall back to PATH for environments that
 # install the binary system-wide.
 docket_bin() {
-    if [ -n "${DOCKET_BIN:-}" ]; then
-        echo "$DOCKET_BIN"
-        return
-    fi
-    local repo_root
-    repo_root="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    if [ -x "$repo_root/docket" ]; then
-        echo "$repo_root/docket"
-        return
-    fi
-    command -v docket
+  if [ -n "${DOCKET_BIN:-}" ]; then
+    echo "$DOCKET_BIN"
+    return
+  fi
+  local repo_root
+  repo_root="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+  if [ -x "$repo_root/docket" ]; then
+    echo "$repo_root/docket"
+    return
+  fi
+  command -v docket
 }
 
 # docket_build builds the docket binary at the repo root. Subsequent calls in
 # the same bats run skip the rebuild because Go caches incremental builds.
 docket_build() {
-    local repo_root
-    repo_root="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    (cd "$repo_root" && go build -o docket .)
-    export DOCKET_BIN="$repo_root/docket"
+  local repo_root
+  repo_root="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+  (cd "$repo_root" && go build -o docket .)
+  export DOCKET_BIN="$repo_root/docket"
 }
 
 # write_tasks_file writes its stdin to "$BATS_TEST_TMPDIR/tasks.yml" and exports
-# TASKS_FILE so tests can pass --tasks "$TASKS_FILE".
+# TASKS_FILE so tests can pass --tasks "$TASKS_FILE". Pass an alternate name as
+# the first argument to write to a different file in the same directory.
 write_tasks_file() {
-    TASKS_FILE="$BATS_TEST_TMPDIR/tasks.yml"
-    cat > "$TASKS_FILE"
-    export TASKS_FILE
+  local name="${1:-tasks.yml}"
+  TASKS_FILE="$BATS_TEST_TMPDIR/$name"
+  cat >"$TASKS_FILE"
+  export TASKS_FILE
 }
 
 # dokku_clean_app destroys an app if it exists. Used in setup/teardown to make
 # tests idempotent on shared CI hosts. Ignores missing dokku (developers run
 # offline tests too).
 dokku_clean_app() {
-    local app="$1"
-    if ! command -v dokku >/dev/null 2>&1; then
-        return 0
-    fi
-    if dokku apps:exists "$app" >/dev/null 2>&1; then
-        dokku --force apps:destroy "$app" >/dev/null 2>&1 || true
-    fi
+  local app="$1"
+  if ! command -v dokku >/dev/null 2>&1; then
+    return 0
+  fi
+  if dokku apps:exists "$app" >/dev/null 2>&1; then
+    dokku --force apps:destroy "$app" >/dev/null 2>&1 || true
+  fi
 }
 
 # require_dokku skips the current test when no dokku binary is installed,
 # matching the integration_helpers_test.go skipIfNoDokkuT helper for Go tests.
 require_dokku() {
-    if ! command -v dokku >/dev/null 2>&1; then
-        skip "dokku not available"
-    fi
+  if ! command -v dokku >/dev/null 2>&1; then
+    skip "dokku not available"
+  fi
 }
