@@ -19,7 +19,7 @@ require (
 	github.com/titanous/json5 v1.0.0
 	golang.org/x/crypto v0.56.0
 	gopkg.in/yaml.v3 v3.0.1
-	mvdan.cc/sh/v3 v3.14.0
+	mvdan.cc/sh/v3 v3.14.1
 )
 
 require (
